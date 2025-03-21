@@ -1,0 +1,144 @@
+#include <iostream>
+
+#include "../parser/parser.h"
+#include "treewalker.h"
+
+using namespace TW;
+
+TreeWalker::TreeWalker(const std::filesystem::path &start)
+{
+	CondStack s;
+	s.push_back("y");
+	toWalk.push_back(std::make_pair(std::move(s), start));
+
+	std::error_code ec;
+	const auto arch_dir = start/"arch";
+	const auto iter = std::filesystem::directory_iterator{arch_dir, ec};
+	if (ec) {
+		std::cerr << __func__ << ": " << arch_dir << " not found!\n";
+		return;
+	}
+	for (const auto &entry : iter)
+		if (entry.is_directory())
+			archs.push_back(entry.path().stem());
+}
+
+bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
+{
+	std::cout << __func__ << ": obj=" << objPath << " cond=";
+	for (const auto &e: s)
+	    std::cout << e << ",";
+	std::cout << "]\n";
+	bool found = false;
+
+	parser.findTarget(objPath.stem(),
+		[this, &found, &objPath, &s](const std::string &cond,
+			  const enum MP::MakeExprListener::EntryType &type,
+			  const std::string &entry) {
+			std::cout << "HERE: cond=" << cond << " t=" << type << " e=" << entry << '\n';
+			if (type == MP::MakeExprListener::Object) {
+				auto newS(s);
+				newS.push_back(cond);
+
+				handleObject(newS, objPath.parent_path() / entry);
+				found = true;
+			}
+		});
+
+	//self.handle_rule(prefix, path, kb_path, lines, cond, sep, objects)
+
+	return found;
+}
+
+bool TreeWalker::isBuiltIn(const std::string &cond)
+{
+	// TODO: should not be empty
+	return cond.empty() || cond == "y" || cond == "m" || cond == "objs";
+}
+
+std::string TreeWalker::getCond(const CondStack &s)
+{
+	for (auto I = s.rbegin(); I != s.rend(); ++I) {
+	    if (!isBuiltIn(*I))
+		return *I;
+	}
+
+	return "y";
+}
+
+void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
+{
+	std::cout << "have OBJ: " << objPath << "\n";
+	bool found = false;
+	for (const auto &suffix : { ".c", ".S", ".rs" }) {
+	    auto srcPath = objPath;
+	    srcPath.replace_extension(suffix);
+	    if (std::filesystem::exists(srcPath)) {
+		std::cout << "\tCOND=" << getCond(s) << " src=" << srcPath << "\n";
+		found = true;
+		break;
+	    }
+	}
+
+	if (!found) {
+	    /*if debug:
+		print(f'{prefix}{kb_path}: searching for {objpath}')*/
+	    //auto newS(s);
+	    //newS.push_back(cond);
+	    if (!tryHandleTarget(s, objPath))// && debug)
+		std::cerr << objPath << " source not found\n";
+	}
+}
+
+void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
+{
+	/*if (debug)
+		print(colored('%*s%s/%s' % (len(path.parts) * 2, "", path, kb_file), 'green'));
+	prefix = '%*s' % (len(kb_path.parts) * 2, "");*/
+	std::cout << __func__ << ": " << kbPath << "\n";
+
+	parser.parse(kbPath.string(), [this, &kbPath, &s](const std::string &cond,
+		     const MP::MakeExprListener::EntryType &type,
+		     const std::string &entry) {
+		if (type == MP::MakeExprListener::Directory) {
+			std::cout << "pushing dir: " << kbPath.parent_path() / entry << "\n";
+			auto newS(s);
+			newS.push_back(cond);
+			toWalk.push_back(std::make_pair(newS, kbPath.parent_path() / entry));
+		} else if (type == MP::MakeExprListener::Object) {
+			auto newS(s);
+			newS.push_back(cond);
+			handleObject(newS, kbPath.parent_path() / entry);
+		}
+	});
+}
+
+void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &path)
+{
+	std::cout << __func__ << ": path=" << path << " cond=[";
+	for (const auto &e: s)
+	    std::cout << e << ",";
+	std::cout << "]\n";
+	bool found = false;
+
+	for (const auto &kb_file: { "Kbuild", "Makefile" }) {
+		if (std::filesystem::exists(path / kb_file)) {
+			handleKbuildFile(s, path / kb_file);
+			//found = true;
+			return;
+		}
+	}
+
+	if (!found) {
+	      throw std::runtime_error(std::string("Kbuild/Makefile not found in ") + path.string());
+	}
+}
+
+void TreeWalker::walk()
+{
+	while (!toWalk.empty()) {
+		auto top = toWalk.back();
+		toWalk.pop_back();
+		walkKbuild(top.first, top.second);
+	}
+}

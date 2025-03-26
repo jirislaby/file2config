@@ -179,6 +179,8 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		std::cout << "have OBJ: " << objPath << "\n";
 
 	auto cond = getCond(s);
+	if (isBuiltIn(cond))
+		return;
 
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;

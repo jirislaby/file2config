@@ -15,7 +15,7 @@ cmd :
 e = e.split("\n", 2)[0][:100]
 print(f"EXP {$start.line}: {e} --- ({$e.info})")
 }*/
-	| NL
+	| ws* NL
 ;
 
 modifier :
@@ -29,11 +29,11 @@ modified_expr returns [std::string info] :
 ;
 
 makeRule returns [std::string info] :
-	  atoms {$info=$atoms.text;} ':' ws* e=modified_expr NL		/*{e = $e.text
+	  atoms {$info=$atoms.text;} ws* ':' ws* e=modified_expr NL		/*{e = $e.text
 e = e.split("\n", 2)[0][:100]
 print(f"RULE-EXP {$start.line}: {e} --- ({$e.info})")
 }*/
-	| atoms {$info=$atoms.text;} ':' (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )? NL
+	| atoms {$info=$atoms.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )? NL
 	    rule_cmd*
 ;
 
@@ -57,7 +57,7 @@ expr returns [std::string info]:
 		cmd*)*
 	  SPACE* 'endif' ws*
 	# ExprOther
-	| SPACE* 'define' atom ('=' | ws)* NL
+	| SPACE* 'define' ws+ atom ('=' | ws)* NL
 		(nonNL NL)*?
 	  SPACE* 'endef' ws*
 	# ExprOther
@@ -71,9 +71,9 @@ ifeq_expr :
 ;
 
 ifeq_cond :
-	  '(' atom? COMMA ws* atom? ')'
-	| '\'' atom? '\'' ws+ '\'' atom? '\''
-	| '"' atom? '"' ws+ '"' atom? '"'
+	  '(' atom* COMMA ws* atom* ')'
+	| '\'' atom* '\'' ws+ '\'' atom* '\''
+	| '"' atom* '"' ws+ '"' atom* '"'
 ;
 
 atom_lhs returns [std::string cond] :
@@ -90,6 +90,10 @@ atom_rhs :
 
 atoms returns [std::string cond] :
 	(a1=atom {$cond = $a1.cond;})+ (ws+ (a2=atom {$cond = $a2.cond;})+)*
+;
+
+atoms_ws :
+	(atom | ws)+
 ;
 
 atom returns [std::string cond] :
@@ -112,15 +116,17 @@ eval returns [std::string cond] :
 
 in_eval returns [std::string cond] :
 	  a1=atom (':' atom? '=' atom?)?		{$cond = $a1.cond;}
-	| 'addprefix' ws+ atoms (COMMA atoms?)+
+	| 'addprefix' ws+ atoms_ws (COMMA atoms_ws?)+
 	| 'and' ws+ atoms (COMMA atoms?)*
+	| 'basename' ws+ atoms
 	| 'call' ws+ atoms (COMMA ('=' | atoms)+)*
 	| 'dir' ws+ atoms
 	| 'error' ws+ ('or' | atoms | '>' | '=' | '\'')*
-	| 'findstring' ws+ atoms COMMA atoms
+	| 'eval' ws+ eval
+	| 'findstring' ws+ atoms_ws COMMA atoms_ws
 	| 'filter' ws+ ~COMMA+ COMMA atoms
 	| 'filter-out' ws+ ~COMMA+ COMMA ws* atoms
-	| 'foreach' ws+ atoms COMMA (':' | atoms)+ COMMA atoms
+	| 'foreach' ws+ atoms_ws COMMA (':' | atoms_ws)+ COMMA atoms_ws
 	| 'if' ws+ atoms COMMA atoms? (COMMA atoms?)?
 	| 'notdir' ws+ atoms
 	| 'origin' ws+ atoms
@@ -137,7 +143,7 @@ in_eval returns [std::string cond] :
 ;
 
 in_shell :
-	  '<' | '>' | '2>' | '|' | '='
+	  '<' | '>' | '2>' | '|' | '=' | '\\'
 	| ws+ | ID
 	| '(' in_shell ')'
 	| '$(' in_shell ')'

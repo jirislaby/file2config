@@ -68,13 +68,16 @@ std::string TreeWalker::getCond(const CondStack &s)
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
 {
 	std::cout << "have OBJ: " << objPath << "\n";
+	auto cond = getCond(s);
+	if (isBuiltIn(cond))
+		return;
 
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			std::cout << "\tCOND=" << getCond(s) << " src=" << srcPath << "\n";
-			std::cout << "XXX " << getCond(s) << " " << srcPath << "\n";
+			std::cout << "\tCOND=" << cond << " src=" << srcPath << "\n";
+			std::cout << "XXX " << cond << " " << srcPath << "\n";
 			return;
 		}
 	}

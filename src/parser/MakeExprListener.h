@@ -18,11 +18,16 @@ public:
                 const std::string &)>;
 
         MakeExprListener() = delete;
-        MakeExprListener(const Callback &CB, const std::string &lookingFor = "obj-")
-                : MakeBaseListener(), CB(CB), lookingFor(lookingFor) {}
+        MakeExprListener(const std::vector<std::string> &archs, const Callback &CB,
+                         const std::string &lookingFor = "obj-")
+                : MakeBaseListener(), archs(archs), CB(CB), lookingFor(lookingFor) {}
 
         virtual void exitExprAssign(MakeParser::ExprAssignContext *) override;
 private:
+        std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
+        void evaluateWord(const std::string &cond, const MakeParser::WordContext *word);
+
+        const std::vector<std::string> &archs;
         const Callback &CB;
         std::string lookingFor;
 };

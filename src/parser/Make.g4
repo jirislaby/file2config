@@ -29,15 +29,15 @@ modified_expr returns [std::string info] :
 ;
 
 make_rule returns [std::string info] :
-	  atoms {$info=$atoms.text;} ws* ':' ws* e=modified_expr		/*{e = $e.text
+	  words {$info=$words.text;} ws* ':' ws* e=modified_expr		/*{e = $e.text
 e = e.split("\n", 2)[0][:100]
 print(f"RULE-EXP {$start.line}: {e} --- ({$e.info})")
 }*/
-	| atoms {$info=$atoms.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )?
-	    (NL rule_cmd)*
+	| words {$info=$words.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )?
+	    (NL rule_cmd?)*
 ;
 
-rule_cmd:
+rule_cmd :
 	  TAB nonNL?
 	| SPACE* ifeq_expr ws* NL
 		(rule_cmd? NL)*
@@ -86,12 +86,16 @@ atom_lhs returns [std::string cond] :
 ;
 
 atom_rhs :
-	  atoms						// try to eat it as atoms, but:
+	  words						// try to eat it as words, but:
 	| un=nonNL //{std::cout << "UNHANDLED " << $un.text << "\n";}	// slurp anything else
 ;
 
-atoms returns [std::string cond] :
-	(a1=atom {$cond = $a1.cond;})+ (ws+ (a2=atom {$cond = $a2.cond;})+)*
+words returns [std::string cond] :
+	w+=word {$cond = $word.cond;} (ws+ w+=word {$cond = $word.cond;})*
+;
+
+word returns [std::string cond] :
+	(atom {$cond = $atom.cond;})+
 ;
 
 atoms_ws :
@@ -110,38 +114,40 @@ atom returns [std::string cond] :
 ;
 
 eval returns [std::string cond] :
-	  '$(' in_eval ')'	{$cond = $in_eval.cond;}
+	   // bug in arch/powerpc/kernel/Makefile
+	   '(' in_eval ')'	{$cond = $in_eval.cond;}
+	| '$(' in_eval ')'	{$cond = $in_eval.cond;}
 	| '${' in_eval '}'	{$cond = $in_eval.cond;}
 	| '$@' | '$%' | '$<' | '$?' | '$^' | '$+' | '$|' | '$*'
 	| '$' ID
 ;
 
 in_eval returns [std::string cond] :
-	  a1=atom (':' atom? '=' atom?)?		{$cond = $a1.cond;}
+	  a1=atom (':' atom? '=' word?)?		{$cond = $a1.cond;}
 	| 'addprefix' ws+ atoms_ws (COMMA atoms_ws?)+
-	| 'and' ws+ atoms (COMMA atoms?)*
-	| 'basename' ws+ atoms
-	| 'call' ws+ atoms (COMMA ('=' | atoms)+)*
-	| 'dir' ws+ atoms
-	| 'error' ws+ ('or' | atoms | '>' | '=' | '\'')*
+	| 'and' ws+ words (COMMA words?)*
+	| 'basename' ws+ words
+	| 'call' ws+ words (COMMA ('=' | words)+)*
+	| 'dir' ws+ words
+	| 'error' ws+ ('or' | words | '>' | '=' | '\'')*
 	| 'eval' ws+ eval
 	| 'findstring' ws+ atoms_ws COMMA atoms_ws
-	| 'filter' ws+ ~COMMA+ COMMA atoms
-	| 'filter-out' ws+ ~COMMA+ COMMA ws* atoms
+	| 'filter' ws+ ~COMMA+ COMMA atoms_ws
+	| 'filter-out' ws+ ~COMMA+ COMMA ws* words
 	| 'foreach' ws+ atoms_ws COMMA (':' | atoms_ws)+ COMMA atoms_ws
-	| 'if' ws+ atoms COMMA atoms? (COMMA atoms?)?
-	| 'notdir' ws+ atoms
-	| 'origin' ws+ atoms
-	| 'or' ws+ atoms (COMMA atoms?)*
-	| 'patsubst' ws+ f=~COMMA+ COMMA t=atoms COMMA e=atoms
+	| 'if' ws+ words COMMA words? (COMMA words?)?
+	| 'notdir' ws+ words
+	| 'origin' ws+ words
+	| 'or' ws+ words (COMMA words?)*
+	| 'patsubst' ws+ f=~COMMA+ COMMA t=words COMMA e=words
 	| 'shell' ws+ in_shell+
-	| 'sort' ws+ atoms
-	| 'subst' ws+ f=~COMMA+ COMMA t=atoms? COMMA e=atoms	{$cond = $e.cond;}
-	| 'wildcard' ws+ ('*' | atoms)+
-	| 'word' ws+ atoms COMMA atoms
-	| 'words' ws+ atoms
-	| BITS			{std::cout << "BITS: " << $BITS.line << "\n";}
-	| SRCARCH		{std::cout << "SRCA: " << $SRCARCH.line << "\n";}
+	| 'sort' ws+ words
+	| 'subst' ws+ f=~COMMA+ COMMA t=words? COMMA e=words	{$cond = $e.cond;}
+	| 'wildcard' ws+ ('*' | words)+
+	| 'word' ws+ words COMMA words
+	| 'words' ws+ words
+	| BITS
+	| SRCARCH
 ;
 
 in_shell :

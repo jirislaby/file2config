@@ -97,14 +97,17 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	prefix = '%*s' % (len(kb_path.parts) * 2, "");*/
 	std::cout << __func__ << ": " << kbPath << "\n";
 
-	parser.parse(kbPath.string(), [this, &kbPath, &s](const std::string &cond,
+	parser.parse(archs, kbPath.string(), [this, &kbPath, &s](const std::string &cond,
 		     const MP::MakeExprListener::EntryType &type,
 		     const std::string &entry) {
 		if (type == MP::MakeExprListener::Directory) {
-			std::cout << "pushing dir: " << kbPath.parent_path() / entry << "\n";
+			auto dir = kbPath.parent_path() / entry;
+			if (!visited.insert(dir).second)
+				return;
+			std::cout << "pushing dir: " << dir << "\n";
 			auto newS(s);
 			newS.push_back(cond);
-			toWalk.push_back(std::make_pair(newS, kbPath.parent_path() / entry));
+			toWalk.push_back(std::make_pair(newS, dir));
 		} else if (type == MP::MakeExprListener::Object) {
 			auto newS(s);
 			newS.push_back(cond);

@@ -9,8 +9,9 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
                                 std::exception_ptr)
 {
         auto parser = dynamic_cast<antlr4::Parser *>(recognizer);
-        std::cerr << "Xline " << line << ":" << column << " " << msg << '\n';
         auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(recognizer->getInputStream());
+        std::cerr << "error: " << file << ":" << line << ":" << column << " "
+                  << msg << '\n';
         auto input = tokens->getTokenSource()->getInputStream()->toString();
         std::istringstream ISS(input);
         std::string errorLine;
@@ -34,5 +35,3 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
                 std::cerr << *I << ',';
         std::cerr << '\n';
 }
-
-ErrorListener ErrorListener::INSTANCE;

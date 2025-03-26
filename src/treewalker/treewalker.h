@@ -2,6 +2,7 @@
 #define TREEWALKER_H
 
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@ private:
 	MP::Parser parser;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;
+	std::set<std::filesystem::path> visited;
 };
 
 }

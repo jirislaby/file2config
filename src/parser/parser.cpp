@@ -7,11 +7,12 @@
 
 using namespace MP;
 
-int Parser::parse(const std::string &file, const MakeExprListener::Callback &CB)
+int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
+		  const MakeExprListener::Callback &CB)
 {
 	std::ifstream ifs;
 
-	this->file = file;
+	this->archs = archs;
 	ifs.open(file);
 	if (!ifs) {
 		std::cerr << "cannot read " << file << ": " << strerror(errno) << "\n";
@@ -23,8 +24,9 @@ int Parser::parse(const std::string &file, const MakeExprListener::Callback &CB)
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
 
+	ErrorListener EL(file);
 	parser->removeErrorListeners();
-	parser->addErrorListener(&ErrorListener::INSTANCE);
+	parser->addErrorListener(&EL);
 
 	// SLL is much faster, but may be incomplete
 	auto interp = parser->getInterpreter<antlr4::atn::ParserATNSimulator>();
@@ -40,7 +42,7 @@ int Parser::parse(const std::string &file, const MakeExprListener::Callback &CB)
 			return -1;
 	}
 
-	MakeExprListener l{ CB };
+	MakeExprListener l{ archs, CB };
 	antlr4::tree::ParseTreeWalker walker;
 	walker.walk(&l, tree);
 
@@ -58,6 +60,6 @@ void Parser::reset()
 void Parser::findTarget(const std::string &target, const MakeExprListener::Callback &CB)
 {
 	antlr4::tree::ParseTreeWalker walker;
-	MakeExprListener l{ CB, target + "-" };
+	MakeExprListener l{ archs, CB, target + "-" };
 	walker.walk(&l, tree);
 }

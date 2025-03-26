@@ -7,11 +7,15 @@ namespace MP {
 
 class ErrorListener : public antlr4::BaseErrorListener {
 public:
+    ErrorListener() = delete;
+    ErrorListener(const std::string &file) : file(file) {}
+
     virtual void syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *offendingSymbol,
                              size_t line, size_t column, const std::string &msg,
                              std::exception_ptr e) override;
 
-    static ErrorListener INSTANCE;
+private:
+    const std::string &file;
 };
 
 }

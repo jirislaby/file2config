@@ -15,12 +15,13 @@ class Parser
 public:
 	Parser() {}
 
-	int parse(const std::string &file, const MakeExprListener::Callback &CB);
+	int parse(const std::vector<std::string> &archs, const std::string &file,
+		  const MakeExprListener::Callback &CB);
 	void reset();
 
 	void findTarget(const std::string &target, const MakeExprListener::Callback &CB);
 private:
-	std::string file;
+	std::vector<std::string> archs;
 	MakeParser::MakefileContext *tree;
 	std::unique_ptr<antlr4::ANTLRInputStream> input;
 	std::unique_ptr<MakeLexer> lexer;

@@ -5,6 +5,55 @@
 
 using namespace MP;
 
+std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
+{
+	std::vector<std::string> ret;
+
+	if (auto e = atom->eval())
+		if (auto ie = e->in_eval()) {
+			if (ie->SRCARCH())
+				return archs;
+			if (ie->BITS())
+				return { "32", "64" };
+		}
+
+	return { atom->getText() };
+}
+
+void MakeExprListener::evaluateWord(const std::string &cond, const MakeParser::WordContext *word)
+{
+	std::vector<std::string> evaluated;
+
+	std::cout << __func__ << ": " << const_cast<MakeParser::WordContext *>(word)->getText() << '\n';
+
+	for (const auto &atom: word->children) {
+		std::vector<std::string> newRes;
+
+		auto evalAtom = evaluateAtom(dynamic_cast<MakeParser::AtomContext *>(atom));
+
+		if (evaluated.empty()) {
+			evaluated = evalAtom;
+		} else {
+			for (const auto &entry: evalAtom)
+				for (const auto &evaluatedEntry: evaluated)
+					newRes.push_back(evaluatedEntry + entry);
+
+			evaluated = newRes;
+		}
+	}
+
+	for (const auto &wordText: evaluated) {
+		const auto wordTextLen = wordText.length();
+		std::cerr << "\t\t" << __func__ << ": " << wordText << "\n";
+
+		if (wordText.back() == '/') {
+			CB(cond, EntryType::Directory, wordText);
+		} else if (wordTextLen > 2 && !wordText.compare(wordTextLen - 2, 2, ".o")) {
+			CB(cond, EntryType::Object, wordText);
+		}
+	}
+}
+
 void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 {
 	auto lText = ctx->l->getText();
@@ -33,18 +82,11 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 	if (ctx->r)
 		R = ctx->r->getText();
 	std::cerr << "\tR='" << R.substr(0, 100) << "'\n";
-	if (ctx->r && ctx->r->atoms()) {
-		for (const auto &atom: ctx->r->atoms()->children) {
-			const auto atomText = atom->getText();
-			const auto atomTextLen = atomText.length();
-			std::cerr << "\t\t" << atomText << "\n";
-			if (!interesting)
-				continue;
-			if (atomText.back() == '/') {
-				CB(cond, EntryType::Directory, atomText);
-			} else if (atomTextLen > 2 && !atomText.compare(atomTextLen - 2, 2, ".o")) {
-				CB(cond, EntryType::Object, atomText);
-			}
+	if (!interesting)
+		return;
+	if (ctx->r && ctx->r->words()) {
+		for (const auto &word: ctx->r->words()->w) {
+			evaluateWord(cond, word);
 		}
 	}
 }

@@ -9,6 +9,7 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 {
 	auto lText = ctx->l->getText();
 	bool interesting = !lText.compare(0, lookingFor.length(), lookingFor);
+
 	std::cerr << __func__ << ": lookingFor=" << lookingFor << " interesting=" << interesting
 		  << ": " << ctx->getText().substr(0, 150) << "\n";
 	auto cond = ctx->l->cond;
@@ -40,10 +41,8 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 			if (!interesting)
 				continue;
 			if (atomText.back() == '/') {
-				std::cerr << "\t\tDIRECTORY!\n";
 				CB(cond, EntryType::Directory, atomText);
 			} else if (atomTextLen > 2 && !atomText.compare(atomTextLen - 2, 2, ".o")) {
-				std::cerr << "\t\tOBJECT!\n";
 				CB(cond, EntryType::Object, atomText);
 			}
 		}

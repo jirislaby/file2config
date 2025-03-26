@@ -4,18 +4,18 @@ grammar Make;
 #include <string>
 }
 
-makefile : cmd* EOF ;
+makefile : cmd (NL cmd)* EOF ;
 
 cmd :
-	  makeRule				//XX{print(f"RULE {$start.line}: {$makeRule.info}")}
-	| ('-include' | 'include') ws+ inc=nonNL NL	//{print(f"INC {$start.line}: {$inc.text}")}
-	| ws* 'export' (ws+ (i=ID | i=CONFIG))+ NL	//{print(f"EXPORT {$start.line}: {$i.text}")}
-	| ws* e=modified_expr NL		//{std::cout << $e.text << "\n";}
+	  make_rule	//XX{print(f"RULE {$start.line}: {$makeRule.info}")}
+	|  ('-include' | 'include') ws+ inc=nonNL	//{print(f"INC {$start.line}: {$inc.text}")}
+	| ws* 'export' (ws+ (i=ID | i=CONFIG))+		//{print(f"EXPORT {$start.line}: {$i.text}")}
+	| ws* e=modified_expr				//{std::cout << $e.text << "\n";}
 			  /*{e = $e.text
 e = e.split("\n", 2)[0][:100]
 print(f"EXP {$start.line}: {e} --- ({$e.info})")
 }*/
-	| ws* NL
+	| ws*
 ;
 
 modifier :
@@ -28,21 +28,22 @@ modified_expr returns [std::string info] :
 	(modifier ws+)? expr				{$info=$expr.info;}
 ;
 
-makeRule returns [std::string info] :
-	  atoms {$info=$atoms.text;} ws* ':' ws* e=modified_expr NL		/*{e = $e.text
+make_rule returns [std::string info] :
+	  atoms {$info=$atoms.text;} ws* ':' ws* e=modified_expr		/*{e = $e.text
 e = e.split("\n", 2)[0][:100]
 print(f"RULE-EXP {$start.line}: {e} --- ({$e.info})")
 }*/
-	| atoms {$info=$atoms.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )? NL
-	    rule_cmd*
+	| atoms {$info=$atoms.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )?
+	    (NL rule_cmd)*
 ;
 
 rule_cmd:
-	  (TAB nonNL?)? NL
+	  TAB nonNL?
 	| SPACE* ifeq_expr ws* NL
-		rule_cmd*
+		(rule_cmd? NL)*
 	  (SPACE* 'else' (ws+ ifeq_expr)? ws* NL
-		rule_cmd*)*
+		(rule_cmd? NL)*
+	  )*
 	  SPACE* 'endif' ws*
 ;
 
@@ -52,9 +53,10 @@ expr returns [std::string info]:
 		r=atom_rhs? ws*
 	# ExprAssign
 	| SPACE* ifeq_expr ws* NL
-		cmd*
+		(cmd NL)*
 	  (SPACE* 'else' (ws+ ifeq_expr)? ws* NL
-		cmd*)*
+		(cmd NL)*
+	  )*
 	  SPACE* 'endif' ws*
 	# ExprOther
 	| SPACE* 'define' ws+ atom ('=' | ws)* NL

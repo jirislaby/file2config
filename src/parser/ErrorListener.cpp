@@ -8,8 +8,6 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
                                 size_t line, size_t column, const std::string &msg,
                                 std::exception_ptr)
 {
-        if (msg == "missing NL at '<EOF>'")
-            return;
         auto parser = dynamic_cast<antlr4::Parser *>(recognizer);
         std::cerr << "Xline " << line << ":" << column << " " << msg << '\n';
         auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(recognizer->getInputStream());

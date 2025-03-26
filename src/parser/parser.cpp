@@ -2,18 +2,16 @@
 #include <errno.h>
 
 #include "parser.h"
+#include "ErrorListener.h"
 #include "MakeExprListener.h"
 
 using namespace MP;
-
-Parser::Parser()
-{
-}
 
 int Parser::parse(const std::string &file, const MakeExprListener::Callback &CB)
 {
 	std::ifstream ifs;
 
+	this->file = file;
 	ifs.open(file);
 	if (!ifs) {
 		std::cerr << "cannot read " << file << ": " << strerror(errno) << "\n";
@@ -24,6 +22,10 @@ int Parser::parse(const std::string &file, const MakeExprListener::Callback &CB)
 	lexer = std::make_unique<MakeLexer>(input.get());
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
+
+	parser->removeErrorListeners();
+	parser->addErrorListener(&ErrorListener::INSTANCE);
+
 	// SLL is much faster, but may be incomplete
 	auto interp = parser->getInterpreter<antlr4::atn::ParserATNSimulator>();
 	interp->setPredictionMode(antlr4::atn::PredictionMode::SLL);

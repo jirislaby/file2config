@@ -7,10 +7,22 @@ using namespace MP;
 
 void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 {
-	bool interesting = !ctx->l->getText().compare(0, lookingFor.length(), lookingFor);
+	auto lText = ctx->l->getText();
+	bool interesting = !lText.compare(0, lookingFor.length(), lookingFor);
 	std::cerr << __func__ << ": lookingFor=" << lookingFor << " interesting=" << interesting
 		  << ": " << ctx->getText().substr(0, 150) << "\n";
-	std::cerr << "\tL='" << ctx->l->getText() << "' COND='" << ctx->l->cond << "'\n";
+	auto cond = ctx->l->cond;
+	if (cond.empty()) {
+		auto lTextLen = lText.length();
+		for (const auto &s: { "-y", "-m", "-objs" }) {
+			auto sLen = strlen(s);
+			if (lTextLen > sLen && !lText.compare(lTextLen - sLen, sLen, s)) {
+				cond = s + 1;
+				break;
+			}
+		}
+	}
+	std::cerr << "\tL='" << lText << "' COND='" << cond << "'\n";
 	for (const auto &a: ctx->l->children)
 		std::cerr << "\t\t" << a->getText() << "\n";
 
@@ -20,8 +32,8 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 	if (ctx->r)
 		R = ctx->r->getText();
 	std::cerr << "\tR='" << R.substr(0, 100) << "'\n";
-	if (ctx->r && ctx->r->atom()) {
-		for (const auto &atom: ctx->r->atom()->children) {
+	if (ctx->r && ctx->r->atoms()) {
+		for (const auto &atom: ctx->r->atoms()->children) {
 			const auto atomText = atom->getText();
 			const auto atomTextLen = atomText.length();
 			std::cerr << "\t\t" << atomText << "\n";
@@ -29,10 +41,10 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 				continue;
 			if (atomText.back() == '/') {
 				std::cerr << "\t\tDIRECTORY!\n";
-				CB(ctx->l->cond, EntryType::Directory, atomText);
+				CB(cond, EntryType::Directory, atomText);
 			} else if (atomTextLen > 2 && !atomText.compare(atomTextLen - 2, 2, ".o")) {
 				std::cerr << "\t\tOBJECT!\n";
-				CB(ctx->l->cond, EntryType::Object, atomText);
+				CB(cond, EntryType::Object, atomText);
 			}
 		}
 	}

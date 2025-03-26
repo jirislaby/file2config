@@ -52,7 +52,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 bool TreeWalker::isBuiltIn(const std::string &cond)
 {
-	// TODO: should not be empty
+	// can be empty for unknown vars like ACPI_FUTURE_USAGE
 	return cond.empty() || cond == "y" || cond == "m" || cond == "objs";
 }
 
@@ -129,9 +129,8 @@ void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &pat
 		}
 	}
 
-	if (!found) {
-	      throw std::runtime_error(std::string("Kbuild/Makefile not found in ") + path.string());
-	}
+	if (!found)
+	      std::cerr << __func__ << ": Kbuild/Makefile not found in " << path << "\n";
 }
 
 void TreeWalker::walk()

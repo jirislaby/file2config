@@ -13,13 +13,14 @@ namespace MP {
 class Parser
 {
 public:
-	Parser();
+	Parser() {}
 
 	int parse(const std::string &file, const MakeExprListener::Callback &CB);
 	void reset();
 
 	void findTarget(const std::string &target, const MakeExprListener::Callback &CB);
 private:
+	std::string file;
 	MakeParser::MakefileContext *tree;
 	std::unique_ptr<antlr4::ANTLRInputStream> input;
 	std::unique_ptr<MakeLexer> lexer;

@@ -7,14 +7,10 @@ grammar Make;
 makefile : cmd (NL cmd)* EOF ;
 
 cmd :
-	  make_rule	//XX{print(f"RULE {$start.line}: {$makeRule.info}")}
+	  make_rule					//{print(f"RULE {$start.line}: {$make_rule.text}")}
 	|  ('-include' | 'include') ws+ inc=nonNL	//{print(f"INC {$start.line}: {$inc.text}")}
 	| ws* 'export' (ws+ (i=ID | i=CONFIG))+		//{print(f"EXPORT {$start.line}: {$i.text}")}
 	| ws* e=modified_expr				//{std::cout << $e.text << "\n";}
-			  /*{e = $e.text
-e = e.split("\n", 2)[0][:100]
-print(f"EXP {$start.line}: {e} --- ({$e.info})")
-}*/
 	| ws*
 ;
 
@@ -24,16 +20,13 @@ modifier :
 	| 'private'
 ;
 
-modified_expr returns [std::string info] :
-	(modifier ws+)? expr				{$info=$expr.info;}
+modified_expr :
+	(modifier ws+)? expr
 ;
 
-make_rule returns [std::string info] :
-	  words {$info=$words.text;} ws* ':' ws* e=modified_expr		/*{e = $e.text
-e = e.split("\n", 2)[0][:100]
-print(f"RULE-EXP {$start.line}: {e} --- ({$e.info})")
-}*/
-	| words {$info=$words.text;} ws* ':' ws* (r=nonNL /*{$info += ' RRR ' + $r.text;}*/ )?
+make_rule :
+	  words ws* ':' ws* modified_expr
+	| words ws* ':' ws* nonNL?
 	    (NL rule_cmd?)*
 ;
 
@@ -47,7 +40,7 @@ rule_cmd :
 	  SPACE* 'endif' ws*
 ;
 
-expr returns [std::string info]:
+expr :
 	  ws* l=atom_lhs ws*
 		op=( ':=' | '+=' | '=' | '?=' ) ws*
 		r=atom_rhs? ws*

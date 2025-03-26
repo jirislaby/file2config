@@ -27,7 +27,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 {
 	std::cout << __func__ << ": obj=" << objPath << " cond=";
 	for (const auto &e: s)
-	    std::cout << e << ",";
+		std::cout << e << ",";
 	std::cout << "]\n";
 	bool found = false;
 
@@ -58,10 +58,9 @@ bool TreeWalker::isBuiltIn(const std::string &cond)
 
 std::string TreeWalker::getCond(const CondStack &s)
 {
-	for (auto I = s.rbegin(); I != s.rend(); ++I) {
-	    if (!isBuiltIn(*I))
-		return *I;
-	}
+	for (auto I = s.rbegin(); I != s.rend(); ++I)
+		if (!isBuiltIn(*I))
+			return *I;
 
 	return "y";
 }
@@ -69,25 +68,23 @@ std::string TreeWalker::getCond(const CondStack &s)
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
 {
 	std::cout << "have OBJ: " << objPath << "\n";
-	bool found = false;
+
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
-	    auto srcPath = objPath;
-	    srcPath.replace_extension(suffix);
-	    if (std::filesystem::exists(srcPath)) {
-		std::cout << "\tCOND=" << getCond(s) << " src=" << srcPath << "\n";
-		found = true;
-		break;
-	    }
+		auto srcPath = objPath;
+		srcPath.replace_extension(suffix);
+		if (std::filesystem::exists(srcPath)) {
+			std::cout << "\tCOND=" << getCond(s) << " src=" << srcPath << "\n";
+			std::cout << "XXX " << getCond(s) << " " << srcPath << "\n";
+			return;
+		}
 	}
 
-	if (!found) {
-	    /*if debug:
+	/*if debug:
 		print(f'{prefix}{kb_path}: searching for {objpath}')*/
-	    //auto newS(s);
-	    //newS.push_back(cond);
-	    if (!tryHandleTarget(s, objPath))// && debug)
+	//auto newS(s);
+	//newS.push_back(cond);
+	if (!tryHandleTarget(s, objPath))// && debug)
 		std::cerr << objPath << " source not found\n";
-	}
 }
 
 void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
@@ -120,7 +117,7 @@ void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &pat
 {
 	std::cout << __func__ << ": path=" << path << " cond=[";
 	for (const auto &e: s)
-	    std::cout << e << ",";
+		std::cout << e << ",";
 	std::cout << "]\n";
 	bool found = false;
 
@@ -133,7 +130,7 @@ void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &pat
 	}
 
 	if (!found)
-	      std::cerr << __func__ << ": Kbuild/Makefile not found in " << path << "\n";
+		std::cerr << __func__ << ": Kbuild/Makefile not found in " << path << "\n";
 }
 
 void TreeWalker::walk()

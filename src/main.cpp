@@ -2,6 +2,8 @@
 
 using namespace std;
 
+unsigned verbose;
+
 int main(int argc, char **argv)
 {
 	std::filesystem::path path{"."};

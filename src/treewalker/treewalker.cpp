@@ -3,6 +3,8 @@
 #include "../parser/parser.h"
 #include "treewalker.h"
 
+extern unsigned verbose;
+
 using namespace TW;
 
 TreeWalker::TreeWalker(const std::filesystem::path &start)
@@ -25,17 +27,22 @@ TreeWalker::TreeWalker(const std::filesystem::path &start)
 
 bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
 {
-	std::cout << __func__ << ": obj=" << objPath << " cond=";
-	for (const auto &e: s)
-		std::cout << e << ",";
-	std::cout << "]\n";
+	if (verbose > 1) {
+		std::cout << __func__ << ": obj=" << objPath << " cond=";
+		for (const auto &e: s)
+			std::cout << e << ",";
+		std::cout << "]\n";
+	}
+
 	bool found = false;
 
 	parser.findTarget(objPath.stem(),
 		[this, &found, &objPath, &s](const std::string &cond,
 			  const enum MP::MakeExprListener::EntryType &type,
 			  const std::string &entry) {
-			std::cout << "HERE: cond=" << cond << " t=" << type << " e=" << entry << '\n';
+			if (verbose > 1)
+				std::cout << "HERE: cond=" << cond << " t=" << type <<
+					     " e=" << entry << '\n';
 			if (type == MP::MakeExprListener::Object) {
 				auto newS(s);
 				newS.push_back(cond);
@@ -67,7 +74,8 @@ std::string TreeWalker::getCond(const CondStack &s)
 
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
 {
-	std::cout << "have OBJ: " << objPath << "\n";
+	if (verbose > 1)
+		std::cout << "have OBJ: " << objPath << "\n";
 	auto cond = getCond(s);
 	if (isBuiltIn(cond))
 		return;
@@ -76,26 +84,23 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			std::cout << "\tCOND=" << cond << " src=" << srcPath << "\n";
-			std::cout << "XXX " << cond << " " << srcPath << "\n";
+			std::cout << "XXX " << cond << " " << srcPath.string() << "\n";
 			return;
 		}
 	}
 
-	/*if debug:
-		print(f'{prefix}{kb_path}: searching for {objpath}')*/
-	//auto newS(s);
-	//newS.push_back(cond);
-	if (!tryHandleTarget(s, objPath))// && debug)
+	auto newS(s);
+	newS.push_back(cond);
+	if (!tryHandleTarget(newS, objPath) && verbose)
 		std::cerr << objPath << " source not found\n";
 }
 
 void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
 {
-	/*if (debug)
-		print(colored('%*s%s/%s' % (len(path.parts) * 2, "", path, kb_file), 'green'));
+	/*print(colored('%*s%s/%s' % (len(path.parts) * 2, "", path, kb_file), 'green'));
 	prefix = '%*s' % (len(kb_path.parts) * 2, "");*/
-	std::cout << __func__ << ": " << kbPath << "\n";
+	if (verbose > 1)
+		std::cout << __func__ << ": " << kbPath << "\n";
 
 	parser.parse(archs, kbPath.string(), [this, &kbPath, &s](const std::string &cond,
 		     const MP::MakeExprListener::EntryType &type,
@@ -104,7 +109,8 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 			auto dir = kbPath.parent_path() / entry;
 			if (!visited.insert(dir).second)
 				return;
-			std::cout << "pushing dir: " << dir << "\n";
+			if (verbose > 1)
+				std::cout << "pushing dir: " << dir << "\n";
 			auto newS(s);
 			newS.push_back(cond);
 			toWalk.push_back(std::make_pair(newS, dir));
@@ -118,10 +124,13 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 
 void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &path)
 {
-	std::cout << __func__ << ": path=" << path << " cond=[";
-	for (const auto &e: s)
-		std::cout << e << ",";
-	std::cout << "]\n";
+	if (verbose > 1) {
+		std::cout << __func__ << ": path=" << path << " cond=[";
+		for (const auto &e: s)
+			std::cout << e << ",";
+		std::cout << "]\n";
+	}
+
 	bool found = false;
 
 	for (const auto &kb_file: { "Kbuild", "Makefile" }) {

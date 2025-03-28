@@ -7,6 +7,8 @@
 
 using namespace MP;
 
+extern unsigned verbose;
+
 int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
 		  const MakeExprListener::Callback &CB)
 {
@@ -24,7 +26,10 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
 
+	ErrorListener EL(file);
 	parser->removeErrorListeners();
+	if (verbose)
+		parser->addErrorListener(&EL);
 
 	// SLL is much faster, but may be incomplete
 	auto interp = parser->getInterpreter<antlr4::atn::ParserATNSimulator>();
@@ -32,8 +37,8 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	tree = parser->makefile();
 	if (parser->getNumberOfSyntaxErrors()) {
 		std::cerr << file << ": SLL not enough, trying LL\n";
-		ErrorListener EL(file);
-		parser->addErrorListener(&EL);
+		if (!verbose)
+			parser->addErrorListener(&EL);
 
 		tokens->reset();
 		parser->reset();

@@ -10,7 +10,7 @@ using namespace MP;
 extern unsigned verbose;
 
 int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
-		  const MakeExprListener::Callback &CB)
+		  const EntryCallback *CB)
 {
 	std::ifstream ifs;
 
@@ -65,9 +65,9 @@ void Parser::reset()
 	parser.reset();
 }
 
-void Parser::findTarget(const std::string &target, const MakeExprListener::Callback &CB)
+void Parser::walkTree(const EntryCallback *CB)
 {
 	antlr4::tree::ParseTreeWalker walker;
-	MakeExprListener l{ archs, CB, target + "-" };
+	MakeExprListener l{ archs, CB, };
 	walker.walk(&l, tree);
 }

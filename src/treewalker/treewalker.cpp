@@ -7,7 +7,7 @@ extern unsigned verbose;
 
 using namespace TW;
 
-TreeWalker::TreeWalker(const std::filesystem::path &start)
+TreeWalker::TreeWalker(const std::filesystem::path &start) : start(start)
 {
 	CondStack s;
 	s.push_back("y");
@@ -37,10 +37,30 @@ TreeWalker::TreeWalker(const std::filesystem::path &start)
 	}
 }
 
+void TreeWalker::addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
+				const std::string &cond,
+				const MP::EntryCallback::EntryType &type,
+				const std::string &entry, bool &found)
+{
+	if (verbose > 1)
+		std::cout << "HERE: cond=" << cond << " t=" << type << " e=" << entry << '\n';
+
+	if (type == MP::EntryCallback::Object) {
+		auto newS(s);
+		newS.push_back(cond);
+
+		handleObject(newS, objPath.parent_path() / entry);
+		found = true;
+	}
+}
+
 bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
 {
+	auto lookingFor = objPath.stem().string() + "-";
+
 	if (verbose > 1) {
-		std::cout << __func__ << ": obj=" << objPath << " cond=";
+		std::cout << __func__ << ": obj=" << objPath << " lookingFor=" <<
+			     lookingFor << " cond=";
 		for (const auto &e: s)
 			std::cout << e << ",";
 		std::cout << "]\n";
@@ -48,23 +68,29 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 	bool found = false;
 
-	parser.findTarget(objPath.stem(),
-		[this, &found, &objPath, &s](const std::string &cond,
-			  const enum MP::MakeExprListener::EntryType &type,
-			  const std::string &entry) {
-			if (verbose > 1)
-				std::cout << "HERE: cond=" << cond << " t=" << type <<
-					     " e=" << entry << '\n';
-			if (type == MP::MakeExprListener::Object) {
-				auto newS(s);
-				newS.push_back(cond);
+	class TargetEC : public MP::EntryCallback {
+	public:
+		TargetEC(TreeWalker &TW, const CondStack &s, const std::filesystem::path &objPath,
+			 const std::string &lookingFor, bool &found)
+			: TW(TW), s(s), objPath(objPath), lookingFor(lookingFor), found(found) {}
 
-				handleObject(newS, objPath.parent_path() / entry);
-				found = true;
-			}
-		});
+		virtual const std::any isInteresting(const std::string &lhs) const override {
+			return lhs.compare(0, lookingFor.length(), lookingFor) ? std::any() : true;
+		}
 
-	//self.handle_rule(prefix, path, kb_path, lines, cond, sep, objects)
+		virtual void entry(const std::any &, const std::string &cond,
+				   const enum EntryType &type, const std::string &word) const override {
+			TW.addTargetEntry(s, objPath, cond, type, word, found);
+		}
+	private:
+		TreeWalker &TW;
+		const CondStack &s;
+		const std::filesystem::path &objPath;
+		const std::string &lookingFor;
+		bool &found;
+	} CB(*this, s, objPath, lookingFor, found);
+
+	parser.walkTree(&CB);
 
 	return found;
 }
@@ -107,6 +133,30 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		std::cerr << objPath << " source not found\n";
 }
 
+void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
+				 const std::any &interesting,
+				 const std::string &cond,
+				 const enum MP::EntryCallback::EntryType &type,
+				 const std::string &word)
+{
+	if (type == MP::EntryCallback::Directory) {
+		auto absolute = std::any_cast<bool>(interesting);
+		auto dir = absolute ? start / word : kbPath.parent_path() / word;
+		if (!visited.insert(dir).second)
+			return;
+		if (verbose > 1)
+			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<
+				     dir << "\n";
+		auto newS(s);
+		newS.push_back(cond);
+		addDirectory(newS, dir);
+	} else if (type == MP::EntryCallback::Object) {
+		auto newS(s);
+		newS.push_back(cond);
+		handleObject(newS, kbPath.parent_path() / word);
+	}
+}
+
 void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
 {
 	/*print(colored('%*s%s/%s' % (len(path.parts) * 2, "", path, kb_file), 'green'));
@@ -114,24 +164,37 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	if (verbose > 1)
 		std::cout << __func__ << ": " << kbPath << "\n";
 
-	parser.parse(archs, kbPath.string(), [this, &kbPath, &s](const std::string &cond,
-		     const MP::MakeExprListener::EntryType &type,
-		     const std::string &entry) {
-		if (type == MP::MakeExprListener::Directory) {
-			auto dir = kbPath.parent_path() / entry;
-			if (!visited.insert(dir).second)
-				return;
-			if (verbose > 1)
-				std::cout << "pushing dir: " << dir << "\n";
-			auto newS(s);
-			newS.push_back(cond);
-			addDirectory(newS, dir);
-		} else if (type == MP::MakeExprListener::Object) {
-			auto newS(s);
-			newS.push_back(cond);
-			handleObject(newS, kbPath.parent_path() / entry);
+	class RegularEC : public MP::EntryCallback {
+	public:
+		RegularEC(TreeWalker &TW, const CondStack &s, const std::filesystem::path &kbPath)
+			: TW(TW), s(s), kbPath(kbPath) {}
+
+		virtual const std::any isInteresting(const std::string &lhs) const override {
+			 static const std::vector<std::pair<std::string, bool>> &lookingFor = {
+				 { "obj-", false },
+				 { "lib-", true },
+				 { "drivers-", true }
+			 };
+
+			 for (const auto &LF: lookingFor)
+				 if (!lhs.compare(0, LF.first.length(), LF.first))
+					 return LF.second;
+
+			 return std::any();
 		}
-	});
+
+		virtual void entry(const std::any &interesting, const std::string &cond,
+				   const enum EntryType &type,
+				   const std::string &word) const override {
+			TW.addRegularEntry(s, kbPath, interesting, cond, type, word);
+		}
+	private:
+		TreeWalker &TW;
+		const CondStack &s;
+		const std::filesystem::path &kbPath;
+	} CB(*this, s, kbPath);
+
+	parser.parse(archs, kbPath.string(), &CB);
 }
 
 void TreeWalker::addDirectory(const CondStack &s, const std::filesystem::path &path)

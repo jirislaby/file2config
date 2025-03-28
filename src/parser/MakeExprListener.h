@@ -1,35 +1,39 @@
 #ifndef MAKEEXPRLISTENER_H
 #define MAKEEXPRLISTENER_H
 
-#include <functional>
 #include <string>
 
 #include "MakeBaseListener.h"
 
 namespace MP {
 
-class MakeExprListener : public MakeBaseListener {
+class EntryCallback {
 public:
         enum EntryType {
                 Directory,
                 Object,
         };
-        using Callback = std::function<void(const std::string &cond, const enum EntryType &,
-                const std::string &)>;
 
+        virtual const std::any isInteresting(const std::string &lhs) const = 0;
+
+        virtual void entry(const std::any &interesting, const std::string &cond,
+                           const enum EntryType &type, const std::string &word) const = 0;
+};
+
+class MakeExprListener : public MakeBaseListener {
+public:
         MakeExprListener() = delete;
-        MakeExprListener(const std::vector<std::string> &archs, const Callback &CB,
-                         const std::string &lookingFor = "obj-")
-                : MakeBaseListener(), archs(archs), CB(CB), lookingFor(lookingFor) {}
+        MakeExprListener(const std::vector<std::string> &archs, const EntryCallback *EC)
+                : MakeBaseListener(), archs(archs), EC(EC) {}
 
         virtual void exitExprAssign(MakeParser::ExprAssignContext *) override;
 private:
         std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
-        void evaluateWord(const std::string &cond, const MakeParser::WordContext *word);
+        void evaluateWord(const std::any &interesting, const std::string &cond,
+                          const MakeParser::WordContext *word);
 
         const std::vector<std::string> &archs;
-        const Callback &CB;
-        std::string lookingFor;
+        const EntryCallback *EC;
 };
 
 }

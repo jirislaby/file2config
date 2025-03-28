@@ -13,23 +13,32 @@ namespace TW {
 class TreeWalker
 {
 public:
+	using CondStack = std::vector<std::string>;
+
 	TreeWalker() = delete;
 	TreeWalker(const std::filesystem::path &start);
 
 	void walk();
 
+	void addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
+			     const std::any &interesting, const std::string &cond,
+			     const MP::EntryCallback::EntryType &type,
+			     const std::string &word);
+	void addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
+			    const std::string &cond,
+			    const MP::EntryCallback::EntryType &type,
+			    const std::string &entry, bool &found);
 private:
-	using CondStack = std::vector<std::string>;
-
 	bool tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath);
-	void handleObject(const CondStack &s, const std::filesystem::path &objPath);
 	void handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath);
 	void addDirectory(const CondStack &s, const std::filesystem::path &path);
+	void handleObject(const CondStack &s, const std::filesystem::path &objPath);
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::string getCond(const CondStack &s);
 
 	MP::Parser parser;
+	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;
 	std::set<std::filesystem::path> visited;

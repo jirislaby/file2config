@@ -22,7 +22,8 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 	return { atom->getText() };
 }
 
-void MakeExprListener::evaluateWord(const std::string &cond, const MakeParser::WordContext *word)
+void MakeExprListener::evaluateWord(const std::any &interesting, const std::string &cond,
+				    const MakeParser::WordContext *word)
 {
 	std::vector<std::string> evaluated;
 
@@ -46,14 +47,14 @@ void MakeExprListener::evaluateWord(const std::string &cond, const MakeParser::W
 	}
 
 	for (const auto &wordText: evaluated) {
-		const auto wordTextLen = wordText.length();
-		if (verbose > 1)
+		if (verbose > 2)
 			std::cout << "\t\t" << __func__ << ": " << wordText << "\n";
 
+		const auto wordTextLen = wordText.length();
 		if (wordText.back() == '/') {
-			CB(cond, EntryType::Directory, wordText);
+			EC->entry(interesting, cond, EntryCallback::EntryType::Directory, wordText);
 		} else if (wordTextLen > 2 && !wordText.compare(wordTextLen - 2, 2, ".o")) {
-			CB(cond, EntryType::Object, wordText);
+			EC->entry(interesting, cond, EntryCallback::EntryType::Object, wordText);
 		}
 	}
 }
@@ -61,12 +62,12 @@ void MakeExprListener::evaluateWord(const std::string &cond, const MakeParser::W
 void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 {
 	auto lText = ctx->l->getText();
-	bool interesting = !lText.compare(0, lookingFor.length(), lookingFor);
+	std::any interesting = EC->isInteresting(lText);
 
-	if (verbose > 1)
-		std::cout << __func__ << ": lookingFor=" << lookingFor <<
-			     " interesting=" << interesting << ": "
+	if (verbose > 2) {
+		std::cout << __func__ << ": interesting=" << interesting.has_value() << ": "
 			  << ctx->getText().substr(0, 150) << "\n";
+	}
 
 	auto cond = ctx->l->cond;
 	if (cond.empty()) {
@@ -79,7 +80,7 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 			}
 		}
 	}
-	if (verbose > 1) {
+	if (verbose > 2) {
 		std::cout << "\tL='" << lText << "' COND='" << cond << "'\n";
 		for (const auto &a: ctx->l->children)
 			std::cout << "\t\t" << a->getText() << "\n";
@@ -92,12 +93,12 @@ void MakeExprListener::exitExprAssign(MakeParser::ExprAssignContext *ctx)
 		std::cout << "\tR='" << R.substr(0, 100) << "'\n";
 	}
 
-	if (!interesting)
+	if (!interesting.has_value())
 		return;
 
 	if (ctx->r && ctx->r->words()) {
 		for (const auto &word: ctx->r->words()->w) {
-			evaluateWord(cond, word);
+			evaluateWord(interesting, cond, word);
 		}
 	}
 }

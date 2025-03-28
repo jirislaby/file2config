@@ -16,10 +16,10 @@ public:
 	Parser() {}
 
 	int parse(const std::vector<std::string> &archs, const std::string &file,
-		  const MakeExprListener::Callback &CB);
+		  const EntryCallback *CB);
 	void reset();
 
-	void findTarget(const std::string &target, const MakeExprListener::Callback &CB);
+	void walkTree(const EntryCallback *CB);
 private:
 	std::vector<std::string> archs;
 	MakeParser::MakefileContext *tree;

@@ -8,10 +8,19 @@ makefile : cmd (NL cmd)* EOF ;
 
 cmd :
 	  make_rule					//{print(f"RULE {$start.line}: {$make_rule.text}")}
-	|  ('-include' | 'include') ws+ inc=nonNL	//{print(f"INC {$start.line}: {$inc.text}")}
-	| ws* 'export' (ws+ (i=ID | i=CONFIG))+		//{print(f"EXPORT {$start.line}: {$i.text}")}
+	| ws* include
+	| ws* export
 	| ws* e=modified_expr				//{std::cout << $e.text << "\n";}
 	| ws*
+;
+
+include :
+	i=('-include' | 'include') ws+ inc=nonNL	{std::cout << "INC " << $i.line << ": " << $inc.text << '\n';}
+;
+
+export :
+	('export' | 'unexport') (ws+ (i=ID | i=CONFIG | i=BITS | i=SRCARCH))+
+		//{print(f"EXPORT {$start.line}: {$i.text}")}
 ;
 
 modifier :
@@ -53,7 +62,7 @@ expr :
 	  SPACE* 'endif' ws*
 	# ExprOther
 	| SPACE* 'define' ws+ atom ('=' | ws)* NL
-		(nonNL NL)*?
+		(nonNL? NL)*?
 	  SPACE* 'endef' ws*
 	# ExprOther
 	| atom // standalone $(error ...)
@@ -72,10 +81,20 @@ ifeq_cond :
 ;
 
 atom_lhs returns [std::string cond] :
-	  BARE_OBJ		{$cond = $BARE_OBJ.text.back();}
-	| (ID
+	  bare			{$cond = $bare.cond;}
+	| ( BITS
+	  | CONFIG
+	  | ID
+	  | SRCARCH
 	  | eval		{$cond = $eval.cond;}
 	  )+
+;
+
+bare returns [std::string cond] :
+	  BARE_CORE		{$cond = $BARE_CORE.text.back();}
+	| BARE_DRIVERS		{$cond = $BARE_DRIVERS.text.back();}
+	| BARE_LIBS		{$cond = $BARE_LIBS.text.back();}
+	| BARE_OBJ		{$cond = $BARE_OBJ.text.back();}
 ;
 
 atom_rhs :
@@ -97,12 +116,12 @@ atoms_ws :
 
 atom returns [std::string cond] :
 	  CONFIG		{$cond = $CONFIG.text;}
-	| BARE_OBJ		{$cond = $BARE_OBJ.text.back();}
+	| bare			{$cond = $bare.cond;}
 	| eval			{$cond = $eval.cond;}
 	| ID
 	| '%' | '\\#'
 	| 'FORCE'
-	| '"' atom '"'
+	| '"' atoms_ws '"'
 	| '"' ~'"' '"'
 ;
 
@@ -120,27 +139,33 @@ in_eval returns [std::string cond] :
 	| 'addprefix' ws+ atoms_ws (COMMA atoms_ws?)+
 	| 'and' ws+ words (COMMA words?)*
 	| 'basename' ws+ words
-	| 'call' ws+ words (COMMA ('=' | words)+)*
+	| 'call' ws+ words (COMMA ('=' | atoms_ws)+)*
 	| 'dir' ws+ words
-	| 'error' ws+ ('or' | words | '>' | '=' | '\'')*
+	| 'error' ws+ error_body
 	| 'eval' ws+ eval
 	| 'findstring' ws+ atoms_ws COMMA atoms_ws
 	| 'filter' ws+ ~COMMA+ COMMA atoms_ws
 	| 'filter-out' ws+ ~COMMA+ COMMA ws* words
+	| 'firstword' ws+ atoms_ws
 	| 'foreach' ws+ atoms_ws COMMA (':' | atoms_ws)+ COMMA atoms_ws
-	| 'if' ws+ words COMMA words? (COMMA words?)?
+	| 'if' ws+ words COMMA ws* words? (COMMA words?)?
 	| 'notdir' ws+ words
 	| 'origin' ws+ words
 	| 'or' ws+ words (COMMA words?)*
 	| 'patsubst' ws+ f=~COMMA+ COMMA t=words COMMA e=words
 	| 'shell' ws+ in_shell+
 	| 'sort' ws+ words
-	| 'subst' ws+ f=~COMMA+ COMMA t=words? COMMA e=words	{$cond = $e.cond;}
+	| 'subst' ws+ f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words	{$cond = $e.cond;}
+	| 'warning' ws+ error_body
 	| 'wildcard' ws+ ('*' | words)+
-	| 'word' ws+ words COMMA words
+	| 'word' ws+ words COMMA ws* words
 	| 'words' ws+ words
 	| BITS
 	| SRCARCH
+;
+
+error_body :
+	('or' | word | ws | '>' | '=' | '\'' | ';' | ',' | '*')*
 ;
 
 in_shell :
@@ -149,6 +174,7 @@ in_shell :
 	| '(' in_shell ')'
 	| '$(' in_shell ')'
 	| '"' ~'"'* '"'
+	| '\'' ~'\''* '\''
 ;
 
 nonNL : ~NL+ ;
@@ -159,6 +185,9 @@ COMMENT : '#' ~'\n'* -> skip ;
 CONT_LINE : '\\' ' '* '\r'? '\n' -> skip ;
 
 CONFIG : 'CONFIG_' IDfrag ;
+BARE_CORE : 'core-' ('m'|'y') ;
+BARE_DRIVERS : 'drivers-' ('m'|'y') ;
+BARE_LIBS : 'libs-' ('m'|'y') ;
 BARE_OBJ : 'obj-' ('m'|'y') ;
 SRCARCH : 'SRCARCH' ;
 BITS : 'BITS' ;

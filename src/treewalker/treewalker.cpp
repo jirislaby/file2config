@@ -11,7 +11,10 @@ TreeWalker::TreeWalker(const std::filesystem::path &start)
 {
 	CondStack s;
 	s.push_back("y");
-	toWalk.push_back(std::make_pair(std::move(s), start));
+	// start with top-level Makefile
+	toWalk.push_back(std::make_pair(s, start/"Makefile"));
+	// and it includes Kbuild
+	toWalk.push_back(std::make_pair(s, start/"Kbuild"));
 
 	std::error_code ec;
 	const auto arch_dir = start/"arch";
@@ -21,8 +24,17 @@ TreeWalker::TreeWalker(const std::filesystem::path &start)
 		return;
 	}
 	for (const auto &entry : iter)
-		if (entry.is_directory())
+		if (entry.is_directory()) {
 			archs.push_back(entry.path().stem());
+			// we do not handle 'include's, so do what top-level 'Makefile' does
+			toWalk.push_back(std::make_pair(s, entry.path()/"Makefile"));
+		}
+	if (verbose) {
+		std::cout << __func__ << ": start=";
+		for (const auto &e: toWalk)
+			std::cout << e.second << ",";
+		std::cout << "]\n";
+	}
 }
 
 bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
@@ -113,7 +125,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 				std::cout << "pushing dir: " << dir << "\n";
 			auto newS(s);
 			newS.push_back(cond);
-			toWalk.push_back(std::make_pair(newS, dir));
+			addDirectory(newS, dir);
 		} else if (type == MP::MakeExprListener::Object) {
 			auto newS(s);
 			newS.push_back(cond);
@@ -122,7 +134,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	});
 }
 
-void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &path)
+void TreeWalker::addDirectory(const CondStack &s, const std::filesystem::path &path)
 {
 	if (verbose > 1) {
 		std::cout << __func__ << ": path=" << path << " cond=[";
@@ -131,18 +143,14 @@ void TreeWalker::walkKbuild(const CondStack &s, const std::filesystem::path &pat
 		std::cout << "]\n";
 	}
 
-	bool found = false;
-
 	for (const auto &kb_file: { "Kbuild", "Makefile" }) {
 		if (std::filesystem::exists(path / kb_file)) {
-			handleKbuildFile(s, path / kb_file);
-			//found = true;
+			toWalk.push_back(std::make_pair(s, path / kb_file));
 			return;
 		}
 	}
 
-	if (!found)
-		std::cerr << __func__ << ": Kbuild/Makefile not found in " << path << "\n";
+	std::cerr << __func__ << ": Kbuild/Makefile not found in " << path << "\n";
 }
 
 void TreeWalker::walk()
@@ -150,6 +158,6 @@ void TreeWalker::walk()
 	while (!toWalk.empty()) {
 		auto top = toWalk.back();
 		toWalk.pop_back();
-		walkKbuild(top.first, top.second);
+		handleKbuildFile(top.first, top.second);
 	}
 }

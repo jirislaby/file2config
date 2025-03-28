@@ -24,7 +24,7 @@ private:
 	bool tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath);
 	void handleObject(const CondStack &s, const std::filesystem::path &objPath);
 	void handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath);
-	void walkKbuild(const CondStack &s, const std::filesystem::path &path);
+	void addDirectory(const CondStack &s, const std::filesystem::path &path);
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::string getCond(const CondStack &s);

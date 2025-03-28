@@ -24,22 +24,25 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
 
-	ErrorListener EL(file);
 	parser->removeErrorListeners();
-	parser->addErrorListener(&EL);
 
 	// SLL is much faster, but may be incomplete
 	auto interp = parser->getInterpreter<antlr4::atn::ParserATNSimulator>();
 	interp->setPredictionMode(antlr4::atn::PredictionMode::SLL);
 	tree = parser->makefile();
 	if (parser->getNumberOfSyntaxErrors()) {
-		std::cerr << "trying LL\n";
+		std::cerr << file << ": SLL not enough, trying LL\n";
+		ErrorListener EL(file);
+		parser->addErrorListener(&EL);
+
 		tokens->reset();
 		parser->reset();
 		interp->setPredictionMode(antlr4::atn::PredictionMode::LL);
 		tree = parser->makefile();
-		if (parser->getNumberOfSyntaxErrors())
+		if (parser->getNumberOfSyntaxErrors()) {
+			std::cerr << file << ": LL failed to parse too\n";
 			return -1;
+		}
 	}
 
 	MakeExprListener l{ archs, CB };

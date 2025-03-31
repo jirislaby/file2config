@@ -182,6 +182,11 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 	if (isBuiltIn(cond))
 		return;
 
+	if (!visitedPaths.insert(objPath).second) {
+		std::cout << "ignoring already reported " << objPath << ", now with " << cond << '\n';
+		return;
+	}
+
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
@@ -206,7 +211,7 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 	if (type == MP::EntryCallback::Directory) {
 		auto absolute = std::any_cast<bool>(interesting);
 		auto dir = absolute ? start / word : kbPath.parent_path() / word;
-		if (!visited.insert(dir).second)
+		if (!visitedDirs.insert(dir).second)
 			return;
 		if (verbose > 1)
 			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<

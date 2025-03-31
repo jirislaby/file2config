@@ -49,7 +49,8 @@ private:
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;
-	std::set<std::filesystem::path> visited;
+	std::set<std::filesystem::path> visitedDirs;
+	std::set<std::filesystem::path> visitedPaths;
 };
 
 }

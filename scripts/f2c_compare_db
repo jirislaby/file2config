@@ -1,0 +1,49 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+
+export LC_ALL=C.UTF-8
+
+DIFF=diff
+declare -a BRANCHES=()
+declare -a IGNORES=()
+ORDER='id'
+while getopts "b:co:rI:" OPT; do
+	case "$OPT" in
+	b) BRANCHES+=( "'$OPTARG'" );;
+	c) DIFF='colordiff' ;;
+	o) ORDER="$OPTARG" ;;
+	r) ORDER='1,2,3' ;;
+	I) IGNORES+=( "'$OPTARG'" );;
+	*) exit 1 ;;
+	esac
+done
+shift $((OPTIND-1))
+
+if [ ${#BRANCHES} -gt 0 -a ${#IGNORES} -gt 0 ]; then
+	echo 'You cannot specify both ignores and branches' >&2
+	exit 1
+fi
+
+function run_sqlite() {
+	local DB="$1"
+	shift
+	local COND=""
+	if [ ${#BRANCHES} -gt 0 -o ${#IGNORES} -gt 0 ]; then
+		if [ ${#BRANCHES} -gt 0 ]; then
+			local NOT=''
+			declare -n ARR=BRANCHES
+		else
+			local NOT='NOT'
+			declare -n ARR=IGNORES
+		fi
+
+		OLD_IFS="$IFS"
+		IFS=','
+		COND="WHERE branch $NOT IN (${ARR[*]}) "
+		IFS="$OLD_IFS"
+	fi
+	sqlite3 -batch -csv "$DB" \
+		"SELECT branch,config,path FROM conf_file_map_view ${COND}ORDER BY $ORDER;"
+}
+
+"$DIFF" -u <(run_sqlite "$1") <(run_sqlite "$2")

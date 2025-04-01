@@ -300,7 +300,7 @@ sub process_authors($) {
 
 	foreach my $email (sort keys %HoH) {
 		$ins_user->execute($email) or
-			$ins_config->err == SQLITE_CONSTRAINT_UNIQUE or
+			$ins_user->err == SQLITE_CONSTRAINT_UNIQUE or
 			die "cannot execute ins_user: " . $db->errstr;
 
 		foreach my $src (sort keys %{$HoH{$email}}) {

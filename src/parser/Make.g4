@@ -114,7 +114,9 @@ bare returns [std::string cond] :
 	  BARE_CORE		{$cond = $BARE_CORE.text.back();}
 	| BARE_DRIVERS		{$cond = $BARE_DRIVERS.text.back();}
 	| BARE_LIBS		{$cond = $BARE_LIBS.text.back();}
+	| BARE_NET		{$cond = $BARE_NET.text.back();}
 	| BARE_OBJ		{$cond = $BARE_OBJ.text.back();}
+	| BARE_VIRT		{$cond = $BARE_VIRT.text.back();}
 ;
 
 atom_rhs :
@@ -220,7 +222,9 @@ CONFIG : 'CONFIG_' IDfrag ;
 BARE_CORE : 'core-' ('m'|'y') ;
 BARE_DRIVERS : 'drivers-' ('m'|'y') ;
 BARE_LIBS : 'lib' 's'? '-' ('m'|'y') ;
+BARE_NET : 'net-' ('m'|'y') ;
 BARE_OBJ : 'obj-' ('m'|'y') ;
+BARE_VIRT : 'virt-' ('m'|'y') ;
 CSKYABI : 'CSKYABI' ;
 BITS : 'BITS' ;
 SRCARCH : 'SRCARCH' ;

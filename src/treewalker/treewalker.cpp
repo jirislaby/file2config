@@ -245,6 +245,8 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 				 { "core-", true },
 				 { "drivers-", true },
 				 { "libs-", true },
+				 { "net-", true },
+				 { "virt-", true },
 			 };
 
 			 for (const auto &LF: lookingFor)

@@ -35,7 +35,7 @@ modified_expr :
 ;
 
 make_rule :
-	  make_rule_lhs modified_expr
+	  make_rule_lhs ws* modified_expr
 	| make_rule_lhs ws* nonNL?
 	    (NL rule_cmd?)*
 ;
@@ -57,7 +57,7 @@ rule_cmd :
 expr :
 	  l=atom_lhs ws*
 		op=( ':=' | '+=' | '=' | '?=' ) ws*
-		r=atom_rhs? ws*
+		(r=atom_rhs ws*)?
 ;
 
 conditional_or_macro :

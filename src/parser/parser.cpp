@@ -46,8 +46,8 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 		parser->reset();
 		interp->setPredictionMode(antlr4::atn::PredictionMode::LL);
 		tree = parser->makefile();
-		if (parser->getNumberOfSyntaxErrors()) {
-			std::cerr << file << ": LL failed to parse too\n";
+		if (auto errs = parser->getNumberOfSyntaxErrors()) {
+			std::cerr << file << ": LL failed to parse too: " << errs << " errors\n";
 			return -1;
 		}
 	}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <getopt.h>
+#include <iostream>
 
 #include "treewalker/treewalker.h"
 

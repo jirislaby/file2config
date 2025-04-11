@@ -9,18 +9,7 @@
 
 namespace MP {
 
-class EntryCallback {
-public:
-	enum EntryType {
-		Directory,
-		Object,
-	};
-
-	virtual const std::any isInteresting(const std::string &lhs) const = 0;
-
-	virtual void entry(const std::any &interesting, const std::string &cond,
-			   const enum EntryType &type, const std::string &word) const = 0;
-};
+class EntryCallback;
 
 class MakeExprListener : public MakeBaseListener {
 public:

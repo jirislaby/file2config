@@ -3,6 +3,7 @@
 #ifndef TREEWALKER_H
 #define TREEWALKER_H
 
+#include <any>
 #include <filesystem>
 #include <functional>
 #include <set>
@@ -10,6 +11,10 @@
 #include <vector>
 
 #include "../parser/parser.h"
+
+namespace MP {
+enum EntryType : unsigned int;
+}
 
 namespace TW {
 
@@ -25,11 +30,11 @@ public:
 
 	void addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
 			     const std::any &interesting, const std::string &cond,
-			     const MP::EntryCallback::EntryType &type,
+			     const MP::EntryType &type,
 			     const std::string &word);
 	void addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
 			    const std::string &cond,
-			    const MP::EntryCallback::EntryType &type,
+			    const MP::EntryType &type,
 			    const std::string &entry, bool &found);
 private:
 	static void forEachSubDir(const std::filesystem::path &dir,

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "EntryCallback.h"
 #include "MakeExprListener.h"
 
 extern unsigned verbose;
@@ -75,9 +76,9 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 
 		const auto wordTextLen = wordText.length();
 		if (wordText.back() == '/' || isSubdirRule(lhs)) {
-			EC->entry(interesting, cond, EntryCallback::EntryType::Directory, wordText);
+			EC->entry(interesting, cond, EntryType::Directory, wordText);
 		} else if (wordTextLen > 2 && !wordText.compare(wordTextLen - 2, 2, ".o")) {
-			EC->entry(interesting, cond, EntryCallback::EntryType::Object, wordText);
+			EC->entry(interesting, cond, EntryType::Object, wordText);
 		}
 	}
 }

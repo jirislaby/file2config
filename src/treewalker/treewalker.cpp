@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "../parser/parser.h"
+#include "../parser/EntryCallback.h"
 #include "treewalker.h"
 
 extern unsigned verbose;
@@ -78,13 +78,13 @@ TreeWalker::TreeWalker(const std::filesystem::path &start) : start(start)
 
 void TreeWalker::addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
 				const std::string &cond,
-				const MP::EntryCallback::EntryType &type,
+				const MP::EntryType &type,
 				const std::string &entry, bool &found)
 {
 	if (verbose > 1)
 		std::cout << __func__ << ": cond=" << cond << " t=" << type << " e=" << entry << '\n';
 
-	if (type == MP::EntryCallback::Object) {
+	if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
 
@@ -138,7 +138,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   const enum EntryType &type, const std::string &word) const override {
+				   const enum MP::EntryType &type, const std::string &word) const override {
 			TW.addTargetEntry(s, objPath, cond, type, word, found);
 		}
 	private:
@@ -205,10 +205,10 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
 				 const std::any &interesting,
 				 const std::string &cond,
-				 const enum MP::EntryCallback::EntryType &type,
+				 const enum MP::EntryType &type,
 				 const std::string &word)
 {
-	if (type == MP::EntryCallback::Directory) {
+	if (type == MP::EntryType::Directory) {
 		auto absolute = std::any_cast<bool>(interesting);
 		auto dir = absolute ? start / word : kbPath.parent_path() / word;
 		if (!visitedDirs.insert(dir).second)
@@ -219,7 +219,7 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 		auto newS(s);
 		newS.push_back(cond);
 		addDirectory(kbPath, newS, dir);
-	} else if (type == MP::EntryCallback::Object) {
+	} else if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
 		handleObject(newS, kbPath.parent_path() / word);
@@ -257,7 +257,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		}
 
 		virtual void entry(const std::any &interesting, const std::string &cond,
-				   const enum EntryType &type,
+				   const enum MP::EntryType &type,
 				   const std::string &word) const override {
 			TW.addRegularEntry(s, kbPath, interesting, cond, type, word);
 		}

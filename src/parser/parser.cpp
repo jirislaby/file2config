@@ -6,10 +6,16 @@
 #include "parser.h"
 #include "ErrorListener.h"
 #include "MakeExprListener.h"
+#include "MakeLexer.h"
+#include "MakeParser.h"
 
 using namespace MP;
 
 extern unsigned verbose;
+
+Parser::Parser() {}
+
+Parser::~Parser() {}
 
 int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
 		  const EntryCallback *CB)

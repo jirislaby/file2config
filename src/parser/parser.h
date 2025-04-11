@@ -5,17 +5,26 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
-#include "MakeExprListener.h"
-#include "MakeLexer.h"
-#include "MakeParser.h"
+class MakeLexer;
+class MakeParser;
+
+namespace antlr4 {
+class ANTLRInputStream;
+class CommonTokenStream;
+class ParserRuleContext;
+}
 
 namespace MP {
+
+class EntryCallback;
 
 class Parser
 {
 public:
-	Parser() {}
+	Parser();
+	~Parser();
 
 	int parse(const std::vector<std::string> &archs, const std::string &file,
 		  const EntryCallback *CB);
@@ -24,7 +33,7 @@ public:
 	void walkTree(const EntryCallback *CB);
 private:
 	std::vector<std::string> archs;
-	MakeParser::MakefileContext *tree;
+	antlr4::ParserRuleContext *tree;
 	std::unique_ptr<antlr4::ANTLRInputStream> input;
 	std::unique_ptr<MakeLexer> lexer;
 	std::unique_ptr<antlr4::CommonTokenStream> tokens;

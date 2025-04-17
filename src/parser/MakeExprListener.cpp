@@ -3,8 +3,7 @@
 
 #include "EntryCallback.h"
 #include "MakeExprListener.h"
-
-extern unsigned verbose;
+#include "../Verbose.h"
 
 using namespace MP;
 
@@ -49,7 +48,7 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 {
 	std::vector<std::string> evaluated;
 
-	if (verbose > 1)
+	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << const_cast<MakeParser::WordContext *>(word)->getText() << '\n';
 
 	for (const auto &atom: word->children) {
@@ -69,7 +68,7 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 	}
 
 	for (const auto &wordText: evaluated) {
-		if (verbose > 2)
+		if (F2C::verbose > 2)
 			std::cout << "\t\t" << __func__ << ": " << wordText << "\n";
 
 		const auto wordTextLen = wordText.length();
@@ -86,7 +85,7 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 	auto lText = ctx->l->getText();
 	std::any interesting = EC->isInteresting(lText);
 
-	if (verbose > 2) {
+	if (F2C::verbose > 2) {
 		std::cout << __func__ << ": interesting=" << interesting.has_value() << ": "
 			  << ctx->getText().substr(0, 150) << '\n';
 	}
@@ -108,7 +107,7 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 		if (0 && !cond.empty())
 			std::cout << __func__ << ": empty cond: " << ctx->getText() << '\n';
 	}
-	if (verbose > 2) {
+	if (F2C::verbose > 2) {
 		std::cout << "\tL='" << lText << "' COND='" << cond << "'\n";
 		for (const auto &a: ctx->l->children)
 			std::cout << "\t\t" << a->getText() << "\n";

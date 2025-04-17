@@ -6,10 +6,9 @@
 #include "MakeExprListener.h"
 #include "MakeLexer.h"
 #include "MakeParser.h"
+#include "../Verbose.h"
 
 using namespace MP;
-
-extern unsigned verbose;
 
 Parser::Parser() {}
 
@@ -34,7 +33,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 
 	ErrorListener EL(file);
 	parser->removeErrorListeners();
-	if (verbose)
+	if (F2C::verbose)
 		parser->addErrorListener(&EL);
 
 	// SLL is much faster, but may be incomplete
@@ -43,7 +42,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	tree = parser->makefile();
 	if (parser->getNumberOfSyntaxErrors()) {
 		std::cerr << file << ": SLL not enough, trying LL\n";
-		if (!verbose)
+		if (!F2C::verbose)
 			parser->addErrorListener(&EL);
 
 		tokens->reset();

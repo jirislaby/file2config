@@ -27,10 +27,10 @@ public:
 	~Parser();
 
 	int parse(const std::vector<std::string> &archs, const std::string &file,
-		  const EntryCallback *CB);
+		  const EntryCallback &CB);
 	void reset();
 
-	void walkTree(const EntryCallback *CB);
+	void walkTree(const EntryCallback &CB);
 private:
 	std::vector<std::string> archs;
 	antlr4::ParserRuleContext *tree;

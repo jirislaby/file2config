@@ -150,7 +150,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		bool &found;
 	} CB(*this, s, objPath, lookingFor, found);
 
-	parser.walkTree(&CB);
+	parser.walkTree(CB);
 
 	if (F2C::verbose > 1) {
 		std::cout << __func__ << " DONE: obj=" << objPath << " found=" << found << '\n';
@@ -268,7 +268,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		const std::filesystem::path &kbPath;
 	} CB(*this, s, kbPath);
 
-	parser.parse(archs, kbPath.string(), &CB);
+	parser.parse(archs, kbPath.string(), CB);
 }
 
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,

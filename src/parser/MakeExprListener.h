@@ -14,7 +14,7 @@ class EntryCallback;
 class MakeExprListener : public MakeBaseListener {
 public:
 	MakeExprListener() = delete;
-	MakeExprListener(const std::vector<std::string> &archs, const EntryCallback *EC)
+	MakeExprListener(const std::vector<std::string> &archs, const EntryCallback &EC)
 		: MakeBaseListener(), archs(archs), EC(EC) {}
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
@@ -27,7 +27,7 @@ private:
 			  const MakeParser::WordContext *word);
 
 	const std::vector<std::string> &archs;
-	const EntryCallback *EC;
+	const EntryCallback &EC;
 };
 
 }

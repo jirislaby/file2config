@@ -17,7 +17,7 @@ Parser::Parser() {}
 Parser::~Parser() {}
 
 int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
-		  const EntryCallback *CB)
+		  const EntryCallback &CB)
 {
 	std::ifstream ifs;
 
@@ -76,7 +76,7 @@ void Parser::reset()
 	parser.reset();
 }
 
-void Parser::walkTree(const EntryCallback *CB)
+void Parser::walkTree(const EntryCallback &CB)
 {
 	antlr4::tree::ParseTreeWalker walker;
 	MakeExprListener l{ archs, CB, };

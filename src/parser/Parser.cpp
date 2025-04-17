@@ -33,19 +33,23 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
 
-	ErrorListener EL(file);
-	parser->removeErrorListeners();
-	if (F2C::verbose)
-		parser->addErrorListener(&EL);
+	auto origErrStrategy = parser->getErrorHandler();
+	parser->setErrorHandler(std::make_shared<antlr4::BailErrorStrategy>());
 
 	// SLL is much faster, but may be incomplete
 	auto interp = parser->getInterpreter<antlr4::atn::ParserATNSimulator>();
 	interp->setPredictionMode(antlr4::atn::PredictionMode::SLL);
-	tree = parser->makefile();
-	if (parser->getNumberOfSyntaxErrors()) {
-		std::cerr << file << ": SLL not enough, trying LL\n";
-		if (!F2C::verbose)
-			parser->addErrorListener(&EL);
+	try {
+		tree = parser->makefile();
+	} catch (antlr4::ParseCancellationException &) {
+		if (F2C::verbose)
+			std::cerr << file << ": SLL not enough, trying LL\n";
+
+		parser->removeErrorListeners();
+		ErrorListener EL(file);
+		parser->addErrorListener(&EL);
+
+		parser->setErrorHandler(origErrStrategy);
 
 		tokens->reset();
 		parser->reset();

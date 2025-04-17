@@ -269,7 +269,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		const std::filesystem::path &kbPath;
 	} visitor(*this, s, kbPath);
 
-	parser.parse(archs, kbPath.string(), visitor);
+	parser.parse(archs, kbPath, visitor);
 }
 
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,

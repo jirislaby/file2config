@@ -3,6 +3,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,7 +27,7 @@ public:
 	Parser();
 	~Parser();
 
-	int parse(const std::vector<std::string> &archs, const std::string &file,
+	int parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
 		  const EntryVisitor &entryVisitor);
 	void reset();
 

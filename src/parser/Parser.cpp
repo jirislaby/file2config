@@ -16,7 +16,7 @@ Parser::Parser() {}
 
 Parser::~Parser() {}
 
-int Parser::parse(const std::vector<std::string> &archs, const std::string &file,
+int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
 		  const EntryVisitor &entryVisitor)
 {
 	std::ifstream ifs;
@@ -24,7 +24,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 	this->archs = archs;
 	ifs.open(file);
 	if (!ifs) {
-		std::cerr << "cannot read " << file << ": " << strerror(errno) << "\n";
+		std::cerr << "cannot read " << file.string() << ": " << strerror(errno) << "\n";
 		return -1;
 	}
 
@@ -43,10 +43,10 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 		tree = parser->makefile();
 	} catch (antlr4::ParseCancellationException &) {
 		if (F2C::verbose)
-			std::cerr << file << ": SLL not enough, trying LL\n";
+			std::cerr << file.string() << ": SLL not enough, trying LL\n";
 
 		parser->removeErrorListeners();
-		ErrorListener EL(file);
+		ErrorListener EL(file.string());
 		parser->addErrorListener(&EL);
 
 		parser->setErrorHandler(origErrStrategy);
@@ -56,7 +56,8 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &file
 		interp->setPredictionMode(antlr4::atn::PredictionMode::LL);
 		tree = parser->makefile();
 		if (auto errs = parser->getNumberOfSyntaxErrors()) {
-			std::cerr << file << ": LL failed to parse too: " << errs << " errors\n";
+			std::cerr << file.string() << ": LL failed to parse too: " <<
+				     errs << " errors\n";
 			return -1;
 		}
 	}

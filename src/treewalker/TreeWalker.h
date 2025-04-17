@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "../parser/parser.h"
+#include "../parser/Parser.h"
 
 namespace MP {
 enum EntryType : unsigned int;

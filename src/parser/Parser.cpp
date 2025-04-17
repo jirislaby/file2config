@@ -3,11 +3,11 @@
 #include <iostream>
 #include <errno.h>
 
-#include "parser.h"
 #include "ErrorListener.h"
 #include "MakeExprListener.h"
 #include "MakeLexer.h"
 #include "MakeParser.h"
+#include "Parser.h"
 #include "../Verbose.h"
 
 using namespace MP;

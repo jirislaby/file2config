@@ -16,20 +16,10 @@ Parser::Parser() {}
 
 Parser::~Parser() {}
 
-int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
-		  const EntryVisitor &entryVisitor)
+int Parser::parse(const std::vector<std::string> &archs, const std::string &source,
+		  antlr4::ANTLRInputStream &is, const EntryVisitor &entryVisitor)
 {
-	std::ifstream ifs;
-
-	this->archs = archs;
-	ifs.open(file);
-	if (!ifs) {
-		std::cerr << "cannot read " << file.string() << ": " << strerror(errno) << "\n";
-		return -1;
-	}
-
-	input = std::make_unique<antlr4::ANTLRInputStream>(ifs);
-	lexer = std::make_unique<MakeLexer>(input.get());
+	lexer = std::make_unique<MakeLexer>(&is);
 	tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
 	parser = std::make_unique<MakeParser>(tokens.get());
 
@@ -43,10 +33,10 @@ int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::
 		tree = parser->makefile();
 	} catch (antlr4::ParseCancellationException &) {
 		if (F2C::verbose)
-			std::cerr << file.string() << ": SLL not enough, trying LL\n";
+			std::cerr << source << ": SLL not enough, trying LL\n";
 
 		parser->removeErrorListeners();
-		ErrorListener EL(file.string());
+		ErrorListener EL(source);
 		parser->addErrorListener(&EL);
 
 		parser->setErrorHandler(origErrStrategy);
@@ -56,8 +46,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::
 		interp->setPredictionMode(antlr4::atn::PredictionMode::LL);
 		tree = parser->makefile();
 		if (auto errs = parser->getNumberOfSyntaxErrors()) {
-			std::cerr << file.string() << ": LL failed to parse too: " <<
-				     errs << " errors\n";
+			std::cerr << source << ": LL failed to parse too: " << errs << " errors\n";
 			return -1;
 		}
 	}
@@ -67,6 +56,31 @@ int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::
 	walker.walk(&l, tree);
 
 	return 0;
+}
+
+int Parser::parse(const std::vector<std::string> &archs, const std::string &str,
+		  const EntryVisitor &entryVisitor)
+{
+	input = std::make_unique<antlr4::ANTLRInputStream>(str);
+
+	return parse(archs, "string", *input.get(), entryVisitor);
+}
+
+int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
+		  const EntryVisitor &entryVisitor)
+{
+	std::ifstream ifs;
+
+	this->archs = archs;
+	ifs.open(file);
+	if (!ifs) {
+		std::cerr << "cannot read " << file.string() << ": " << strerror(errno) << "\n";
+		return -1;
+	}
+
+	input = std::make_unique<antlr4::ANTLRInputStream>(ifs);
+
+	return parse(archs, file.string(), *input.get(), entryVisitor);
 }
 
 void Parser::reset()

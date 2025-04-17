@@ -13,7 +13,7 @@ enum EntryType : unsigned int {
 	Object,
 };
 
-class EntryCallback {
+class EntryVisitor {
 public:
 	virtual const std::any isInteresting(const std::string &lhs) const = 0;
 

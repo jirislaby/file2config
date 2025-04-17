@@ -9,13 +9,13 @@
 
 namespace MP {
 
-class EntryCallback;
+class EntryVisitor;
 
 class MakeExprListener : public MakeBaseListener {
 public:
 	MakeExprListener() = delete;
-	MakeExprListener(const std::vector<std::string> &archs, const EntryCallback &EC)
-		: MakeBaseListener(), archs(archs), EC(EC) {}
+	MakeExprListener(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor)
+		: MakeBaseListener(), archs(archs), entryVisitor(entryVisitor) {}
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
 private:
@@ -27,7 +27,7 @@ private:
 			  const MakeParser::WordContext *word);
 
 	const std::vector<std::string> &archs;
-	const EntryCallback &EC;
+	const EntryVisitor &entryVisitor;
 };
 
 }

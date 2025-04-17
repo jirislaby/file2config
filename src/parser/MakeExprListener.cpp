@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-#include "EntryCallback.h"
+#include "EntryVisitor.h"
 #include "MakeExprListener.h"
 #include "../Verbose.h"
 
@@ -75,9 +75,9 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 
 		const auto wordTextLen = wordText.length();
 		if (wordText.back() == '/' || isSubdirRule(lhs)) {
-			EC.entry(interesting, cond, EntryType::Directory, wordText);
+			entryVisitor.entry(interesting, cond, EntryType::Directory, wordText);
 		} else if (wordTextLen > 2 && !wordText.compare(wordTextLen - 2, 2, ".o")) {
-			EC.entry(interesting, cond, EntryType::Object, wordText);
+			entryVisitor.entry(interesting, cond, EntryType::Object, wordText);
 		}
 	}
 }
@@ -85,7 +85,7 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 {
 	auto lText = ctx->l->getText();
-	std::any interesting = EC.isInteresting(lText);
+	std::any interesting = entryVisitor.isInteresting(lText);
 
 	if (F2C::verbose > 2) {
 		std::cout << __func__ << ": interesting=" << interesting.has_value() << ": "

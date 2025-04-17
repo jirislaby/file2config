@@ -39,7 +39,7 @@ parser_generated_files = declare_dependency(
 parser = static_library('parser', [
     'Parser.cpp',
     'Parser.h',
-    'EntryCallback.h',
+    'EntryVisitor.h',
     'ErrorListener.cpp',
     'ErrorListener.h',
     'MakeExprListener.cpp',

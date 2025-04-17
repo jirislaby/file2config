@@ -4,8 +4,7 @@
 
 #include "../parser/EntryCallback.h"
 #include "treewalker.h"
-
-extern unsigned verbose;
+#include "../Verbose.h"
 
 using namespace TW;
 
@@ -68,7 +67,7 @@ TreeWalker::TreeWalker(const std::filesystem::path &start) : start(start)
 	else
 		addDirectory(start, s, start);
 
-	if (verbose) {
+	if (F2C::verbose) {
 		std::cout << __func__ << ": start=";
 		for (const auto &e: toWalk)
 			std::cout << e.second << ",";
@@ -81,7 +80,7 @@ void TreeWalker::addTargetEntry(const CondStack &s, const std::filesystem::path 
 				const MP::EntryType &type,
 				const std::string &entry, bool &found)
 {
-	if (verbose > 1)
+	if (F2C::verbose > 1)
 		std::cout << __func__ << ": cond=" << cond << " t=" << type << " e=" << entry << '\n';
 
 	if (type == MP::EntryType::Object) {
@@ -97,7 +96,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 {
 	auto lookingFor = objPath.stem().string() + "-";
 
-	if (verbose > 1) {
+	if (F2C::verbose > 1) {
 		std::cout << __func__ << ": obj=" << objPath << " lookingFor=" <<
 			     lookingFor << " cond=";
 		for (const auto &e: s)
@@ -116,20 +115,20 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		virtual const std::any isInteresting(const std::string &lhs) const override {
 			if (lhs.compare(0, lookingFor.length(), lookingFor))
 				return std::any();
-			if (verbose > 1)
+			if (F2C::verbose > 1)
 				std::cout << "\tSAME PREFIX: " << lookingFor << " == " << lhs << '\n';
 			if (lhs[lookingFor.length()] == '$') {
-				if (verbose > 1)
+				if (F2C::verbose > 1)
 					std::cout << "\t\tMATCH1\n";
 				return true;
 			}
 			for (const auto &s: { "y", "m", "objs" }) {
-				if (verbose > 1)
+				if (F2C::verbose > 1)
 					std::cout << "\t\ttrying: " <<
 						     lhs.substr(lookingFor.length()) <<
 						     " against '" << s << "'\n";
 				if (!lhs.compare(lookingFor.length(), ~0U, s)) {
-					if (verbose > 1)
+					if (F2C::verbose > 1)
 						std::cout << "\t\tMATCH2: " << s << '\n';
 					return true;
 				}
@@ -151,7 +150,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 	parser.walkTree(&CB);
 
-	if (verbose > 1) {
+	if (F2C::verbose > 1) {
 		std::cout << __func__ << " DONE: obj=" << objPath << " found=" << found << '\n';
 	}
 
@@ -175,7 +174,7 @@ std::string TreeWalker::getCond(const CondStack &s)
 
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
 {
-	if (verbose > 1)
+	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";
 
 	auto cond = getCond(s);
@@ -198,7 +197,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 
 	auto newS(s);
 	newS.push_back(cond);
-	if (!tryHandleTarget(newS, objPath) && verbose)
+	if (!tryHandleTarget(newS, objPath) && F2C::verbose)
 		std::cerr << objPath << " source not found\n";
 }
 
@@ -213,7 +212,7 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 		auto dir = absolute ? start / word : kbPath.parent_path() / word;
 		if (!visitedDirs.insert(dir).second)
 			return;
-		if (verbose > 1)
+		if (F2C::verbose > 1)
 			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<
 				     dir << "\n";
 		auto newS(s);
@@ -228,7 +227,7 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 
 void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
 {
-	if (verbose > 1)
+	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << kbPath << "\n";
 
 	class RegularEC : public MP::EntryCallback {
@@ -273,7 +272,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
 			      const std::filesystem::path &path)
 {
-	if (verbose > 1) {
+	if (F2C::verbose > 1) {
 		std::cout << __func__ << ": path=" << path << " cond=[";
 		for (const auto &e: s)
 			std::cout << e << ",";

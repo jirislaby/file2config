@@ -7,7 +7,9 @@ subdir('treewalker')
 builddir = include_directories('.')
 
 executable('f2c_collect_configs', [
-    'main.cpp'
+    'main.cpp',
+    'Verbose.cpp',
+    'Verbose.h',
   ],
   link_with: [ treewalker ],
   install: true,

@@ -4,10 +4,7 @@
 #include <iostream>
 
 #include "treewalker/treewalker.h"
-
-using namespace std;
-
-unsigned verbose;
+#include "Verbose.h"
 
 static void usage(const char *prgname)
 {
@@ -24,7 +21,7 @@ int main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, "v", opts, nullptr)) >= 0) {
 		switch (opt) {
 		case 'v':
-			verbose++;
+			F2C::verbose++;
 			break;
 		default:
 			usage(argv[0]);

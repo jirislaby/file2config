@@ -14,5 +14,6 @@ add_project_arguments('-ggdb', language : 'cpp')
 cpp_compiler = meson.get_compiler('cpp')
 
 subdir('src')
+subdir('tests')
 
 install_subdir('scripts', install_dir : 'bin', strip_directory : true)

@@ -16,7 +16,7 @@ class ParserRuleContext;
 
 namespace MP {
 
-class EntryCallback;
+class EntryVisitor;
 
 class Parser
 {
@@ -25,10 +25,10 @@ public:
 	~Parser();
 
 	int parse(const std::vector<std::string> &archs, const std::string &file,
-		  const EntryCallback &CB);
+		  const EntryVisitor &entryVisitor);
 	void reset();
 
-	void walkTree(const EntryCallback &CB);
+	void walkTree(const EntryVisitor &entryVisitor);
 private:
 	std::vector<std::string> archs;
 	antlr4::ParserRuleContext *tree;

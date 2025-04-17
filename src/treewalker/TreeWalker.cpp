@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "../parser/EntryCallback.h"
+#include "../parser/EntryVisitor.h"
 #include "MakeVisitor.h"
 #include "TreeWalker.h"
 #include "../Verbose.h"
@@ -106,9 +106,9 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 	bool found = false;
 
-	class TargetEC : public MP::EntryCallback {
+	class TargetVisitor : public MP::EntryVisitor {
 	public:
-		TargetEC(TreeWalker &TW, const CondStack &s, const std::filesystem::path &objPath,
+		TargetVisitor(TreeWalker &TW, const CondStack &s, const std::filesystem::path &objPath,
 			 const std::string &lookingFor, bool &found)
 			: TW(TW), s(s), objPath(objPath), lookingFor(lookingFor), found(found) {}
 
@@ -146,9 +146,9 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		const std::filesystem::path &objPath;
 		const std::string &lookingFor;
 		bool &found;
-	} CB(*this, s, objPath, lookingFor, found);
+	} visitor(*this, s, objPath, lookingFor, found);
 
-	parser.walkTree(CB);
+	parser.walkTree(visitor);
 
 	if (F2C::verbose > 1) {
 		std::cout << __func__ << " DONE: obj=" << objPath << " found=" << found << '\n';
@@ -230,9 +230,10 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << kbPath << "\n";
 
-	class RegularEC : public MP::EntryCallback {
+	class RegularVisitor : public MP::EntryVisitor {
 	public:
-		RegularEC(TreeWalker &TW, const CondStack &s, const std::filesystem::path &kbPath)
+		RegularVisitor(TreeWalker &TW, const CondStack &s,
+			       const std::filesystem::path &kbPath)
 			: TW(TW), s(s), kbPath(kbPath) {}
 
 		virtual const std::any isInteresting(const std::string &lhs) const override {
@@ -264,9 +265,9 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		TreeWalker &TW;
 		const CondStack &s;
 		const std::filesystem::path &kbPath;
-	} CB(*this, s, kbPath);
+	} visitor(*this, s, kbPath);
 
-	parser.parse(archs, kbPath.string(), CB);
+	parser.parse(archs, kbPath.string(), visitor);
 }
 
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,

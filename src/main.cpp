@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <iostream>
 
+#include "treewalker/ConsoleMakeVisitor.h"
 #include "treewalker/TreeWalker.h"
 #include "Verbose.h"
 
@@ -34,7 +35,8 @@ int main(int argc, char **argv)
 	if (argc > optind)
 		path = argv[optind];
 
-	TW::TreeWalker tw(path);
+	TW::ConsoleMakeVisitor visitor;
+	TW::TreeWalker tw(path, visitor);
 	tw.walk();
 
 	return 0;

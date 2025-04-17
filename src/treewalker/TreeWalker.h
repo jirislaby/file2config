@@ -18,13 +18,15 @@ enum EntryType : unsigned int;
 
 namespace TW {
 
+class MakeVisitor;
+
 class TreeWalker
 {
 public:
 	using CondStack = std::vector<std::string>;
 
 	TreeWalker() = delete;
-	TreeWalker(const std::filesystem::path &start);
+	TreeWalker(const std::filesystem::path &start, const MakeVisitor &makeVisitor);
 
 	void walk();
 
@@ -51,6 +53,7 @@ private:
 	static std::string getCond(const CondStack &s);
 
 	MP::Parser parser;
+	const MakeVisitor &makeVisitor;
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;

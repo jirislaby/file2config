@@ -1,7 +1,7 @@
 #include <getopt.h>
 #include <iostream>
 
-#include "treewalker/treewalker.h"
+#include "treewalker/TreeWalker.h"
 #include "Verbose.h"
 
 static void usage(const char *prgname)

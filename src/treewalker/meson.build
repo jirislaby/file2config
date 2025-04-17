@@ -1,6 +1,6 @@
 treewalker = static_library('treewalker', [
-    'treewalker.cpp',
-    'treewalker.h',
+    'TreeWalker.cpp',
+    'TreeWalker.h',
   ],
   link_with: [ parser ],
 )

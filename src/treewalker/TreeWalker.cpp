@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "../parser/EntryCallback.h"
-#include "treewalker.h"
+#include "TreeWalker.h"
 #include "../Verbose.h"
 
 using namespace TW;

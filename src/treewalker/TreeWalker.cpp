@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "../parser/EntryCallback.h"
+#include "MakeVisitor.h"
 #include "TreeWalker.h"
 #include "../Verbose.h"
 
@@ -55,7 +56,8 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 		toWalk.push_back(std::make_pair(s, s390Boot));
 }
 
-TreeWalker::TreeWalker(const std::filesystem::path &start) : start(start)
+TreeWalker::TreeWalker(const std::filesystem::path &start, const MakeVisitor &makeVisitor) :
+	makeVisitor(makeVisitor), start(start)
 {
 	CondStack s;
 	s.push_back("y");
@@ -180,7 +182,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		return;
 
 	if (!visitedPaths.insert(objPath).second) {
-		std::cout << "ignoring already reported " << objPath << ", now with " << cond << '\n';
+		makeVisitor.ignored(objPath, cond);
 		return;
 	}
 
@@ -188,7 +190,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			std::cout << "XXX " << cond << " " << srcPath.string() << "\n";
+			makeVisitor.config(srcPath, cond);
 			return;
 		}
 	}

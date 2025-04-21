@@ -178,23 +178,12 @@ in_eval returns [std::string cond] :
 	| 'origin' ws+ words
 	| 'or' ws+ words (COMMA words?)*
 	| 'patsubst' ws+ f=~COMMA+ COMMA ws* t=words COMMA ws* e=words
-	| 'shell' ws+ in_shell+
 	| 'sort' ws+ words
 	| 'subst' ws+ f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words	{$cond = $e.cond;}
 	| 'strip' ws+ words
 	| 'wildcard' ws+ ('*' | words)+
 	| 'word' ws+ words COMMA ws* words
 	| 'words' ws+ words
-;
-
-in_shell :
-	  '<' | '>' | '2>' | '&1' | '&2' | '|' | '=' | '\\' | ';' | '?'
-	| '$$'
-	| ws+ | CONFIG | ID
-	| '(' in_shell ')'
-	| '$(' in_shell ')'
-	| '"' ~'"'* '"'
-	| '\'' ~'\''* '\''
 ;
 
 nonNL : ~NL+ ;
@@ -210,6 +199,7 @@ CONT_LINE : FRAG_CONT_LINE -> skip;
 fragment FRAG_CONT_LINE : '\\' ' '* '\r'? '\n';
 
 ERROR : '$(' ('error'|'warning'|'info') WS SKIP_BODY ')' -> skip ;
+SHELL : '$(shell' WS SKIP_BODY ')' -> skip ;
 fragment SKIP_BODY :
 	  ( ~[()] | '(' SKIP_BODY ')' )*
 ;

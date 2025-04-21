@@ -147,8 +147,7 @@ atom returns [std::string cond] :
 	| '%' | '\\#'
 	| '!' // 3.0 and drivers/lguest/Makefile
 	| 'FORCE'
-	| '"' error_body '"'
-	| '"' ~'"' '"'
+	| '"' ~'"'*? '"'
 ;
 
 eval returns [std::string cond] :

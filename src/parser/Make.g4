@@ -166,7 +166,6 @@ in_eval returns [std::string cond] :
 	| 'basename' ws+ words
 	| 'call' ws+ words (COMMA (atom_ws_eq | '\\')*)*
 	| 'dir' ws+ words
-	| 'error' ws+ error_body
 	| 'eval' ws+ atom_ws_eq+
 	| 'findstring' ws+ atom_ws_eq+ COMMA atom_ws+
 	| 'filter' ws+ ~COMMA+ COMMA ws* words
@@ -174,7 +173,6 @@ in_eval returns [std::string cond] :
 	| 'firstword' ws+ words
 	| 'foreach' ws+ atom_ws+ COMMA (':' | atom_ws)+ COMMA atom_ws+
 	| 'if' ws+ words COMMA ws* words? (COMMA ws* words?)?
-	| 'info' ws+ error_body
 	| 'lastword' ws+ words
 	| 'notdir' ws+ words
 	| 'origin' ws+ words
@@ -184,15 +182,9 @@ in_eval returns [std::string cond] :
 	| 'sort' ws+ words
 	| 'subst' ws+ f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words	{$cond = $e.cond;}
 	| 'strip' ws+ words
-	| 'warning' ws+ error_body
 	| 'wildcard' ws+ ('*' | words)+
 	| 'word' ws+ words COMMA ws* words
 	| 'words' ws+ words
-;
-
-error_body :
-	  ('or' | word | ws | '>' | '=' | '\'' | ';' | ':' | ',' | '*')*
-	| '(' error_body ')'
 ;
 
 in_shell :
@@ -217,6 +209,11 @@ fragment COMMENT_BODY : ~('\n' | '\\')* ;
 CONT_LINE : FRAG_CONT_LINE -> skip;
 fragment FRAG_CONT_LINE : '\\' ' '* '\r'? '\n';
 
+ERROR : '$(' ('error'|'warning'|'info') WS SKIP_BODY ')' -> skip ;
+fragment SKIP_BODY :
+	  ( ~[()] | '(' SKIP_BODY ')' )*
+;
+
 CONFIG : 'CONFIG_' IDfrag ;
 BARE_CORE : 'core-' ('m'|'y') ;
 BARE_DRIVERS : 'drivers-' ('m'|'y') ;
@@ -230,6 +227,7 @@ SRCARCH : 'SRCARCH' ;
 ID : IDfrag ;
 fragment IDfrag : [-+_/.A-Za-z0-9]+ ;
 NL : '\r'? '\n' ;
+fragment WS : SPACE | TAB ;
 TAB : '\t' ;
 COMMA : ',' ;
 SPACE : ' ' ;

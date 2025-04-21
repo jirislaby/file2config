@@ -29,7 +29,7 @@ copy_grammar = custom_target('copy_grammar',
 gen_antlr = custom_target('gen_antlr',
   input : copy_grammar,
   output : generated_files,
-  command : [ antlr4, '-Dlanguage=Cpp', '@INPUT@' ],
+  command : [ antlr4, '-Dlanguage=Cpp', '-message-format', 'gnu', '@INPUT@' ],
 )
 
 parser_generated_files = declare_dependency(

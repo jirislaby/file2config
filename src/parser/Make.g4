@@ -232,7 +232,7 @@ FUN_WILDCARD :		'$(wildcard' WS ;
 FUN_WORD :		'$(word' WS ;
 FUN_WORDS :		'$(words' WS ;
 
-CONFIG : 'CONFIG_' IDfrag ;
+CONFIG : 'CONFIG_' ID ;
 BARE_CORE : 'core-' ('m'|'y') ;
 BARE_DRIVERS : 'drivers-' ('m'|'y') ;
 BARE_LIBS : 'lib' 's'? '-' ('m'|'y') ;
@@ -242,8 +242,7 @@ BARE_VIRT : 'virt-' ('m'|'y') ;
 CSKYABI : 'CSKYABI' ;
 BITS : 'BITS' ;
 SRCARCH : 'SRCARCH' ;
-ID : IDfrag ;
-fragment IDfrag : [-+_/.A-Za-z0-9]+ ;
+ID : [-+_/.A-Za-z0-9]+ ;
 NL : '\r'? '\n' ;
 fragment WS : SPACE | TAB ;
 TAB : '\t' ;

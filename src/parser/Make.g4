@@ -195,12 +195,11 @@ nonNL : ~NL+ ;
 ws : SPACE | TAB ;
 
 MULTILINE_COMMENT :
-	'#' COMMENT_BODY (FRAG_CONT_LINE COMMENT_BODY)*
+	'#' COMMENT_BODY (CONT_LINE COMMENT_BODY)*
 	-> skip
 ;
 fragment COMMENT_BODY : ~('\n' | '\\')* ;
-CONT_LINE : FRAG_CONT_LINE -> skip;
-fragment FRAG_CONT_LINE : '\\' ' '* '\r'? '\n';
+CONT_LINE : '\\' ' '* '\r'? '\n' -> skip;
 
 ERROR : '$(' ('error'|'warning'|'info') WS SKIP_BODY ')' -> skip ;
 SHELL : '$(shell' WS SKIP_BODY ')' -> skip ;

@@ -151,39 +151,43 @@ atom returns [std::string cond] :
 ;
 
 eval returns [std::string cond] :
+	  function		{$cond = $function.cond;}
 	   // bug in arch/powerpc/kernel/Makefile
-	   '(' in_eval ')'	{$cond = $in_eval.cond;}
+	|  '(' in_eval ')'	{$cond = $in_eval.cond;}
 	| '$(' in_eval ')'	{$cond = $in_eval.cond;}
 	| '${' in_eval '}'	{$cond = $in_eval.cond;}
 	| '$@' | '$%' | '$<' | '$?' | '$^' | '$+' | '$|' | '$*' | '$$'
 	| '$' ID
 ;
 
+function returns [std::string cond] :
+	  FUN_ADDPREFIX ws* words (COMMA ws* words?)+ ')'
+	| FUN_AND ws* words (COMMA ws* words?)* ')'
+	| FUN_BASENAME ws* words ')'
+	| FUN_CALL ws* words (COMMA (atom_ws_eq | '\\')*)* ')'
+	| FUN_DIR ws* words ')'
+	| FUN_EVAL ws* atom_ws_eq+ ')'
+	| FUN_FINDSTRING ws* atom_ws_eq+ COMMA atom_ws+ ')'
+	| FUN_FILTER ws* ~COMMA+ COMMA ws* words ')'
+	| FUN_FILTER_OUT ws* ~COMMA+ COMMA ws* words ')'
+	| FUN_FIRSTWORD ws* words ')'
+	| FUN_FOREACH ws* atom_ws+ COMMA (':' | atom_ws)+ COMMA atom_ws+ ')'
+	| FUN_IF ws* words COMMA ws* words? (COMMA ws* words?)? ')'
+	| FUN_LASTWORD ws* words ')'
+	| FUN_NOTDIR ws* words ')'
+	| FUN_ORIGIN ws* words ')'
+	| FUN_OR ws* words (COMMA words?)* ')'
+	| FUN_PATSUBST ws* f=~COMMA+ COMMA ws* t=words COMMA ws* e=words ')'
+	| FUN_SORT ws* words ')'
+	| FUN_SUBST ws* f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words ')'	{$cond = $e.cond;}
+	| FUN_STRIP ws* words ')'
+	| FUN_WILDCARD ws* ('*' | words)+ ')'
+	| FUN_WORD ws* words COMMA ws* words ')'
+	| FUN_WORDS ws* words ')'
+;
+
 in_eval returns [std::string cond] :
 	  a1=atom+ (':' atom? '=' word?)?		{$cond = $a1.cond;}
-	| 'addprefix' ws+ words (COMMA ws* words?)+
-	| 'and' ws+ words (COMMA ws* words?)*
-	| 'basename' ws+ words
-	| 'call' ws+ words (COMMA (atom_ws_eq | '\\')*)*
-	| 'dir' ws+ words
-	| 'eval' ws+ atom_ws_eq+
-	| 'findstring' ws+ atom_ws_eq+ COMMA atom_ws+
-	| 'filter' ws+ ~COMMA+ COMMA ws* words
-	| 'filter-out' ws+ ~COMMA+ COMMA ws* words
-	| 'firstword' ws+ words
-	| 'foreach' ws+ atom_ws+ COMMA (':' | atom_ws)+ COMMA atom_ws+
-	| 'if' ws+ words COMMA ws* words? (COMMA ws* words?)?
-	| 'lastword' ws+ words
-	| 'notdir' ws+ words
-	| 'origin' ws+ words
-	| 'or' ws+ words (COMMA words?)*
-	| 'patsubst' ws+ f=~COMMA+ COMMA ws* t=words COMMA ws* e=words
-	| 'sort' ws+ words
-	| 'subst' ws+ f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words	{$cond = $e.cond;}
-	| 'strip' ws+ words
-	| 'wildcard' ws+ ('*' | words)+
-	| 'word' ws+ words COMMA ws* words
-	| 'words' ws+ words
 ;
 
 nonNL : ~NL+ ;
@@ -203,6 +207,30 @@ SHELL : '$(shell' WS SKIP_BODY ')' -> skip ;
 fragment SKIP_BODY :
 	  ( ~[()] | '(' SKIP_BODY ')' )*
 ;
+
+FUN_ADDPREFIX :		'$(addprefix' WS ;
+FUN_AND :		'$(and' WS ;
+FUN_BASENAME :		'$(basename' WS ;
+FUN_CALL :		'$(call' WS ;
+FUN_DIR : 		'$(dir' WS ;
+FUN_EVAL :		'$(eval' WS ;
+FUN_FINDSTRING :	'$(findstring' WS ;
+FUN_FILTER :		'$(filter' WS ;
+FUN_FILTER_OUT :	'$(filter-out' WS ;
+FUN_FIRSTWORD :		'$(firstword' WS ;
+FUN_FOREACH :		'$(foreach' WS ;
+FUN_IF :		'$(if' WS ;
+FUN_LASTWORD :		'$(lastword' WS ;
+FUN_NOTDIR :		'$(notdir' WS ;
+FUN_OR : 		'$(or' WS ;
+FUN_ORIGIN :		'$(origin' WS ;
+FUN_PATSUBST :		'$(patsubst' WS ;
+FUN_SORT :		'$(sort' WS ;
+FUN_SUBST :		'$(subst' WS ;
+FUN_STRIP :		'$(strip' WS ;
+FUN_WILDCARD :		'$(wildcard' WS ;
+FUN_WORD :		'$(word' WS ;
+FUN_WORDS :		'$(words' WS ;
 
 CONFIG : 'CONFIG_' IDfrag ;
 BARE_CORE : 'core-' ('m'|'y') ;

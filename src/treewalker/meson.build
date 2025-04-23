@@ -3,6 +3,8 @@
 treewalker = static_library('treewalker', [
     'ConsoleMakeVisitor.h',
     'MakeVisitor.h',
+    'SQLiteMakeVisitor.cpp',
+    'SQLiteMakeVisitor.h',
     'TreeWalker.cpp',
     'TreeWalker.h',
   ],

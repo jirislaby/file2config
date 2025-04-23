@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 subdir('parser')
+subdir('sql')
 subdir('treewalker')
 
 # for qt-creator to pick up generated headers
@@ -11,6 +12,6 @@ executable('f2c_collect_configs', [
     'Verbose.cpp',
     'Verbose.h',
   ],
-  link_with: [ treewalker ],
+  link_with: [ sqlite, treewalker ],
   install: true,
 )

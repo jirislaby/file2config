@@ -161,29 +161,40 @@ eval returns [std::string cond] :
 ;
 
 function returns [std::string cond] :
-	  FUN_ADDPREFIX ws* words (COMMA ws* words?)+ ')'
+	  FUN_ABSPATH ws* words ')'
+	| FUN_ADDPREFIX ws* words (COMMA ws* words?)+ ')'
+	| FUN_ADDSUFFIX ws* words (COMMA ws* words?)+ ')'
 	| FUN_AND ws* words (COMMA ws* words?)* ')'
 	| FUN_BASENAME ws* words ')'
 	| FUN_CALL ws* words (COMMA (atom_ws_eq | '\\')*)* ')'
 	| FUN_DIR ws* words ')'
 	| FUN_EVAL ws* atom_ws_eq+ ')'
-	| FUN_FINDSTRING ws* atom_ws_eq+ COMMA atom_ws+ ')'
-	| FUN_FILTER ws* ~COMMA+ COMMA ws* words ')'
+	| FUN_FILE ws* ('<' | '>' | '>>') ws+ word (COMMA ws* words)? ')'
 	| FUN_FILTER_OUT ws* ~COMMA+ COMMA ws* words ')'
+	| FUN_FILTER ws* ~COMMA+ COMMA ws* words ')'
+	| FUN_FINDSTRING ws* atom_ws_eq+ COMMA atom_ws+ ')'
 	| FUN_FIRSTWORD ws* words ')'
+	| FUN_FLAVOR ws* word ')'
 	| FUN_FOREACH ws* atom_ws+ COMMA (':' | atom_ws)+ COMMA atom_ws+ ')'
 	| FUN_IF ws* words COMMA ws* words? (COMMA ws* words?)? ')'
+	| FUN_INTCMP ws* words (COMMA ws* words?)+ ')'
+	| FUN_JOIN ws* words COMMA ws* words ')'
 	| FUN_LASTWORD ws* words ')'
+	| FUN_LET ws* words COMMA ws* words? COMMA ws* words? ')'
 	| FUN_NOTDIR ws* words ')'
 	| FUN_ORIGIN ws* words ')'
 	| FUN_OR ws* words (COMMA words?)* ')'
 	| FUN_PATSUBST ws* f=~COMMA+ COMMA ws* t=words COMMA ws* e=words ')'
+	| FUN_REALPATH ws* words ')'
 	| FUN_SORT ws* words ')'
+	| FUN_STRIP ws* words ws* ')'
 	| FUN_SUBST ws* f=~COMMA+ COMMA ws* t=words? COMMA ws* e=words ')'	{$cond = $e.cond;}
-	| FUN_STRIP ws* words ')'
+	| FUN_SUFFIX ws* words ')'
+	| FUN_VALUE ws* word ')'
 	| FUN_WILDCARD ws* ('*' | words)+ ')'
-	| FUN_WORD ws* words COMMA ws* words ')'
+	| FUN_WORDLIST ws* word COMMA ws* word COMMA ws* words ')'
 	| FUN_WORDS ws* words ')'
+	| FUN_WORD ws* words COMMA ws* words ')'
 ;
 
 in_eval returns [std::string cond] :
@@ -207,28 +218,39 @@ fragment SKIP_BODY :
 	  ( ~[()] | '(' SKIP_BODY ')' )*
 ;
 
+FUN_ABSPATH :		'$(abspath' WS ;
 FUN_ADDPREFIX :		'$(addprefix' WS ;
+FUN_ADDSUFFIX :		'$(addsuffix' WS ;
 FUN_AND :		'$(and' WS ;
 FUN_BASENAME :		'$(basename' WS ;
 FUN_CALL :		'$(call' WS ;
 FUN_DIR : 		'$(dir' WS ;
 FUN_EVAL :		'$(eval' WS ;
-FUN_FINDSTRING :	'$(findstring' WS ;
+FUN_FILE :		'$(file' WS ;
 FUN_FILTER :		'$(filter' WS ;
 FUN_FILTER_OUT :	'$(filter-out' WS ;
+FUN_FINDSTRING :	'$(findstring' WS ;
 FUN_FIRSTWORD :		'$(firstword' WS ;
+FUN_FLAVOR :		'$(flavor' WS ;
 FUN_FOREACH :		'$(foreach' WS ;
 FUN_IF :		'$(if' WS ;
+FUN_INTCMP :		'$(intcmp' WS ;
+FUN_JOIN :		'$(join' WS ;
 FUN_LASTWORD :		'$(lastword' WS ;
+FUN_LET :		'$(let' WS ;
 FUN_NOTDIR :		'$(notdir' WS ;
 FUN_OR : 		'$(or' WS ;
 FUN_ORIGIN :		'$(origin' WS ;
 FUN_PATSUBST :		'$(patsubst' WS ;
+FUN_REALPATH :		'$(realpath' WS ;
 FUN_SORT :		'$(sort' WS ;
-FUN_SUBST :		'$(subst' WS ;
 FUN_STRIP :		'$(strip' WS ;
+FUN_SUBST :		'$(subst' WS ;
+FUN_SUFFIX :		'$(suffix' WS ;
+FUN_VALUE :		'$(value' WS ;
 FUN_WILDCARD :		'$(wildcard' WS ;
 FUN_WORD :		'$(word' WS ;
+FUN_WORDLIST :		'$(wordlist' WS ;
 FUN_WORDS :		'$(words' WS ;
 
 CONFIG : 'CONFIG_' ID ;

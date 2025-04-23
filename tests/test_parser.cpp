@@ -7,8 +7,10 @@
 #include "EntryVisitor.h"
 #include "Parser.h"
 
-int main()
+static void testVisitor()
 {
+	std::cout << __func__ << '\n';
+
 	MP::Parser parser;
 
 	using Entry = std::pair<std::string, std::string>;
@@ -56,6 +58,56 @@ int main()
 
 	for (const auto &e : data)
 		assert(cont.find(e.second) != cont.end());
+}
+
+static void testMakefile(const std::filesystem::path &makefile)
+{
+	std::cout << "Testing " << makefile.filename() << '\n';
+
+	MP::Parser parser;
+
+	class TestVisitor : public MP::EntryVisitor {
+	public:
+		TestVisitor() {}
+
+		virtual const std::any isInteresting(const std::string &) const {
+			return true;
+		}
+
+		virtual void entry(const std::any &, const std::string &,
+				   const enum MP::EntryType &, const std::string &) const {
+		}
+	} visitor;
+
+	assert(parser.parse({}, makefile, visitor) == 0);
+}
+
+static void testMakefiles(const std::filesystem::path &makefiles)
+{
+	std::cout << __func__ << '\n';
+
+	std::error_code ec;
+
+	const auto iter = std::filesystem::directory_iterator{makefiles, ec};
+	assert(!ec);
+
+	for (const auto &entry : iter)
+		if (entry.is_regular_file() && entry.path().stem().string() == "Makefile")
+			testMakefile(entry.path());
+}
+
+#ifndef TESTS_DIR
+#define TESTS_DIR	"."
+#endif
+
+int main()
+{
+	std::filesystem::path tests{TESTS_DIR};
+
+	std::cout << "Tests dir: " << tests << '\n';
+
+	testVisitor();
+	testMakefiles(tests/"makefiles");
 
 	return 0;
 }

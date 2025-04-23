@@ -2,4 +2,5 @@
 
 #include "Verbose.h"
 
+bool F2C::quiet;
 unsigned F2C::verbose;

@@ -5,6 +5,7 @@
 
 namespace F2C {
 
+extern bool quiet;
 extern unsigned verbose;
 
 }

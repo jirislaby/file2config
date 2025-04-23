@@ -289,7 +289,9 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 		}
 	}
 
-	std::cerr << __func__ << ": " << kbPath << ": Kbuild/Makefile not found in " << path << "\n";
+	if (!F2C::quiet)
+		std::cerr << __func__ << ": " << kbPath << ": Kbuild/Makefile not found in " <<
+			     path << "\n";
 }
 
 void TreeWalker::walk()

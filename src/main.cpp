@@ -15,12 +15,16 @@ static void usage(const char *prgname)
 int main(int argc, char **argv)
 {
 	const struct option opts[] = {
+		{ "quiet", 0, nullptr, 'q' },
 		{ "verbose", 0, nullptr, 'v' },
 		{}
 	};
 	int opt;
-	while ((opt = getopt_long(argc, argv, "v", opts, nullptr)) >= 0) {
+	while ((opt = getopt_long(argc, argv, "qv", opts, nullptr)) >= 0) {
 		switch (opt) {
+		case 'q':
+			F2C::quiet = true;
+			break;
 		case 'v':
 			F2C::verbose++;
 			break;

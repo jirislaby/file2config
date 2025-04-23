@@ -193,7 +193,7 @@ $ins_user->{PrintError} = 0;
 sub process_files($$) {
 	my ($branch, $branch_tree) = @_;
 	my $dir = pushd $branch_tree;
-	open(my $f2c, '-|', "f2c_collect_configs") or
+	open(my $f2c, '-|', 'f2c_collect_configs', '-q') or
 		die 'cannot run f2c_collect_configs';
 	while (<$f2c>) {
 		chomp;

@@ -1,0 +1,5 @@
+*.class
+*.g4
+*.interp
+*.java
+*.tokens

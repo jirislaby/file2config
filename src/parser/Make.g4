@@ -43,7 +43,7 @@ make_rule :
 ;
 
 make_rule_lhs:
-	words ws* (':' | '&:')
+	words ws* (':' | '::' | '&:')
 ;
 
 rule_cmd :

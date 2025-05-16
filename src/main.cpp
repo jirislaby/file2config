@@ -93,6 +93,7 @@ int main(int argc, char **argv)
 			ret = sql->prepDB();
 			if (ret)
 				return EXIT_FAILURE;
+			sql->begin();
 		}
 		if (sql->insertBranch(sqliteBranch, sqliteSHA)) {
 			std::cerr << "cannot add branch '" << sqliteBranch <<
@@ -106,6 +107,8 @@ int main(int argc, char **argv)
 	if (!skipWalk) {
 		TW::TreeWalker tw(path, *visitor);
 		tw.walk();
+		if (sqlite)
+			sql->end();
 	}
 
 	return 0;

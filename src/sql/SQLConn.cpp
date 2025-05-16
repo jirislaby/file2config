@@ -97,6 +97,17 @@ int SQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"UNIQUE(branch, config, file)"
 		}},
+		{ "module", {
+			"id INTEGER PRIMARY KEY",
+			"name TEXT NOT NULL UNIQUE"
+		}},
+		{ "module_file_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
+			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"UNIQUE(branch, module, file)"
+		}},
 		{ "user", {
 			"id INTEGER PRIMARY KEY",
 			"email TEXT NOT NULL UNIQUE"
@@ -153,6 +164,13 @@ int SQLConn::createDB()
 		{ "conf_file_map_view",
 			"SELECT map.id, map.branch, map.config, dir.dir || '/' || file.file AS path "
 			"FROM conf_file_map_view_raw_file AS map "
+			"LEFT JOIN file ON map.file = file.id "
+			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "module_file_map_view",
+			"SELECT map.id, map.branch, map.module, dir.dir || '/' || file.file AS path "
+			"FROM module_file_map AS map "
+			"LEFT JOIN module ON map.module = module.id "
+			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
 		{ "user_file_map_view",

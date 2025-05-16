@@ -129,7 +129,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 					std::cout << "\t\ttrying: " <<
 						     lhs.substr(lookingFor.length()) <<
 						     " against '" << s << "'\n";
-				if (!lhs.compare(lookingFor.length(), ~0U, s)) {
+				if (!lhs.compare(lookingFor.length(), std::string::npos, s)) {
 					if (F2C::verbose > 1)
 						std::cout << "\t\tMATCH2: " << s << '\n';
 					return true;

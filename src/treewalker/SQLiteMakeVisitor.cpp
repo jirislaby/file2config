@@ -60,3 +60,21 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 	if (sql.insertCFMap(branch, cond, dir, file))
 		return;
 }
+
+void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath, const std::string &module) const
+{
+	auto relPath = srcPath.lexically_relative(base);
+
+	if (skipPath(relPath))
+		return;
+
+	if (F2C::verbose > 1)
+		std::cout << "SQL MOD " << module << " " << relPath.string() << "\n";
+
+	auto dir = relPath.parent_path();
+	auto file = relPath.filename();
+	if (sql.insertModule(dir, module))
+		return;
+	if (sql.insertMFMap(branch, dir, module, dir, file))
+		return;
+}

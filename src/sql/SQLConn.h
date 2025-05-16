@@ -31,6 +31,9 @@ public:
 	int insertDir(const std::string &dir);
 	int insertFile(const std::string &dir, const std::string &file);
 	int insertCFMap(const std::string &branch, const std::string &config, const std::string &dir, const std::string &file);
+	int insertModule(const std::string &dir, const std::string &module);
+	int insertMFMap(const std::string &branch, const std::string &module_dir,
+			const std::string &module, const std::string &dir, const std::string &file);
 private:
 	int bind(SQLStmtHolder &ins, const std::string &key, const std::string &val);
 	int bind(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string> > &binding);
@@ -44,6 +47,8 @@ private:
 	SQLStmtHolder insDir;
 	SQLStmtHolder insFile;
 	SQLStmtHolder insCFMap;
+	SQLStmtHolder insModule;
+	SQLStmtHolder insMFMap;
 };
 
 }

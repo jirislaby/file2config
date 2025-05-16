@@ -97,6 +97,19 @@ int SQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"UNIQUE(branch, config, file)"
 		}},
+		{ "module", {
+			"id INTEGER PRIMARY KEY",
+			"dir INTEGER NOT NULL REFERENCES dir(id)",
+			"module TEXT NOT NULL",
+			"UNIQUE(dir, module)"
+		}},
+		{ "module_file_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
+			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"UNIQUE(branch, module, file)"
+		}},
 		{ "user", {
 			"id INTEGER PRIMARY KEY",
 			"email TEXT NOT NULL UNIQUE"
@@ -153,6 +166,16 @@ int SQLConn::createDB()
 		{ "conf_file_map_view",
 			"SELECT map.id, map.branch, map.config, dir.dir || '/' || file.file AS path "
 			"FROM conf_file_map_view_raw_file AS map "
+			"LEFT JOIN file ON map.file = file.id "
+			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "module_file_map_view",
+			"SELECT map.id, branch.branch, "
+				"module_dir.dir || '/' || module.module AS module, "
+				"dir.dir || '/' || file.file AS path "
+			"FROM module_file_map AS map "
+			"LEFT JOIN module ON map.module = module.id "
+			"LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
+			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
 		{ "user_file_map_view",
@@ -245,6 +268,35 @@ int SQLConn::prepDB()
 				 "file.file = :file AND dir.dir = :dir;",
 				 -1, &stmt, NULL);
 	insCFMap.reset(stmt);
+	if (ret != SQLITE_OK) {
+		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
+			     sqlite3_errstr(ret) << " -> " <<
+			     sqlite3_errmsg(sqlHolder) << "\n";
+		return -1;
+	}
+
+	ret = sqlite3_prepare_v2(sqlHolder,
+				 "INSERT INTO module(dir, module) "
+				 "SELECT dir.id, :module FROM dir WHERE dir.dir = :dir;",
+				 -1, &stmt, NULL);
+	insModule.reset(stmt);
+	if (ret != SQLITE_OK) {
+		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
+			     sqlite3_errstr(ret) << " -> " <<
+			     sqlite3_errmsg(sqlHolder) << "\n";
+		return -1;
+	}
+
+	ret = sqlite3_prepare_v2(sqlHolder,
+				 "INSERT INTO module_file_map(branch, module, file) "
+				 "SELECT branch.id, module.id, file.id FROM branch, module, file "
+				 "LEFT JOIN dir ON file.dir = dir.id "
+				 "LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
+				 "WHERE branch.branch = :branch AND module_dir.dir = :module_dir AND "
+				 "module.module = :module AND "
+				 "file.file = :file AND dir.dir = :dir;",
+				 -1, &stmt, NULL);
+	insMFMap.reset(stmt);
 	if (ret != SQLITE_OK) {
 		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
 			     sqlite3_errstr(ret) << " -> " <<
@@ -402,6 +454,26 @@ int SQLConn::insertCFMap(const std::string &branch, const std::string &config,
 	return insert(insCFMap, {
 			      { ":branch", branch },
 			      { ":config", config },
+			      { ":dir", dir },
+			      { ":file", file },
+		      });
+}
+
+int SQLConn::insertModule(const std::string &dir, const std::string &module)
+{
+	return insert(insModule, {
+			      { ":dir", dir },
+			      { ":module", module }
+		      });
+}
+
+int SQLConn::insertMFMap(const std::string &branch, const std::string &module_dir,
+			 const std::string &module, const std::string &dir, const std::string &file)
+{
+	return insert(insMFMap, {
+			      { ":branch", branch },
+			      { ":module_dir", module_dir },
+			      { ":module", module },
 			      { ":dir", dir },
 			      { ":file", file },
 		      });

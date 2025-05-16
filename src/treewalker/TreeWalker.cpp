@@ -77,7 +77,8 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const MakeVisitor &ma
 	}
 }
 
-void TreeWalker::addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
+void TreeWalker::addTargetEntry(const std::string &module, const CondStack &s,
+				const std::filesystem::path &objPath,
 				const std::string &cond,
 				const MP::EntryType &type,
 				const std::string &entry, bool &found)
@@ -88,8 +89,7 @@ void TreeWalker::addTargetEntry(const CondStack &s, const std::filesystem::path 
 	if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
-
-		handleObject(newS, objPath.parent_path() / entry);
+		handleObject(newS, objPath.parent_path() / entry, module);
 		found = true;
 	}
 }
@@ -140,7 +140,8 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 		virtual void entry(const std::any &, const std::string &cond,
 				   const enum MP::EntryType &type, const std::string &word) const override {
-			TW.addTargetEntry(s, objPath, cond, type, word, found);
+			TW.addTargetEntry(objPath.stem().string(), s, objPath, cond, type, word,
+					  found);
 		}
 	private:
 		TreeWalker &TW;
@@ -174,7 +175,8 @@ std::string TreeWalker::getCond(const CondStack &s)
 	return "y";
 }
 
-void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath)
+void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath,
+			      const std::string &module)
 {
 	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";
@@ -193,6 +195,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
 			makeVisitor.config(srcPath, cond);
+			makeVisitor.module(srcPath, module);
 			return;
 		}
 	}
@@ -223,7 +226,8 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 	} else if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
-		handleObject(newS, kbPath.parent_path() / word);
+		auto obj = kbPath.parent_path() / word;
+		handleObject(newS, obj, obj.stem());
 	}
 }
 

@@ -34,8 +34,8 @@ public:
 			     const std::any &interesting, const std::string &cond,
 			     const MP::EntryType &type,
 			     const std::string &word);
-	void addTargetEntry(const CondStack &s, const std::filesystem::path &objPath,
-			    const std::string &cond,
+	void addTargetEntry(const std::string &module, const CondStack &s,
+			    const std::filesystem::path &objPath, const std::string &cond,
 			    const MP::EntryType &type,
 			    const std::string &entry, bool &found);
 private:
@@ -47,7 +47,8 @@ private:
 	void handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath);
 	void addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
 			  const std::filesystem::path &path);
-	void handleObject(const CondStack &s, const std::filesystem::path &objPath);
+	void handleObject(const CondStack &s, const std::filesystem::path &objPath,
+			  const std::string &module);
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::string getCond(const CondStack &s);

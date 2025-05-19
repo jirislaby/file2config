@@ -23,21 +23,32 @@ void SQLiteMakeVisitor::ignored(const std::filesystem::path &objPath, const std:
 		std::cout << "ignoring already reported " << objPath << ", now with " << cond << '\n';
 }
 
+bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
+{
+	if (relPath.extension() != ".c")
+		return true;
+
+	static const std::string skipPaths[] = { "Documentation", "samples", "tools", };
+
+	auto first = *relPath.begin();
+	for (const auto &avoid : skipPaths)
+		if (avoid == first)
+			return true;
+
+	return false;
+}
+
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const
 {
-	if (srcPath.extension() != ".c")
-		return;
 	auto relPath = srcPath.lexically_relative(base);
 
-	static const std::string avoidPath[] = { "Documentation", "samples", "tools", };
-	auto first = *relPath.begin();
+	if (skipPath(relPath))
+		return;
+
 	if (F2C::verbose > 1)
-		std::cout << "SQL " << cond << " " << srcPath.string() << "\n";
-	for (const auto &avoid : avoidPath) {
-		if (avoid == first)
-			return;
-	}
+		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
+
 	auto dir = relPath.parent_path();
 	auto file = relPath.filename();
 	if (sql.insertConfig(cond))

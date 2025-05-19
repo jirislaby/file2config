@@ -3,8 +3,6 @@
 #ifndef SQLITEMAKEVISITOR_H
 #define SQLITEMAKEVISITOR_H
 
-#include <iostream>
-
 #include "MakeVisitor.h"
 
 namespace SQL {
@@ -27,6 +25,8 @@ public:
 	virtual void config(const std::filesystem::path &srcPath,
 			    const std::string &cond) const override;
 private:
+	static bool skipPath(const std::filesystem::path &relPath);
+
 	SQL::SQLConn &sql;
 	const std::string branch;
 	const std::filesystem::path base;

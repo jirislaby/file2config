@@ -3,6 +3,8 @@
 sqlite3_lib = cpp_compiler.find_library('sqlite3')
 
 sqlite = static_library('sqlite', [
+    'F2CSQLConn.cpp',
+    'F2CSQLConn.h',
     'SQLConn.cpp',
     'SQLConn.h',
     'SQLiteSmart.h',

@@ -4,6 +4,7 @@
 #define SQLCONN_H
 
 #include <filesystem>
+#include <string>
 #include <typeindex>
 #include <variant>
 #include <vector>
@@ -19,25 +20,16 @@ enum open_flags {
 
 class SQLConn {
 public:
-	SQLConn() {}
-
 	int openDB(const std::filesystem::path &dbFile, unsigned int flags = 0);
-	int createDB();
-	int prepDB();
+	virtual int createDB() { return 0; }
+	virtual int prepDB() { return 0; }
 
 	int begin();
 	int end();
 
-	int insertBranch(const std::string &branch, const std::string &sha);
-	int insertConfig(const std::string &config);
-	int insertDir(const std::string &dir);
-	int insertFile(const std::string &dir, const std::string &file);
-	int insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
-			const std::string &file);
-	int insertModule(const std::string &dir, const std::string &module);
-	int insertMFMap(const std::string &branch, const std::string &module_dir,
-			const std::string &module, const std::string &dir, const std::string &file);
 protected:
+	SQLConn() {}
+
 	using Tables = std::vector<std::pair<std::string, std::vector<std::string>>>;
 	using Indices = std::vector<std::pair<std::string, std::string>>;
 	using Views = Indices;
@@ -61,15 +53,6 @@ protected:
 		   SelectResult &result);
 
 	SQLHolder sqlHolder;
-
-private:
-	SQLStmtHolder insBranch;
-	SQLStmtHolder insConfig;
-	SQLStmtHolder insDir;
-	SQLStmtHolder insFile;
-	SQLStmtHolder insCFMap;
-	SQLStmtHolder insModule;
-	SQLStmtHolder insMFMap;
 };
 
 }

@@ -6,7 +6,7 @@
 #include "MakeVisitor.h"
 
 namespace SQL {
-class SQLConn;
+class F2CSQLConn;
 }
 
 namespace TW {
@@ -15,7 +15,7 @@ class SQLiteMakeVisitor : public MakeVisitor
 {
 public:
 	SQLiteMakeVisitor() = delete;
-	SQLiteMakeVisitor(SQL::SQLConn &sql, const std::string &branch,
+	SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const std::string &branch,
 			  const std::filesystem::path &base);
 
 	virtual ~SQLiteMakeVisitor() override;
@@ -30,7 +30,7 @@ public:
 private:
 	static bool skipPath(const std::filesystem::path &relPath);
 
-	SQL::SQLConn &sql;
+	SQL::F2CSQLConn &sql;
 	const std::string branch;
 	const std::filesystem::path base;
 };

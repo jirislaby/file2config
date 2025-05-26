@@ -3,7 +3,7 @@
 #include <getopt.h>
 #include <iostream>
 
-#include "sql/SQLConn.h"
+#include "sql/F2CSQLConn.h"
 #include "treewalker/ConsoleMakeVisitor.h"
 #include "treewalker/SQLiteMakeVisitor.h"
 #include "treewalker/TreeWalker.h"
@@ -73,9 +73,9 @@ int main(int argc, char **argv)
 		path = argv[optind];
 
 	std::unique_ptr<TW::MakeVisitor> visitor;
-	std::unique_ptr<SQL::SQLConn> sql;
+	std::unique_ptr<SQL::F2CSQLConn> sql;
 	if (sqlite) {
-		sql = std::make_unique<SQL::SQLConn>();
+		sql = std::make_unique<SQL::F2CSQLConn>();
 		unsigned openFlags = 0;
 		if (sqliteCreate)
 			openFlags |= SQL::CREATE;

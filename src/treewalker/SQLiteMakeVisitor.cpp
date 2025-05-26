@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include "../Verbose.h"
-#include "../sql/SQLConn.h"
+#include "../sql/F2CSQLConn.h"
 
 #include "SQLiteMakeVisitor.h"
 
 using namespace TW;
 
-SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::SQLConn &sql, const std::string &branch,
+SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const std::string &branch,
 				     const std::filesystem::path &base) :
 	sql(sql), branch(branch), base(base)
 {

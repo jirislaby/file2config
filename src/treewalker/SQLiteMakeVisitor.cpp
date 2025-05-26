@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <iostream>
+
 #include "../Verbose.h"
 #include "../sql/F2CSQLConn.h"
 

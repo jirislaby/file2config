@@ -3,8 +3,8 @@
 #ifndef F2CSQLCONN_H
 #define F2CSQLCONN_H
 
-#include "SQLConn.h"
-#include "SQLiteSmart.h"
+#include <slsqlite++/SQLConn.h>
+#include <slsqlite++/SQLiteSmart.h>
 
 namespace SQL {
 

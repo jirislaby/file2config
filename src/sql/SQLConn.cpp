@@ -22,7 +22,7 @@ static int busy_handler(void *, int count)
 	return 1;
 }
 
-static void joinVec(std::ostringstream &ss, const std::vector<const char *> vec,
+static void joinVec(std::ostringstream &ss, const std::vector<std::string> &vec,
 		    const std::string &sep = ", ")
 {
 	for (auto i = vec.begin(), end = vec.end(); i != end; ++i) {
@@ -349,7 +349,7 @@ int SQLConn::bind(SQLStmtHolder &ins, const std::string &key, const std::string 
 	return 0;
 }
 
-int SQLConn::bind(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string>> &binding)
+int SQLConn::bind(SQLStmtHolder &ins, const Binding &binding)
 {
 	for (const auto &b : binding)
 		if (bind(ins, b.first, b.second))
@@ -358,7 +358,7 @@ int SQLConn::bind(SQLStmtHolder &ins, const std::vector<std::pair<std::string, s
 	return 0;
 }
 
-int SQLConn::insert(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string>> &binding)
+int SQLConn::insert(SQLStmtHolder &ins, const Binding &binding)
 {
 	SQLStmtResetter insSrcResetter(sqlHolder, ins);
 	int ret;
@@ -377,10 +377,8 @@ int SQLConn::insert(SQLStmtHolder &ins, const std::vector<std::pair<std::string,
 	return 0;
 }
 
-int SQLConn::select(SQLStmtHolder &sel,
-		    const std::vector<std::pair<std::string, std::string>> &binding,
-		    const std::vector<std::type_index> &columns,
-		    std::vector<Row> &result)
+int SQLConn::select(SQLStmtHolder &sel, const Binding &binding, const ColumnTypes &columns,
+		    SelectResult &result)
 {
 	int ret;
 
@@ -416,8 +414,6 @@ int SQLConn::select(SQLStmtHolder &sel,
 
 int SQLConn::insertBranch(const std::string &branch, const std::string &sha)
 {
-	std::vector<Row> result;
-
 	return insert(insBranch, {
 			      { ":branch", branch },
 			      { ":sha", sha },

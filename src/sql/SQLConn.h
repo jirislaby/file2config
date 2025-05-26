@@ -39,7 +39,15 @@ public:
 	int insertModule(const std::string &dir, const std::string &module);
 	int insertMFMap(const std::string &branch, const std::string &module_dir,
 			const std::string &module, const std::string &dir, const std::string &file);
-private:
+protected:
+	using Tables = std::vector<std::pair<const char *, std::vector<const char *>>>;
+	using Indices = std::vector<std::pair<const char *, const char *>>;
+	using Views = Indices;
+
+	int createTables(const Tables &tables);
+	int createIndices(const Indices &indices);
+	int createViews(const Views &views);
+
 	int bind(SQLStmtHolder &ins, const std::string &key, const std::string &val);
 	int bind(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string> > &binding);
 	int insert(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string> > &binding);
@@ -47,6 +55,8 @@ private:
 		   const std::vector<std::type_index> &columns, std::vector<Row> &result);
 
 	SQLHolder sqlHolder;
+
+private:
 	SQLStmtHolder insBranch;
 	SQLStmtHolder insConfig;
 	SQLStmtHolder insDir;

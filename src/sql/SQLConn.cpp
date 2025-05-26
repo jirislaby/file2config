@@ -69,12 +69,74 @@ int SQLConn::openDB(const std::filesystem::path &dbFile, unsigned int flags)
 	return 0;
 }
 
-int SQLConn::createDB()
+int SQLConn::createTables(const Tables &tables)
 {
 	char *err;
 	int ret;
 
-	static const std::vector<std::pair<const char *, std::vector<const char *>>> create_tables {
+	for (const auto &c: tables) {
+		std::ostringstream ss;
+		ss << "CREATE TABLE IF NOT EXISTS " << c.first << '(';
+		joinVec(ss, c.second);
+		ss << ") STRICT;";
+		ret = sqlite3_exec(sqlHolder, ss.str().c_str(), NULL, NULL, &err);
+		if (ret != SQLITE_OK) {
+			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
+					sqlite3_errstr(ret) << " -> " <<
+					err << "\n\t" << ss.str() << "\n";
+			sqlite3_free(err);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int SQLConn::createIndices(const Indices &indices)
+{
+	char *err;
+	int ret;
+
+	for (const auto &c: indices) {
+		std::string s("CREATE INDEX IF NOT EXISTS ");
+		s.append(c.first).append(" ON ").append(c.second);
+		ret = sqlite3_exec(sqlHolder, s.c_str(), NULL, NULL, &err);
+		if (ret != SQLITE_OK) {
+			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
+					sqlite3_errstr(ret) << " -> " <<
+					err << "\n\t" << s << "\n";
+			sqlite3_free(err);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int SQLConn::createViews(const Views &views)
+{
+	char *err;
+	int ret;
+
+	for (const auto &c: views) {
+		std::string s("CREATE VIEW IF NOT EXISTS ");
+		s.append(c.first).append(" AS ").append(c.second);
+		ret = sqlite3_exec(sqlHolder, s.c_str(), NULL, NULL, &err);
+		if (ret != SQLITE_OK) {
+			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
+					sqlite3_errstr(ret) << " -> " <<
+					err << "\n\t" << s << "\n";
+			sqlite3_free(err);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int SQLConn::createDB()
+{
+	static const Tables create_tables {
 		{ "branch", {
 			"id INTEGER PRIMARY KEY",
 			"branch TEXT NOT NULL UNIQUE",
@@ -129,39 +191,11 @@ int SQLConn::createDB()
 		}},
 	};
 
-	for (auto c: create_tables) {
-		std::ostringstream ss;
-		ss << "CREATE TABLE IF NOT EXISTS " << c.first << '(';
-		joinVec(ss, c.second);
-		ss << ") STRICT;";
-		ret = sqlite3_exec(sqlHolder, ss.str().c_str(), NULL, NULL, &err);
-		if (ret != SQLITE_OK) {
-			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
-					sqlite3_errstr(ret) << " -> " <<
-					err << "\n\t" << ss.str() << "\n";
-			sqlite3_free(err);
-			return -1;
-		}
-	}
-
-	static const std::vector<std::pair<const char *, const char *>> create_indexes {
+	static const Indices create_indexes {
 		{ "conf_file_map_file_index", "conf_file_map(file)" },
 	};
 
-	for (auto c: create_indexes) {
-		std::string s("CREATE INDEX IF NOT EXISTS ");
-		s.append(c.first).append(" ON ").append(c.second);
-		ret = sqlite3_exec(sqlHolder, s.c_str(), NULL, NULL, &err);
-		if (ret != SQLITE_OK) {
-			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
-					sqlite3_errstr(ret) << " -> " <<
-					err << "\n\t" << s << "\n";
-			sqlite3_free(err);
-			return -1;
-		}
-	}
-
-	static const std::vector<std::pair<const char *, const char *>> create_views {
+	static const Views create_views {
 		{ "conf_file_map_view_raw_file",
 			"SELECT conf_file_map.id, branch.branch, config.config, conf_file_map.file "
 			"FROM conf_file_map "
@@ -196,18 +230,10 @@ int SQLConn::createDB()
 			"FROM user_file_map_view AS map GROUP BY email, path" },
 	};
 
-	for (auto c: create_views) {
-		std::string s("CREATE VIEW IF NOT EXISTS ");
-		s.append(c.first).append(" AS ").append(c.second);
-		ret = sqlite3_exec(sqlHolder, s.c_str(), NULL, NULL, &err);
-		if (ret != SQLITE_OK) {
-			std::cerr << "db CREATE failed (" << __LINE__ << "): " <<
-					sqlite3_errstr(ret) << " -> " <<
-					err << "\n\t" << s << "\n";
-			sqlite3_free(err);
-			return -1;
-		}
-	}
+	if (createTables(create_tables) ||
+			createIndices(create_indexes) ||
+			createViews(create_views))
+		return -1;
 
 	return 0;
 }

@@ -22,7 +22,8 @@ static int busy_handler(void *, int count)
 	return 1;
 }
 
-void joinVec(std::ostringstream &ss, const std::vector<const char *> vec, const std::string &sep = ", ")
+static void joinVec(std::ostringstream &ss, const std::vector<const char *> vec,
+		    const std::string &sep = ", ")
 {
 	for (auto i = vec.begin(), end = vec.end(); i != end; ++i) {
 		ss << *i;

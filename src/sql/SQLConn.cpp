@@ -134,6 +134,22 @@ int SQLConn::createViews(const Views &views)
 	return 0;
 }
 
+int SQLConn::prepareStatement(const std::string &sql, SQLStmtHolder &stmt)
+{
+	sqlite3_stmt *SQLStmt;
+	int ret = sqlite3_prepare_v2(sqlHolder, sql.c_str(), -1, &SQLStmt, NULL);
+	if (ret != SQLITE_OK) {
+		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
+			     sqlite3_errstr(ret) << " -> " <<
+			     sqlite3_errmsg(sqlHolder) << "\n";
+		return -1;
+	}
+
+	stmt.reset(SQLStmt);
+
+	return 0;
+}
+
 int SQLConn::createDB()
 {
 	static const Tables create_tables {
@@ -240,99 +256,47 @@ int SQLConn::createDB()
 
 int SQLConn::prepDB()
 {
-	sqlite3_stmt *stmt;
-	int ret;
-
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO branch(branch, sha)"
-				 "VALUES (:branch, :sha);",
-				 -1, &stmt, NULL);
-	insBranch.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO branch(branch, sha)"
+			     "VALUES (:branch, :sha);",
+			     insBranch))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO config(config)"
-				 "VALUES (:config);",
-				 -1, &stmt, NULL);
-	insConfig.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO config(config)"
+			     "VALUES (:config);",
+			     insConfig))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO dir(dir) VALUES (:dir);",
-				 -1, &stmt, NULL);
-	insDir.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",
+			     insDir))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO file(file, dir) "
-				 "SELECT :file, dir.id FROM dir WHERE dir.dir = :dir;",
-				 -1, &stmt, NULL);
-	insFile.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO file(file, dir) "
+			     "SELECT :file, dir.id FROM dir WHERE dir.dir = :dir;",
+			     insFile))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO conf_file_map(branch, config, file) "
-				 "SELECT branch.id, config.id, file.id FROM branch, config, file "
-				 "LEFT JOIN dir ON file.dir = dir.id "
-				 "WHERE branch.branch = :branch AND config.config = :config AND "
-				 "file.file = :file AND dir.dir = :dir;",
-				 -1, &stmt, NULL);
-	insCFMap.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO conf_file_map(branch, config, file) "
+			     "SELECT branch.id, config.id, file.id FROM branch, config, file "
+			     "LEFT JOIN dir ON file.dir = dir.id "
+			     "WHERE branch.branch = :branch AND config.config = :config AND "
+			     "file.file = :file AND dir.dir = :dir;",
+			     insCFMap))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO module(dir, module) "
-				 "SELECT dir.id, :module FROM dir WHERE dir.dir = :dir;",
-				 -1, &stmt, NULL);
-	insModule.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO module(dir, module) "
+			     "SELECT dir.id, :module FROM dir WHERE dir.dir = :dir;",
+			     insModule))
 		return -1;
-	}
 
-	ret = sqlite3_prepare_v2(sqlHolder,
-				 "INSERT INTO module_file_map(branch, module, file) "
-				 "SELECT branch.id, module.id, file.id FROM branch, module, file "
-				 "LEFT JOIN dir ON file.dir = dir.id "
-				 "LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
-				 "WHERE branch.branch = :branch AND module_dir.dir = :module_dir AND "
-				 "module.module = :module AND "
-				 "file.file = :file AND dir.dir = :dir;",
-				 -1, &stmt, NULL);
-	insMFMap.reset(stmt);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db prepare failed (" << __LINE__ << "): " <<
-			     sqlite3_errstr(ret) << " -> " <<
-			     sqlite3_errmsg(sqlHolder) << "\n";
+	if (prepareStatement("INSERT INTO module_file_map(branch, module, file) "
+			     "SELECT branch.id, module.id, file.id FROM branch, module, file "
+			     "LEFT JOIN dir ON file.dir = dir.id "
+			     "LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
+			     "WHERE branch.branch = :branch AND module_dir.dir = :module_dir AND "
+			     "module.module = :module AND "
+			     "file.file = :file AND dir.dir = :dir;",
+			     insMFMap))
 		return -1;
-	}
 
 	return 0;
 }

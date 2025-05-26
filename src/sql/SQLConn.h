@@ -48,6 +48,8 @@ protected:
 	int createIndices(const Indices &indices);
 	int createViews(const Views &views);
 
+	int prepareStatement(const std::string &sql, SQLStmtHolder &stmt);
+
 	int bind(SQLStmtHolder &ins, const std::string &key, const std::string &val);
 	int bind(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string> > &binding);
 	int insert(SQLStmtHolder &ins, const std::vector<std::pair<std::string, std::string> > &binding);

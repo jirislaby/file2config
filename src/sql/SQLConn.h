@@ -12,6 +12,11 @@
 
 namespace SQL {
 
+enum open_flags {
+	CREATE		= 1 << 0,
+	NO_FOREIGN_KEY	= 1 << 1,
+};
+
 class SQLConn {
 public:
 	using Column = std::variant<int, std::string>;
@@ -19,7 +24,7 @@ public:
 
 	SQLConn() {}
 
-	int openDB(const std::filesystem::path &dbFile);
+	int openDB(const std::filesystem::path &dbFile, unsigned int flags = 0);
 	int createDB();
 	int prepDB();
 

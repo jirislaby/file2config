@@ -76,12 +76,10 @@ int main(int argc, char **argv)
 	std::unique_ptr<SQL::SQLConn> sql;
 	if (sqlite) {
 		sql = std::make_unique<SQL::SQLConn>();
-		if (!sqliteCreate && !std::filesystem::exists(sqliteDB)) {
-			std::cerr << "database file " << sqliteDB <<
-				     " not found and --sqlite-create not specified\n";
-			return EXIT_FAILURE;
-		}
-		int ret = sql->openDB(sqliteDB);
+		unsigned openFlags = 0;
+		if (sqliteCreate)
+			openFlags |= SQL::CREATE;
+		int ret = sql->openDB(sqliteDB, openFlags);
 		if (ret)
 			return EXIT_FAILURE;
 		if (sqliteCreate) {

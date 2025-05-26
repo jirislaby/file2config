@@ -32,34 +32,37 @@ static void joinVec(std::ostringstream &ss, const std::vector<const char *> vec,
 	}
 }
 
-int SQLConn::openDB(const std::filesystem::path &dbFile)
+int SQLConn::openDB(const std::filesystem::path &dbFile, unsigned int flags)
 {
 	sqlite3 *sql;
-	char *err;
+	int openFlags = SQLITE_OPEN_READWRITE;
 	int ret;
 
-	ret = sqlite3_open_v2(dbFile.c_str(), &sql, SQLITE_OPEN_READWRITE |
-			      SQLITE_OPEN_CREATE, NULL);
+	if (flags & CREATE)
+		openFlags |= SQLITE_OPEN_CREATE;
+
+	ret = sqlite3_open_v2(dbFile.c_str(), &sql, openFlags, NULL);
 	sqlHolder.reset(sql);
 	if (ret != SQLITE_OK) {
 		std::cerr << "db open failed: " << sqlite3_errstr(ret) << "\n";
 		return -1;
 	}
 
-	ret = sqlite3_exec(sqlHolder, "PRAGMA foreign_keys = ON;", NULL, NULL,
-			   &err);
-	if (ret != SQLITE_OK) {
-		std::cerr << "db PRAGMA failed (" << __LINE__ << "): " <<
-				sqlite3_errstr(ret) << " -> " << err << "\n";
-		sqlite3_free(err);
-		return -1;
+	if (!(flags & NO_FOREIGN_KEY)) {
+		char *err;
+		ret = sqlite3_exec(sqlHolder, "PRAGMA foreign_keys = ON;", NULL, NULL, &err);
+		if (ret != SQLITE_OK) {
+			std::cerr << "db PRAGMA failed (" << __LINE__ << "): " <<
+					sqlite3_errstr(ret) << " -> " << err << "\n";
+			sqlite3_free(err);
+			return -1;
+		}
 	}
 
 	ret = sqlite3_busy_handler(sqlHolder, busy_handler, nullptr);
 	if (ret != SQLITE_OK) {
 		std::cerr << "db busy_handler failed (" << __LINE__ << "): " <<
-				sqlite3_errstr(ret) << " -> " << err << "\n";
-		sqlite3_free(err);
+				sqlite3_errstr(ret) << "\n";
 		return -1;
 	}
 

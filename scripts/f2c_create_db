@@ -16,6 +16,7 @@ use Term::ANSIColor qw(colored);
 
 setlocale(LC_COLLATE, 'C.UTF-8');
 
+my @append_branches;
 my @branches;
 my $db;
 my $kerncvs = 'kerncvs.suse.de:/srv/git/kernel-source.git';
@@ -28,6 +29,7 @@ my $report_unhandled;
 my $scratch_area = $ENV{'SCRATCH_AREA'};
 
 GetOptions(
+	'append-branch=s' => \@append_branches,
 	'branch=s' => \@branches,
 	'dest=s' => \$scratch_area,
 	'dump_refs' => \$dump_refs,
@@ -78,6 +80,7 @@ if (!@branches) {
 	@branches = map { chomp; $_ } <$b>;
 	close $b;
 }
+push @branches, @append_branches;
 my %in_branches = map { $_ => 1 } @branches;
 $in_branches{'scripts'} = 1;
 

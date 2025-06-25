@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 		sql = std::make_unique<SQL::F2CSQLConn>();
 		unsigned openFlags = 0;
 		if (sqliteCreate)
-			openFlags |= SQL::CREATE;
+			openFlags |= SlSqlite::CREATE;
 		int ret = sql->openDB(sqliteDB, openFlags);
 		if (ret)
 			return EXIT_FAILURE;

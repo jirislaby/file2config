@@ -3,12 +3,12 @@
 #ifndef F2CSQLCONN_H
 #define F2CSQLCONN_H
 
-#include <slsqlite++/SQLConn.h>
-#include <slsqlite++/SQLiteSmart.h>
+#include <sl/sqlite/SQLConn.h>
+#include <sl/sqlite/SQLiteSmart.h>
 
 namespace SQL {
 
-class F2CSQLConn : public SQLConn {
+class F2CSQLConn : public SlSqlite::SQLConn {
 public:
 	F2CSQLConn() {}
 
@@ -26,13 +26,13 @@ public:
 			const std::string &module, const std::string &dir, const std::string &file);
 
 private:
-	SQLStmtHolder insBranch;
-	SQLStmtHolder insConfig;
-	SQLStmtHolder insDir;
-	SQLStmtHolder insFile;
-	SQLStmtHolder insCFMap;
-	SQLStmtHolder insModule;
-	SQLStmtHolder insMFMap;
+	SlSqlite::SQLStmtHolder insBranch;
+	SlSqlite::SQLStmtHolder insConfig;
+	SlSqlite::SQLStmtHolder insDir;
+	SlSqlite::SQLStmtHolder insFile;
+	SlSqlite::SQLStmtHolder insCFMap;
+	SlSqlite::SQLStmtHolder insModule;
+	SlSqlite::SQLStmtHolder insMFMap;
 };
 
 }

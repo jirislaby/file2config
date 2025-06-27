@@ -14,6 +14,66 @@ static void usage(const char *prgname)
 	std::cout << prgname << ": [-O] [-q] [-s [dbFile]] [-S] [-v] [start_path]\n";
 }
 
+std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path &DBPath,
+					bool createDB, bool skipWalk)
+{
+	if (!sqlite)
+		return {};
+
+	auto sql = std::make_unique<SQL::F2CSQLConn>();
+	unsigned openFlags = 0;
+	if (createDB)
+		openFlags |= SlSqlite::CREATE;
+	int ret = sql->openDB(DBPath, openFlags);
+	if (ret)
+		return {};
+	if (createDB) {
+		ret = sql->createDB();
+		if (ret)
+			return {};
+	}
+	if (!skipWalk) {
+		ret = sql->prepDB();
+		if (ret)
+			return {};
+	}
+
+	return sql;
+}
+
+std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+						const std::string &branch,
+						const std::filesystem::path &root)
+{
+	if (sql)
+		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, branch, root);
+	else
+		return std::make_unique<TW::ConsoleMakeVisitor>();
+}
+
+int processBranch(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+		  const std::string &SHA, bool skipWalk, const std::filesystem::path &root)
+{
+	if (sql) {
+		sql->begin();
+		if (sql->insertBranch(branch, SHA)) {
+			std::cerr << "cannot add branch '" << branch << "' with SHA '" << SHA << "'\n";
+			return -1;
+		}
+	}
+
+	if (!skipWalk) {
+		auto visitor = getMakeVisitor(sql, branch, root);
+		TW::TreeWalker tw(root, *visitor);
+		tw.walk();
+	}
+
+	if (sql)
+		sql->end();
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	const struct option opts[] = {
@@ -68,46 +128,16 @@ int main(int argc, char **argv)
 
 	}
 
-	std::filesystem::path path{"."};
+	std::filesystem::path root{"."};
 	if (argc > optind)
-		path = argv[optind];
+		root = argv[optind];
 
-	std::unique_ptr<TW::MakeVisitor> visitor;
-	std::unique_ptr<SQL::F2CSQLConn> sql;
-	if (sqlite) {
-		sql = std::make_unique<SQL::F2CSQLConn>();
-		unsigned openFlags = 0;
-		if (sqliteCreate)
-			openFlags |= SlSqlite::CREATE;
-		int ret = sql->openDB(sqliteDB, openFlags);
-		if (ret)
-			return EXIT_FAILURE;
-		if (sqliteCreate) {
-			ret = sql->createDB();
-			if (ret)
-				return EXIT_FAILURE;
-		}
-		if (!skipWalk) {
-			ret = sql->prepDB();
-			if (ret)
-				return EXIT_FAILURE;
-			sql->begin();
-		}
-		if (sql->insertBranch(sqliteBranch, sqliteSHA)) {
-			std::cerr << "cannot add branch '" << sqliteBranch <<
-				     "' with SHA '" << sqliteSHA << "'\n";
-			return EXIT_FAILURE;
-		}
-		visitor = std::make_unique<TW::SQLiteMakeVisitor>(*sql, sqliteBranch, path);
-	} else
-		visitor = std::make_unique<TW::ConsoleMakeVisitor>();
+	auto sql = getSQL(sqlite, sqliteDB, sqliteCreate, skipWalk);
+	if (sqlite && !sql)
+		return EXIT_FAILURE;
 
-	if (!skipWalk) {
-		TW::TreeWalker tw(path, *visitor);
-		tw.walk();
-		if (sqlite)
-			sql->end();
-	}
+	if (processBranch(sql, sqliteBranch, sqliteSHA, skipWalk, root))
+		return EXIT_FAILURE;
 
 	return 0;
 }

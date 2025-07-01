@@ -3,6 +3,7 @@
 #ifndef F2CSQLCONN_H
 #define F2CSQLCONN_H
 
+#include <optional>
 #include <sl/sqlite/SQLConn.h>
 #include <sl/sqlite/SQLiteSmart.h>
 
@@ -24,7 +25,11 @@ public:
 	int insertModule(const std::string &dir, const std::string &module);
 	int insertMFMap(const std::string &branch, const std::string &module_dir,
 			const std::string &module, const std::string &dir, const std::string &file);
-
+	int insertUser(const std::string &email);
+	int insertUFMap(const std::string &branch, const std::string &email, const std::string &dir,
+			const std::string &file, int count, int countnf);
+	int deleteBranch(const std::string &branch);
+	std::optional<bool> hasBranch(const std::string &branch);
 private:
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfig;
@@ -33,6 +38,10 @@ private:
 	SlSqlite::SQLStmtHolder insCFMap;
 	SlSqlite::SQLStmtHolder insModule;
 	SlSqlite::SQLStmtHolder insMFMap;
+	SlSqlite::SQLStmtHolder insUser;
+	SlSqlite::SQLStmtHolder insUFMap;
+	SlSqlite::SQLStmtHolder delBranch;
+	SlSqlite::SQLStmtHolder selBranch;
 };
 
 }

@@ -152,6 +152,24 @@ int F2CSQLConn::prepDB()
 			     insMFMap))
 		return -1;
 
+	if (prepareStatement("INSERT INTO user(email) VALUES (:email);", insUser))
+		return -1;
+
+	if (prepareStatement("INSERT INTO user_file_map(user, branch, file, count, count_no_fixes) "
+			     "SELECT user.id, branch.id, file.id, :count, :countnf "
+				"FROM user, branch, file "
+				"LEFT JOIN dir ON file.dir = dir.id "
+				"WHERE user.email = :email AND branch.branch = :branch AND "
+				"file.file = :file AND dir.dir = :dir;",
+			     insUFMap))
+		return -1;
+
+	if (prepareStatement("DELETE FROM branch WHERE branch = :branch;", delBranch))
+		return -1;
+
+	if (prepareStatement("SELECT 1 FROM branch WHERE branch = :branch;", selBranch))
+		return -1;
+
 	return 0;
 }
 
@@ -210,4 +228,38 @@ int F2CSQLConn::insertMFMap(const std::string &branch, const std::string &module
 			      { ":dir", dir },
 			      { ":file", file },
 		      });
+}
+
+int F2CSQLConn::insertUser(const std::string &email)
+{
+	return insert(insUser, { { ":email", email } });
+}
+
+int F2CSQLConn::insertUFMap(const std::string &branch, const std::string &email,
+			    const std::string &dir, const std::string &file,
+			    int count, int countnf)
+{
+	return insert(insUFMap, {
+			      { ":branch", branch },
+			      { ":email", email },
+			      { ":dir", dir },
+			      { ":file", file },
+			      { ":count", count },
+			      { ":countnf", countnf },
+		      });
+}
+
+int F2CSQLConn::deleteBranch(const std::string &branch)
+{
+	return insert(delBranch, { { ":branch", branch } });
+}
+
+std::optional<bool> F2CSQLConn::hasBranch(const std::string &branch)
+{
+	SlSqlite::SQLConn::SelectResult res;
+
+	if (select(selBranch, { { ":branch", branch } }, { typeid(int) }, res))
+		return {};
+
+	return res.size() && std::get<int>(res[0][0]) == 1;
 }

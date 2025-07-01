@@ -4,6 +4,10 @@ subdir('parser')
 subdir('sql')
 subdir('treewalker')
 
+cpp_compiler.has_header('cxxopts.hpp',
+  required: true,
+)
+
 # for qt-creator to pick up generated headers
 builddir = include_directories('.')
 

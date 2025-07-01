@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <getopt.h>
+#include <cxxopts.hpp>
 #include <iostream>
 
 #include "sql/F2CSQLConn.h"
@@ -9,9 +9,36 @@
 #include "treewalker/TreeWalker.h"
 #include "Verbose.h"
 
-static void usage(const char *prgname)
+static cxxopts::ParseResult getOpts(int argc, char **argv)
 {
-	std::cout << prgname << ": [-O] [-q] [-s [dbFile]] [-S] [-v] [start_path]\n";
+	cxxopts::Options options { argv[0], "Generate conf_file_map database (and more)" };
+	options.add_options()
+		("root", "root to search in",
+			cxxopts::value<std::filesystem::path>()->default_value("."))
+		("q,quiet", "quiet mode")
+		("v,verbose", "verbose mode")
+	;
+	options.add_options("sqlite")
+		("s,sqlite", "create db",
+			cxxopts::value<std::filesystem::path>()->
+			implicit_value("conf_file_map.sqlite"))
+		("sqlite-branch", "branch to use for db",
+			cxxopts::value<std::string>()->default_value("unknown-branch"))
+		("sqlite-SHA", "SHA of the branch",
+			cxxopts::value<std::string>()->default_value("unknown"))
+		("S,sqlite-create", "create the db if not exists")
+		("O,sqlite-create-only", "only create the db (do not fill it)")
+	;
+	options.positional_help("root_to_search_in");
+	options.parse_positional("root");
+
+	try {
+		return options.parse(argc, argv);
+	} catch (const cxxopts::exceptions::parsing &e) {
+		std::cerr << "arguments error: " << e.what() << '\n';
+		std::cerr << options.help();
+		exit(EXIT_FAILURE);
+	}
 }
 
 std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path &DBPath,
@@ -76,66 +103,21 @@ int processBranch(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string
 
 int main(int argc, char **argv)
 {
-	const struct option opts[] = {
-		{ "quiet", 0, nullptr, 'q' },
-		{ "sqlite", 2, nullptr, 's' },
-		{ "sqlite-branch", 1, nullptr, 1000 },
-		{ "sqlite-SHA", 1, nullptr, 1001 },
-		{ "sqlite-create", 0, nullptr, 'S' },
-		{ "sqlite-create-only", 0, nullptr, 'O' },
-		{ "verbose", 0, nullptr, 'v' },
-		{}
-	};
+	auto opts = getOpts(argc, argv);
 
-	bool sqlite = false;
-	bool sqliteCreate = false;
-	bool skipWalk = false;
-	std::string sqliteBranch { "unknown-branch" };
-	std::string sqliteSHA { "unknown" };
-	std::filesystem::path sqliteDB { "conf_file_map.sqlite" };
+	F2C::quiet = opts.contains("quiet");
+	F2C::verbose = opts.count("verbose");
 
-	int opt;
-	while ((opt = getopt_long(argc, argv, "Oqs::Sv", opts, nullptr)) >= 0) {
-		switch (opt) {
-		case 'O':
-			sqliteCreate = true;
-			skipWalk = true;
-			break;
-		case 'q':
-			F2C::quiet = true;
-			break;
-		case 's':
-			sqlite = true;
-			if (optarg)
-				sqliteDB = optarg;
-			break;
-		case 'S':
-			sqliteCreate = true;
-			break;
-		case 'v':
-			F2C::verbose++;
-			break;
-		case 1000:
-			sqliteBranch = optarg;
-			break;
-		case 1001:
-			sqliteSHA = optarg;
-			break;
-		default:
-			usage(argv[0]);
-			return 0;
-		}
-
-	}
-
-	std::filesystem::path root{"."};
-	if (argc > optind)
-		root = argv[optind];
-
-	auto sql = getSQL(sqlite, sqliteDB, sqliteCreate, skipWalk);
+	auto sqlite = opts.contains("sqlite");
+	auto sqliteDB = sqlite ? opts["sqlite"].as<std::filesystem::path>() : "";
+	auto skipWalk = opts.contains("sqlite-create-only");
+	auto sql = getSQL(sqlite, sqliteDB, opts.contains("sqlite-create"), skipWalk);
 	if (sqlite && !sql)
 		return EXIT_FAILURE;
 
+	auto root = opts["root"].as<std::filesystem::path>();
+	auto sqliteBranch = opts["sqlite-branch"].as<std::string>();
+	auto sqliteSHA = opts["sqlite-SHA"].as<std::string>();
 	if (processBranch(sql, sqliteBranch, sqliteSHA, skipWalk, root))
 		return EXIT_FAILURE;
 

@@ -41,8 +41,8 @@ static cxxopts::ParseResult getOpts(int argc, char **argv)
 	}
 }
 
-std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path &DBPath,
-					bool createDB, bool skipWalk)
+static std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path &DBPath,
+					       bool createDB, bool skipWalk)
 {
 	if (!sqlite)
 		return {};
@@ -68,9 +68,9 @@ std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path
 	return sql;
 }
 
-std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
-						const std::string &branch,
-						const std::filesystem::path &root)
+static std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+						       const std::string &branch,
+						       const std::filesystem::path &root)
 {
 	if (sql)
 		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, branch, root);

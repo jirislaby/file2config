@@ -262,7 +262,9 @@ foreach my $branch (@branches) {
 		$branch_SHA = $git->command_oneline('rev-parse', 'HEAD');
 
 		print colored("== $branch_note -- Expanding ==\n", 'green');
-		system('./scripts/sequence-patch', "--dir=$scratch_area",
+		my $seq = './scripts/sequence-patch';
+		$seq = './scripts/sequence-patch.sh' if (!-f $bin);
+		system($seq, "--dir=$scratch_area",
 			"--patch-dir=$branch_tree", '--rapid') == 0 or
 			die "cannot exec sequence-patch";
 	}

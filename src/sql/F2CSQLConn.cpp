@@ -67,10 +67,10 @@ int F2CSQLConn::createDB()
 
 	static const Views create_views {
 		{ "conf_file_map_view_raw_file",
-			"SELECT conf_file_map.id, branch.branch, config.config, conf_file_map.file "
-			"FROM conf_file_map "
-			"LEFT JOIN branch ON conf_file_map.branch = branch.id "
-			"LEFT JOIN config ON conf_file_map.config = config.id;" },
+			"SELECT map.id, branch.branch, config.config, map.file "
+			"FROM conf_file_map AS map "
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN config ON map.config = config.id;" },
 		{ "conf_file_map_view",
 			"SELECT map.id, map.branch, map.config, dir.dir || '/' || file.file AS path "
 			"FROM conf_file_map_view_raw_file AS map "
@@ -87,7 +87,8 @@ int F2CSQLConn::createDB()
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
 		{ "user_file_map_view",
-			"SELECT user.email, branch.branch, dir.dir || '/' || file.file AS path, "
+			"SELECT map.id, user.email, branch.branch, "
+				"dir.dir || '/' || file.file AS path, "
 				"map.count, map.count_no_fixes "
 			"FROM user_file_map AS map "
 			"LEFT JOIN user ON map.user = user.id "
@@ -97,7 +98,7 @@ int F2CSQLConn::createDB()
 		{ "user_file_map_view_grouped",
 			"SELECT email, path, SUM(count) AS count, "
 				"SUM(count_no_fixes) AS count_no_fixes "
-			"FROM user_file_map_view AS map GROUP BY email, path" },
+			"FROM user_file_map_view GROUP BY email, path" },
 	};
 
 	if (createTables(create_tables) ||

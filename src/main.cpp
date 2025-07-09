@@ -233,13 +233,24 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 }
 
 static std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+						       const SlKernCVS::SupportedConf &supp,
 						       const std::string &branch,
 						       const std::filesystem::path &root)
 {
 	if (sql)
-		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, branch, root);
+		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, supp, branch, root);
 	else
 		return std::make_unique<TW::ConsoleMakeVisitor>();
+}
+
+static std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Repo &repo,
+							    SlGit::Commit &commit)
+{
+	auto suppConf = commit.catFile(repo, "supported.conf");
+	if (!suppConf)
+		return {};
+
+	return SlKernCVS::SupportedConf { *suppConf };
 }
 
 class PatchesAuthors {
@@ -414,8 +425,13 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 	}
 
 	if (!skipWalk) {
+		std::cout << "== " << branchNote << " -- Retrieving supported info ==\n";//, 'green');
+		auto supp = getSupported(repo, commit);
+		if (!supp)
+			return -1;
+
 		std::cout << "== " << branchNote << " -- Running file2config ==\n";//, 'green');
-		auto visitor = getMakeVisitor(sql, branch, root);
+		auto visitor = getMakeVisitor(sql, *supp, branch, root);
 		TW::TreeWalker tw(root, *visitor);
 		tw.walk();
 

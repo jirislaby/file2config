@@ -23,6 +23,8 @@ public:
 	int insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
 			const std::string &file);
 	int insertModule(const std::string &dir, const std::string &module);
+	int insertMDMap(const std::string &branch, const std::string &module_dir,
+			const std::string &module, int supported);
 	int insertMFMap(const std::string &branch, const std::string &module_dir,
 			const std::string &module, const std::string &dir, const std::string &file);
 	int insertUser(const std::string &email);
@@ -37,6 +39,7 @@ private:
 	SlSqlite::SQLStmtHolder insFile;
 	SlSqlite::SQLStmtHolder insCFMap;
 	SlSqlite::SQLStmtHolder insModule;
+	SlSqlite::SQLStmtHolder insMDMap;
 	SlSqlite::SQLStmtHolder insMFMap;
 	SlSqlite::SQLStmtHolder insUser;
 	SlSqlite::SQLStmtHolder insUFMap;

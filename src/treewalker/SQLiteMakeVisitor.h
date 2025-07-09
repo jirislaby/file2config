@@ -5,6 +5,10 @@
 
 #include "MakeVisitor.h"
 
+namespace SlKernCVS {
+class SupportedConf;
+}
+
 namespace SQL {
 class F2CSQLConn;
 }
@@ -15,8 +19,8 @@ class SQLiteMakeVisitor : public MakeVisitor
 {
 public:
 	SQLiteMakeVisitor() = delete;
-	SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const std::string &branch,
-			  const std::filesystem::path &base);
+	SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+			  const std::string &branch, const std::filesystem::path &base);
 
 	virtual ~SQLiteMakeVisitor() override;
 	virtual void ignored(const std::filesystem::path &objPath,
@@ -31,6 +35,7 @@ private:
 	static bool skipPath(const std::filesystem::path &relPath);
 
 	SQL::F2CSQLConn &sql;
+	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
 	const std::filesystem::path base;
 };

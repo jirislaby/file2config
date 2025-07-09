@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <sl/kerncvs/SupportedConf.h>
+
 #include "../Verbose.h"
 #include "../sql/F2CSQLConn.h"
 
@@ -9,9 +11,9 @@
 
 using namespace TW;
 
-SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const std::string &branch,
-				     const std::filesystem::path &base) :
-	sql(sql), branch(branch), base(base)
+SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+				     const std::string &branch, const std::filesystem::path &base) :
+	sql(sql), supp(supp), branch(branch), base(base)
 {
 }
 
@@ -76,6 +78,9 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath, const std::
 	auto dir = relPath.parent_path();
 	auto file = relPath.filename();
 	if (sql.insertModule(dir, module))
+		return;
+	auto supported = supp.supportState(dir / module);
+	if (sql.insertMDMap(branch, dir, module, supported))
 		return;
 	if (sql.insertMFMap(branch, dir, module, dir, file))
 		return;

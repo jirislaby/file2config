@@ -39,6 +39,13 @@ int F2CSQLConn::createDB()
 			"module TEXT NOT NULL",
 			"UNIQUE(dir, module)"
 		}},
+		{ "module_details_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
+			"supported INTEGER NOT NULL CHECK(supported >= -1 AND supported <= 4)",
+			"UNIQUE(branch, module)"
+		}},
 		{ "module_file_map", {
 			"id INTEGER PRIMARY KEY",
 			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
@@ -76,6 +83,14 @@ int F2CSQLConn::createDB()
 			"FROM conf_file_map_view_raw_file AS map "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "module_details_map_view",
+			"SELECT map.id, branch.branch, "
+				"module_dir.dir || '/' || module.module AS module, "
+				"supported "
+			"FROM module_details_map AS map "
+			"LEFT JOIN module ON map.module = module.id "
+			"LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
+			"LEFT JOIN branch ON map.branch = branch.id;" },
 		{ "module_file_map_view",
 			"SELECT map.id, branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
@@ -143,6 +158,13 @@ int F2CSQLConn::prepDB()
 			     insModule))
 		return -1;
 
+	if (prepareStatement("INSERT INTO module_details_map(branch, module, supported) "
+			     "SELECT branch.id, module.id, :supported FROM branch, module "
+			     "LEFT JOIN dir ON module.dir = dir.id "
+			     "WHERE branch.branch = :branch AND dir.dir = :module_dir AND "
+			     "module.module = :module;",
+			     insMDMap))
+		return -1;
 	if (prepareStatement("INSERT INTO module_file_map(branch, module, file) "
 			     "SELECT branch.id, module.id, file.id FROM branch, module, file "
 			     "LEFT JOIN dir ON file.dir = dir.id "
@@ -216,6 +238,17 @@ int F2CSQLConn::insertModule(const std::string &dir, const std::string &module)
 	return insert(insModule, {
 			      { ":dir", dir },
 			      { ":module", module }
+		      });
+}
+
+int F2CSQLConn::insertMDMap(const std::string &branch, const std::string &module_dir,
+			    const std::string &module, int supported)
+{
+	return insert(insMDMap, {
+			      { ":branch", branch },
+			      { ":module_dir", module_dir },
+			      { ":module", module },
+			      { ":supported", supported },
 		      });
 }
 

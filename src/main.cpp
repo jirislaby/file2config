@@ -244,7 +244,7 @@ static std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL
 }
 
 static std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Repo &repo,
-							    SlGit::Commit &commit)
+							    const SlGit::Commit &commit)
 {
 	auto suppConf = commit.catFile(repo, "supported.conf");
 	if (!suppConf)
@@ -349,7 +349,7 @@ int PatchesAuthors::processPatch(const std::filesystem::path &file, const std::s
 }
 
 static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
-			  const SlGit::Repo &repo, SlGit::Commit &commit, bool dumpRefs,
+			  const SlGit::Repo &repo, const SlGit::Commit &commit, bool dumpRefs,
 			  bool reportUnhandled)
 {
 	if (!sql)

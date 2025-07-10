@@ -43,7 +43,7 @@ int F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
 			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
-			"supported INTEGER NOT NULL CHECK(supported >= -1 AND supported <= 4)",
+			"supported INTEGER NOT NULL CHECK(supported >= -3 AND supported <= 4)",
 			"UNIQUE(branch, module)"
 		}},
 		{ "module_file_map", {

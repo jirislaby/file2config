@@ -397,11 +397,9 @@ static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std
 		for (const auto &pairSrc : pair.second) {
 			std::filesystem::path path(pairSrc.first);
 
-			auto realIt = realMap.find(pairSrc.first);
-			auto realCnt = realIt == realMap.end() ? 0 : realIt->second;
-			if (sql->insertUFMap(branch, pair.first, path.parent_path().string(),
+			if (sql->insertUFMap(branch, email, path.parent_path().string(),
 					     path.filename().string(), pairSrc.second,
-					     realCnt))
+					     realMap.at(pairSrc.first)))
 				return -1;
 		}
 	}

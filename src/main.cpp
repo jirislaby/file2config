@@ -271,6 +271,21 @@ static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std
 	return 0;
 }
 
+static int processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+			  const SlGit::Repo &repo, const SlGit::Commit &commit)
+{
+	SlKernCVS::CollectConfigs CC{repo};
+
+	return PA.processAuthors(commit, [&sql](const std::string &email) -> int {
+		return sql->insertUser(email);
+	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
+			unsigned count, unsigned realCount) -> int {
+		return sql->insertUFMap(branch, email, path.parent_path().string(),
+				     path.filename().string(), count, realCount);
+	});
+	return 0;
+}
+
 int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CSQLConn> &sql,
 		  const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
 		  bool skipWalk, const std::filesystem::path &root, bool dumpRefs,
@@ -298,6 +313,9 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		tw.walk();
 
 		if (sql) {
+			std::cout << "== " << branchNote << " -- Collecting configs ==\n";//, 'green');
+			processConfigs(sql, branch, repo, commit);
+
 			std::cout << "== " << branchNote << " -- Detecting authors of patches ==\n";//, 'green');
 			processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled);
 		}

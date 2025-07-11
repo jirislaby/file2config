@@ -35,6 +35,9 @@ public:
 private:
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfig;
+	SlSqlite::SQLStmtHolder insArch;
+	SlSqlite::SQLStmtHolder insFlavor;
+	SlSqlite::SQLStmtHolder insCBMap;
 	SlSqlite::SQLStmtHolder insDir;
 	SlSqlite::SQLStmtHolder insFile;
 	SlSqlite::SQLStmtHolder insCFMap;

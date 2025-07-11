@@ -16,6 +16,23 @@ int F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"config TEXT NOT NULL UNIQUE"
 		}},
+		{ "arch", {
+			"id INTEGER PRIMARY KEY",
+			"arch TEXT NOT NULL UNIQUE"
+		}},
+		{ "flavor", {
+			"id INTEGER PRIMARY KEY",
+			"flavor TEXT NOT NULL UNIQUE"
+		}},
+		{ "conf_branch_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"config INTEGER NOT NULL REFERENCES config(id) ON DELETE CASCADE",
+			"arch INTEGER NOT NULL REFERENCES arch(id) ON DELETE CASCADE",
+			"flavor INTEGER NOT NULL REFERENCES flavor(id) ON DELETE CASCADE",
+			"value TEXT NOT NULL CHECK(value IN ('y', 'm', 'n'))",
+			"UNIQUE(branch, config, arch, flavor)"
+		}},
 		{ "dir", {
 			"id INTEGER PRIMARY KEY",
 			"dir TEXT NOT NULL UNIQUE"
@@ -134,6 +151,24 @@ int F2CSQLConn::prepDB()
 	if (prepareStatement("INSERT INTO config(config)"
 			     "VALUES (:config);",
 			     insConfig))
+		return -1;
+
+	if (prepareStatement("INSERT INTO arch(arch)"
+			     "VALUES (:arch);",
+			     insArch))
+		return -1;
+
+	if (prepareStatement("INSERT INTO flavor(flavor)"
+			     "VALUES (:flavor);",
+			     insFlavor))
+		return -1;
+
+	if (prepareStatement("INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
+			     "SELECT branch.id, config.id, arch.id, flavor.id, :value "
+			     "FROM branch, config, arch, flavor "
+			     "WHERE branch.branch = :branch AND config.config = :config AND "
+			     "arch.arch = :arch AND flavor.flavor = :flavor;",
+			     insCBMap))
 		return -1;
 
 	if (prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",

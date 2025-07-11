@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <sl/kerncvs/Branches.h>
+#include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/PatchesAuthors.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
@@ -271,6 +272,26 @@ static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std
 	return 0;
 }
 
+static int processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+			  const SlGit::Repo &repo, const SlGit::Commit &commit)
+{
+	SlKernCVS::CollectConfigs CC{repo,
+		[&sql](const std::string &arch, const std::string &flavor) -> int {
+			if (sql->insertArch(arch))
+				return -1;
+			return sql->insertFlavor(flavor);
+		}, [&sql, &branch](const std::string &arch, const std::string &flavor,
+		      const std::string &config,
+		      const SlKernCVS::CollectConfigs::ConfigValue &value) -> int {
+			if (sql->insertConfig(config))
+				return -1;
+			return sql->insertCBMap(branch, arch, flavor, config,
+						std::string(1, value));
+	}};
+
+	return CC.collectConfigs(commit);
+}
+
 int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CSQLConn> &sql,
 		  const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
 		  bool skipWalk, const std::filesystem::path &root, bool dumpRefs,
@@ -298,8 +319,13 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		tw.walk();
 
 		if (sql) {
+			std::cout << "== " << branchNote << " -- Collecting configs ==\n";//, 'green');
+			if (processConfigs(sql, branch, repo, commit))
+				return -1;
+
 			std::cout << "== " << branchNote << " -- Detecting authors of patches ==\n";//, 'green');
-			processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled);
+			if (processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled))
+				return -1;
 		}
 	}
 

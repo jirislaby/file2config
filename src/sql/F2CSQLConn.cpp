@@ -16,6 +16,24 @@ int F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"config TEXT NOT NULL UNIQUE"
 		}},
+		{ "arch", {
+			"id INTEGER PRIMARY KEY",
+			"arch TEXT NOT NULL UNIQUE"
+		}},
+		{ "flavor", {
+			"id INTEGER PRIMARY KEY",
+			"flavor TEXT NOT NULL UNIQUE"
+		}},
+		{ "conf_branch_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"arch INTEGER NOT NULL REFERENCES arch(id) ON DELETE CASCADE",
+			"flavor INTEGER NOT NULL REFERENCES flavor(id) ON DELETE CASCADE",
+			"config INTEGER NOT NULL REFERENCES config(id) ON DELETE CASCADE",
+			"value TEXT NOT NULL CHECK(value IN ('n', 'y', 'm') OR "
+				"substr(value, 1, 1) = 'v')",
+			"UNIQUE(branch, config, arch, flavor)"
+		}},
 		{ "dir", {
 			"id INTEGER PRIMARY KEY",
 			"dir TEXT NOT NULL UNIQUE"
@@ -73,6 +91,14 @@ int F2CSQLConn::createDB()
 	};
 
 	static const Views create_views {
+		{ "conf_branch_map_view",
+			"SELECT map.id, branch.branch, arch.arch, flavor.flavor, config.config, "
+				"value "
+			"FROM conf_branch_map AS map "
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN config ON map.config = config.id "
+			"LEFT JOIN arch ON map.arch = arch.id "
+			"LEFT JOIN flavor ON map.flavor = flavor.id;" },
 		{ "conf_file_map_view_raw_file",
 			"SELECT map.id, branch.branch, config.config, map.file "
 			"FROM conf_file_map AS map "
@@ -134,6 +160,24 @@ int F2CSQLConn::prepDB()
 	if (prepareStatement("INSERT INTO config(config)"
 			     "VALUES (:config);",
 			     insConfig))
+		return -1;
+
+	if (prepareStatement("INSERT INTO arch(arch)"
+			     "VALUES (:arch);",
+			     insArch))
+		return -1;
+
+	if (prepareStatement("INSERT INTO flavor(flavor)"
+			     "VALUES (:flavor);",
+			     insFlavor))
+		return -1;
+
+	if (prepareStatement("INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
+			     "SELECT branch.id, config.id, arch.id, flavor.id, :value "
+			     "FROM branch, config, arch, flavor "
+			     "WHERE branch.branch = :branch AND config.config = :config AND "
+			     "arch.arch = :arch AND flavor.flavor = :flavor;",
+			     insCBMap))
 		return -1;
 
 	if (prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",
@@ -207,6 +251,29 @@ int F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha)
 int F2CSQLConn::insertConfig(const std::string &config)
 {
 	return insert(insConfig, { { ":config", config } });
+}
+
+int F2CSQLConn::insertArch(const std::string &arch)
+{
+	return insert(insArch, { { ":arch", arch } });
+}
+
+int F2CSQLConn::insertFlavor(const std::string &flavor)
+{
+	return insert(insFlavor, { { ":flavor", flavor } });
+}
+
+int F2CSQLConn::insertCBMap(const std::string &branch, const std::string &arch,
+			    const std::string &flavor, const std::string &config,
+			    const std::string &value)
+{
+	return insert(insCBMap, {
+			      { ":branch", branch },
+			      { ":arch", arch },
+			      { ":flavor", flavor },
+			      { ":config", config },
+			      { ":value", value },
+		      });
 }
 
 int F2CSQLConn::insertDir(const std::string &dir)

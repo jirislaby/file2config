@@ -18,6 +18,10 @@ public:
 
 	int insertBranch(const std::string &branch, const std::string &sha);
 	int insertConfig(const std::string &config);
+	int insertArch(const std::string &arch);
+	int insertFlavor(const std::string &flavor);
+	int insertCBMap(const std::string &branch, const std::string &arch,
+			const std::string &flavor, const std::string &config, const std::string &value);
 	int insertDir(const std::string &dir);
 	int insertFile(const std::string &dir, const std::string &file);
 	int insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
@@ -35,6 +39,9 @@ public:
 private:
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfig;
+	SlSqlite::SQLStmtHolder insArch;
+	SlSqlite::SQLStmtHolder insFlavor;
+	SlSqlite::SQLStmtHolder insCBMap;
 	SlSqlite::SQLStmtHolder insDir;
 	SlSqlite::SQLStmtHolder insFile;
 	SlSqlite::SQLStmtHolder insCFMap;

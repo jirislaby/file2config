@@ -267,6 +267,8 @@ public:
 	const Map &HoHReal() const { return m_HoHReal; }
 	const Map &HoHRefs() const { return m_HoHRefs; }
 
+	int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+			   const SlGit::Repo &repo, const SlGit::Commit &commit);
 private:
 	const bool dumpRefs;
 	const bool reportUnhandled;
@@ -348,13 +350,10 @@ int PatchesAuthors::processPatch(const std::filesystem::path &file, const std::s
 	return 0;
 }
 
-static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
-			  const SlGit::Repo &repo, const SlGit::Commit &commit, bool dumpRefs,
-			  bool reportUnhandled)
+int PatchesAuthors::processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+				   const std::string &branch, const SlGit::Repo &repo,
+				   const SlGit::Commit &commit)
 {
-	if (!sql)
-		return 0;
-
 	PatchesAuthors PA(dumpRefs, reportUnhandled);
 
 	SlGit::Tree tree;
@@ -434,7 +433,10 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		tw.walk();
 
 		std::cout << "== " << branchNote << " -- Detecting authors of patches ==\n";//, 'green');
-		processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled);
+		if (sql) {
+			PatchesAuthors PA{dumpRefs, reportUnhandled};
+			PA.processAuthors(sql, branch, repo, commit);
+		}
 	}
 
 	if (sql) {

@@ -21,9 +21,9 @@ static cxxopts::ParseResult getOpts(int argc, char **argv)
 {
 	cxxopts::Options options { argv[0], "Generate conf_file_map database (and more)" };
 	options.add_options()
-		("append-branch", "process also this branch",
+		("a,append-branch", "process also this branch",
 			cxxopts::value<std::vector<std::string>>())
-		("branch", "branch to process",
+		("b,branch", "branch to process",
 			cxxopts::value<std::vector<std::string>>())
 		("dest", "destination (scratch area)",
 			cxxopts::value<std::filesystem::path>()->default_value("fill-db"))

@@ -4,16 +4,10 @@ subdir('parser')
 subdir('sql')
 subdir('treewalker')
 
-cpp_compiler.has_header('cxxopts.hpp',
-  required: true,
-)
-cpp_compiler.has_header('sl/helpers/PushD.h',
-  required: true,
-)
-
-slkerncvs_lib = cpp_compiler.find_library('slkerncvs++')
-slgit_lib = cpp_compiler.find_library('slgit++')
-git_lib = cpp_compiler.find_library('git2')
+cxxopts_lib = dependency('cxxopts')
+slgit_lib = dependency('slgit++')
+slhelpers_lib = dependency('slhelpers++')
+slkerncvs_lib = dependency('slkerncvs++')
 
 # for qt-creator to pick up generated headers
 builddir = include_directories('.')
@@ -24,6 +18,6 @@ executable('f2c_create_db', [
     'Verbose.h',
   ],
   link_with: [ sqlite, treewalker ],
-  dependencies: [ slkerncvs_lib, slgit_lib, git_lib ],
+  dependencies: [ cxxopts_lib, slgit_lib, slhelpers_lib, slkerncvs_lib ],
   install: true,
 )

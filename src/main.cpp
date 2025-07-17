@@ -225,7 +225,8 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 	ss << " --patch-dir='" << expandedTree.string() << "'";
 	ss << " --rapid";
 	auto stat = std::system(ss.str().c_str());
-	std::cout << "cmd=" << ss.str() << " sys=" << std::hex << stat << std::dec << '\n';
+	if (F2C::verbose > 1)
+		std::cout << "cmd=" << ss.str() << " sys=0x" << std::hex << stat << std::dec << '\n';
 	if (stat) {
 		std::cerr << __func__ << ": cannot seq patch: " << WEXITSTATUS(stat) << '\n';
 		return -1;

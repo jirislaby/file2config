@@ -8,6 +8,7 @@
 #include <sl/kerncvs/PatchesAuthors.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
+#include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
 
@@ -216,19 +217,24 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 	}
 
 	std::cout << "== " << branchNote << " -- Expanding ==\n";//, 'green');
-	std::stringstream ss;
-	if (std::filesystem::exists("./scripts/sequence-patch"))
-		ss << "./scripts/sequence-patch";
-	else // temporary for old branches
-		ss << "./scripts/sequence-patch.sh";
-	ss << " --dir='" << scratchArea.string() << "'";
-	ss << " --patch-dir='" << expandedTree.string() << "'";
-	ss << " --rapid";
-	auto stat = std::system(ss.str().c_str());
+
+	std::filesystem::path seqPatch{"./scripts/sequence-patch"};
+	// temporary for old branches
+	if (!std::filesystem::exists(seqPatch))
+		seqPatch = "./scripts/sequence-patch.sh";
+	const std::vector<std::string> args {
+		"--dir=" + scratchArea.string(),
+		"--patch-dir=" + expandedTree.string(),
+		"--rapid",
+	};
+	SlHelpers::Process P;
+	auto ret = P.run(seqPatch, args);
 	if (F2C::verbose > 1)
-		std::cout << "cmd=" << ss.str() << " sys=0x" << std::hex << stat << std::dec << '\n';
-	if (stat) {
-		std::cerr << __func__ << ": cannot seq patch: " << WEXITSTATUS(stat) << '\n';
+		std::cout << "cmd=" << seqPatch << " stat=" << P.lastErrorNo() << '/' <<
+			     P.exitStatus() << '\n';
+	if (ret || P.exitStatus()) {
+		std::cerr << __func__ << ": cannot seq patch: " << P.lastError() <<
+			     " (" << P.exitStatus() << ")\n";
 		return -1;
 	}
 

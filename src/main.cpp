@@ -98,23 +98,7 @@ static int prepareKsourceGit(const std::filesystem::path &scratchArea, SlGit::Re
 		return ret;
 	}
 
-	SlGit::Reference refOrigin;
-	ret = refOrigin.lookup(repo, "refs/remotes/origin/scripts");
-	if (ret) {
-		std::cerr << __func__ << ": cannot obtain ref of origin: " <<
-			     git_error_last()->message << '\n';
-		return ret;
-	}
-
-	SlGit::Reference ref;
-	ret = ref.createDirect(repo, "refs/heads/scripts", *refOrigin.target());
-	if (ret) {
-		std::cerr << __func__ << ": cannot create branch: " << git_error_last()->message <<
-			     '\n';
-		return ret;
-	}
-
-	ret = repo.checkout("refs/heads/scripts");
+	ret = repo.checkout("refs/remotes/origin/scripts");
 	if (ret) {
 		std::cerr << __func__ << ": cannot checkout: " << git_error_last()->message << '\n';
 		return ret;

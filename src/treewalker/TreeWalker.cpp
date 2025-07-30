@@ -89,7 +89,9 @@ void TreeWalker::addTargetEntry(const CondStack &s,
 	if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
-		handleObject(newS, objPath.parent_path() / entry, objPath.stem());
+		auto module = objPath;
+		module.replace_extension();
+		handleObject(newS, objPath.parent_path() / entry, module);
 		found = true;
 	}
 }
@@ -226,7 +228,9 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 		auto newS(s);
 		newS.push_back(cond);
 		auto obj = kbPath.parent_path() / word;
-		handleObject(newS, obj, obj.stem());
+		auto module = obj;
+		module.replace_extension();
+		handleObject(newS, obj, module);
 	}
 }
 

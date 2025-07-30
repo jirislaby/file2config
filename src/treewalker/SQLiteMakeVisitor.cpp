@@ -65,7 +65,8 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		return;
 }
 
-void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath, const std::string &module) const
+void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
+			       const std::filesystem::path &module) const
 {
 	auto relPath = srcPath.lexically_relative(base);
 
@@ -73,7 +74,7 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath, const std::
 		return;
 
 	if (F2C::verbose > 1)
-		std::cout << "SQL MOD " << module << " " << relPath.string() << "\n";
+		std::cout << "SQL MOD " << module.string() << " " << relPath.string() << "\n";
 
 	auto dir = relPath.parent_path();
 	auto file = relPath.filename();

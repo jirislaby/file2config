@@ -30,7 +30,7 @@ public:
 			    const std::string &cond) const override;
 
 	virtual void module(const std::filesystem::path &srcPath,
-			    const std::string &module) const override;
+			    const std::filesystem::path &module) const override;
 private:
 	static bool skipPath(const std::filesystem::path &relPath);
 

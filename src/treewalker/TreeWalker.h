@@ -48,7 +48,7 @@ private:
 	void addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
 			  const std::filesystem::path &path);
 	void handleObject(const CondStack &s, const std::filesystem::path &objPath,
-			  const std::string &module);
+			  const std::filesystem::path &module);
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::string getCond(const CondStack &s);

@@ -24,8 +24,8 @@ public:
 		std::cout << "XXX " << cond << " " << srcPath.string() << "\n";
 	}
 	virtual void module(const std::filesystem::path &srcPath,
-			    const std::string &module) const override {
-		std::cout << "MOD " << module << " " << srcPath.string() << "\n";
+			    const std::filesystem::path &module) const override {
+		std::cout << "MOD " << module.string() << " " << srcPath.string() << "\n";
 	}
 private:
 };

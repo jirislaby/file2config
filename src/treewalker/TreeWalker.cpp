@@ -175,7 +175,7 @@ std::string TreeWalker::getCond(const CondStack &s)
 }
 
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath,
-			      const std::string &module)
+			      const std::filesystem::path &module)
 {
 	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";

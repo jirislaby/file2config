@@ -34,7 +34,7 @@ public:
 			     const std::any &interesting, const std::string &cond,
 			     const MP::EntryType &type,
 			     const std::string &word);
-	void addTargetEntry(const std::string &module, const CondStack &s,
+	void addTargetEntry(const CondStack &s,
 			    const std::filesystem::path &objPath, const std::string &cond,
 			    const MP::EntryType &type,
 			    const std::string &entry, bool &found);

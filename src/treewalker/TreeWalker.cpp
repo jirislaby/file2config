@@ -77,7 +77,7 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const MakeVisitor &ma
 	}
 }
 
-void TreeWalker::addTargetEntry(const std::string &module, const CondStack &s,
+void TreeWalker::addTargetEntry(const CondStack &s,
 				const std::filesystem::path &objPath,
 				const std::string &cond,
 				const MP::EntryType &type,
@@ -89,7 +89,7 @@ void TreeWalker::addTargetEntry(const std::string &module, const CondStack &s,
 	if (type == MP::EntryType::Object) {
 		auto newS(s);
 		newS.push_back(cond);
-		handleObject(newS, objPath.parent_path() / entry, module);
+		handleObject(newS, objPath.parent_path() / entry, objPath.stem());
 		found = true;
 	}
 }
@@ -140,8 +140,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 		virtual void entry(const std::any &, const std::string &cond,
 				   const enum MP::EntryType &type, const std::string &word) const override {
-			TW.addTargetEntry(objPath.stem().string(), s, objPath, cond, type, word,
-					  found);
+			TW.addTargetEntry(s, objPath, cond, type, word, found);
 		}
 	private:
 		TreeWalker &TW;

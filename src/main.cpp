@@ -8,6 +8,7 @@
 #include <sl/kerncvs/PatchesAuthors.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
+#include <sl/helpers/Color.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
@@ -18,6 +19,8 @@
 #include "treewalker/TreeWalker.h"
 #include "Verbose.h"
 
+using Clr = SlHelpers::Color;
+
 static cxxopts::ParseResult getOpts(int argc, char **argv)
 {
 	cxxopts::Options options { argv[0], "Generate conf_file_map database (and more)" };
@@ -26,6 +29,7 @@ static cxxopts::ParseResult getOpts(int argc, char **argv)
 			cxxopts::value<std::vector<std::string>>())
 		("b,branch", "branch to process",
 			cxxopts::value<std::vector<std::string>>())
+		("force-color", "force color output")
 		("dest", "destination (scratch area)",
 			cxxopts::value<std::filesystem::path>()->default_value("fill-db"))
 		("f,force", "force branch creation (delete old data)")
@@ -47,7 +51,7 @@ static cxxopts::ParseResult getOpts(int argc, char **argv)
 	try {
 		return options.parse(argc, argv);
 	} catch (const cxxopts::exceptions::parsing &e) {
-		std::cerr << "arguments error: " << e.what() << '\n';
+		Clr(std::cerr, Clr::RED) << "arguments error: " << e.what();
 		std::cerr << options.help();
 		exit(EXIT_FAILURE);
 	}
@@ -62,13 +66,14 @@ static std::optional<std::filesystem::path> prepareScratchArea(const cxxopts::Pa
 		scratchArea = scratchAreaEnv;
 		scratchArea /= "fill-db";
 	} else {
-		std::cerr << "Neither --dest, nor SCRATCH_AREA defined (defaulting to \"fill-db\")\n";
+		Clr(std::cerr, Clr::YELLOW) << "Neither --dest, nor SCRATCH_AREA defined (defaulting to \"fill-db\")";
 		scratchArea = "fill-db";
 	}
 	std::error_code ec;
 	std::filesystem::create_directories(scratchArea, ec);
 	if (ec) {
-		std::cerr << __func__ << ": cannot create " << scratchArea << ": error=" << ec << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot create " << scratchArea <<
+						": error=" << ec;
 		return {};
 	}
 
@@ -86,7 +91,8 @@ static int prepareKsourceGit(const std::filesystem::path &scratchArea, SlGit::Re
 
 	int ret = repo.init(ourKsourceGit, false, kerncvs);
 	if (ret) {
-		std::cerr << __func__ << ": cannot init: " << git_error_last()->message << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot init: " <<
+						git_error_last()->message;
 		return ret;
 	}
 
@@ -94,13 +100,15 @@ static int prepareKsourceGit(const std::filesystem::path &scratchArea, SlGit::Re
 	origin.lookup(repo, "origin");
 	ret = origin.fetch("scripts", 1, false);
 	if (ret) {
-		std::cerr << __func__ << ": cannot fetch: " << git_error_last()->message << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot fetch: " <<
+						git_error_last()->message;
 		return ret;
 	}
 
 	ret = repo.checkout("refs/remotes/origin/scripts");
 	if (ret) {
-		std::cerr << __func__ << ": cannot checkout: " << git_error_last()->message << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot checkout: " <<
+						git_error_last()->message;
 		return ret;
 	}
 
@@ -111,7 +119,8 @@ static int prepareKsourceGit(const std::filesystem::path &scratchArea, SlGit::Re
 
 	auto stat = std::system("./scripts/install-git-hooks");
 	if (stat) {
-		std::cerr << __func__ << ": cannot install hooks: " << WEXITSTATUS(stat) << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot install hooks: " <<
+						WEXITSTATUS(stat);
 		return stat;
 	}
 
@@ -173,9 +182,12 @@ static std::optional<bool> skipBranch(const std::unique_ptr<SQL::F2CSQLConn> &sq
 static int checkoutBranch(const std::string &branchNote, const std::string &branch,
 			  SlGit::Repo &repo, SlGit::Commit &commit)
 {
-	std::cout << "== " << branchNote << " -- Checking Out ==\n";//, 'green');
-	if (repo.checkout("refs/remotes/origin/" + branch))
+	Clr(Clr::GREEN) << "== " << branchNote << " -- Checking Out ==";
+	if (repo.checkout("refs/remotes/origin/" + branch)) {
+		Clr(std::cerr, Clr::RED) << "Cannot check out '" << branch << "': " <<
+						git_error_last()->message;
 		return -1;
+	}
 	if (commit.revparseSingle(repo, "HEAD"))
 		return -1;
 	return 0;
@@ -196,11 +208,11 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 	std::error_code ec;
 	SlHelpers::PushD push(kernelSource, ec);
 	if (ec) {
-		std::cerr << __func__ << ": cannot chdir to " << kernelSource << '\n';
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot chdir to " << kernelSource;
 		return -1;
 	}
 
-	std::cout << "== " << branchNote << " -- Expanding ==\n";//, 'green');
+	Clr(Clr::GREEN) << "== " << branchNote << " -- Expanding ==";
 
 	std::filesystem::path seqPatch{"./scripts/sequence-patch"};
 	// temporary for old branches
@@ -217,8 +229,9 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 		std::cout << "cmd=" << seqPatch << " stat=" << P.lastErrorNo() << '/' <<
 			     P.exitStatus() << '\n';
 	if (ret || P.exitStatus()) {
-		std::cerr << __func__ << ": cannot seq patch: " << P.lastError() <<
-			     " (" << P.exitStatus() << ")\n";
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot seq patch: " <<
+						P.lastError() <<
+						" (" << P.exitStatus() << ')';
 		return -1;
 	}
 
@@ -292,36 +305,37 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		sql->begin();
 		auto SHA = commit.idStr();
 		if (sql->insertBranch(branch, SHA)) {
-			std::cerr << "cannot add branch '" << branch <<
-				     "' with SHA '" << SHA << "'\n";
+			Clr(std::cerr, Clr::RED) << "cannot add branch '" << branch <<
+							"' with SHA '" << SHA << '\'';
 			return -1;
 		}
 	}
 
 	if (!skipWalk) {
-		std::cout << "== " << branchNote << " -- Retrieving supported info ==\n";//, 'green');
+		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
 		auto supp = getSupported(repo, commit);
 		if (!supp)
 			return -1;
 
-		std::cout << "== " << branchNote << " -- Running file2config ==\n";//, 'green');
+		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
 		auto visitor = getMakeVisitor(sql, *supp, branch, root);
 		TW::TreeWalker tw(root, *visitor);
 		tw.walk();
 
 		if (sql) {
-			std::cout << "== " << branchNote << " -- Collecting configs ==\n";//, 'green');
+			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
 			if (processConfigs(sql, branch, repo, commit))
 				return -1;
 
-			std::cout << "== " << branchNote << " -- Detecting authors of patches ==\n";//, 'green');
+			Clr(Clr::GREEN) << "== " << branchNote <<
+					       " -- Detecting authors of patches ==";
 			if (processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled))
 				return -1;
 		}
 	}
 
 	if (sql) {
-		std::cout << "== " << branchNote << " -- Committing ==\n";//, 'green');
+		Clr(Clr::GREEN) << "== " << branchNote << " -- Committing ==";
 		sql->end();
 	}
 
@@ -334,6 +348,9 @@ int main(int argc, char **argv)
 
 	F2C::quiet = opts.contains("quiet");
 	F2C::verbose = opts.count("verbose");
+	Clr::forceColor(opts.contains("force-color"));
+
+	Clr(Clr::GREEN) << "== Preparing trees ==";
 
 	auto scratchArea = prepareScratchArea(opts);
 	if (!scratchArea)
@@ -357,13 +374,15 @@ int main(int argc, char **argv)
 	if (auto append = opts["append-branch"].as_optional<std::vector<std::string>>())
 		branches.insert(branches.end(), append->begin(), append->end());
 
+	Clr(Clr::GREEN) << "== Fetching branches ==";
+
 	SlGit::Remote remote;
 	if (remote.lookup(repo, "origin"))
 		return EXIT_FAILURE;
 	if (remote.fetchBranches(branches, 1, false)) {
 		auto lastErr = git_error_last();
-		std::cerr << "fetch failed: " << lastErr->message <<
-			     " (" << lastErr->klass << ")\n";
+		Clr(std::cerr, Clr::RED) << "fetch failed: " << lastErr->message <<
+						" (" << lastErr->klass << ')';
 		return EXIT_FAILURE;
 	}
 
@@ -382,12 +401,12 @@ int main(int argc, char **argv)
 
 	for (const auto &branch: branches) {
 		auto branchNote = getBranchNote(branch, ++branchNo, branchCnt);
-		std::cout << "== " << branchNote << " -- Starting ==\n";//, 'green');
+		Clr(Clr::GREEN) << "== " << branchNote << " -- Starting ==";
 		auto skipOpt = skipBranch(sql, branch, forceCreate);
 		if (!skipOpt)
 			return EXIT_FAILURE;
 		if (*skipOpt) {
-			std::cout << "Already present, skipping, use -f to force re-creation\n";//, 'yellow');
+			Clr(Clr::YELLOW) << "Already present, skipping, use -f to force re-creation";
 			continue;
 		}
 

@@ -74,7 +74,7 @@ def buildSelect(sel : list[str], params : list[str], columns : str, db: str, tab
         params += array
 
 def compareTablesDir(added : bool, old : str, new : str, table: str, columns : str,
-                     cur : sqlite3.Cursor, opts : dict):
+                     cur : sqlite3.Cursor, opts : dict, changedBranches : dict[str, int]):
     params : list[str] = []
     sel : list[str] = []
     buildSelect(sel, params, columns, old, table, opts)
@@ -95,12 +95,16 @@ def compareTablesDir(added : bool, old : str, new : str, table: str, columns : s
         color = 'red'
 
     for row in cur.execute(selStr, params):
+        changedBranches[row[0]] = changedBranches.get(row[0], 0) + 1
         cprint(f'{prefix}{",".join(row)}', color)
 
 def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict):
     cprint(f'=== Comparing "{table}" ===', 'light_green')
-    compareTablesDir(False, '', 'new.', table, columns, cur, opts)
-    compareTablesDir(True, 'new.', '', table, columns, cur, opts)
+    changedBranches : dict[str, int] = {}
+    compareTablesDir(False, '', 'new.', table, columns, cur, opts, changedBranches)
+    compareTablesDir(True, 'new.', '', table, columns, cur, opts, changedBranches)
+    changes = [ f'{k} ({changedBranches[k]})' for k in changedBranches ]
+    print(f'Changed branches: {", ".join(changes)}')
 
 def compareDBs(cur : sqlite3.Cursor, opts : dict):
     compareTables('conf_file_map_view', 'branch, config, path', cur, opts)

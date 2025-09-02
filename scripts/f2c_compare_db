@@ -1,49 +1,117 @@
-#!/bin/bash
+#!/usr/bin/python3
 # SPDX-License-Identifier: GPL-2.0-only
 
-export LC_ALL=C.UTF-8
+import argparse
+from contextlib import closing
+import locale
+import os
+import sqlite3
+import sys
+from termcolor import cprint, colored
+from termcolor._types import Color
 
-DIFF=diff
-declare -a BRANCHES=()
-declare -a IGNORES=()
-ORDER='id'
-while getopts "b:co:rI:" OPT; do
-	case "$OPT" in
-	b) BRANCHES+=( "'$OPTARG'" );;
-	c) DIFF='colordiff' ;;
-	o) ORDER="$OPTARG" ;;
-	r) ORDER='1,2,3' ;;
-	I) IGNORES+=( "'$OPTARG'" );;
-	*) exit 1 ;;
-	esac
-done
-shift $((OPTIND-1))
+#from pprint import pp
 
-if [ ${#BRANCHES} -gt 0 -a ${#IGNORES} -gt 0 ]; then
-	echo 'You cannot specify both ignores and branches' >&2
-	exit 1
-fi
+locale.setlocale(locale.LC_ALL, 'C.UTF-8')
 
-function run_sqlite() {
-	local DB="$1"
-	shift
-	local COND=""
-	if [ ${#BRANCHES} -gt 0 -o ${#IGNORES} -gt 0 ]; then
-		if [ ${#BRANCHES} -gt 0 ]; then
-			local NOT=''
-			declare -n ARR=BRANCHES
-		else
-			local NOT='NOT'
-			declare -n ARR=IGNORES
-		fi
+def checkOrder(order : str) -> str:
+    if all(c.isdigit() or c in " ," for c in order):
+        return order
+    print(colored(f'You can specify order only with numbers, commas and spaces: "{order}"', 'red'),
+          file=sys.stderr)
+    sys.exit(1)
 
-		OLD_IFS="$IFS"
-		IFS=','
-		COND="WHERE branch $NOT IN (${ARR[*]}) "
-		IFS="$OLD_IFS"
-	fi
-	sqlite3 -batch -csv "$DB" \
-		"SELECT branch,config,path FROM conf_file_map_view ${COND}ORDER BY $ORDER;"
-}
+def handleArgs() -> dict:
+    result = {}
+    parser = argparse.ArgumentParser(description='Compare two conf_file_map databases')
+    parser.add_argument('-b', '--branch', action='append', help='compare only these branches')
+    parser.add_argument('-c', '--color', action='store_true', help='force the color output')
+    parser.add_argument('--order-conf-file', help='order of the output of conf_file_map',
+                        default='1, 2, 3')
+    parser.add_argument('--order-conf-branch', help='order of the output of conf_branch_map',
+                        default='1, 2, 3, 4, 5')
+    parser.add_argument('--order-module-file', help='order of the output of module_file_map',
+                        default='1, 2, 3')
+    parser.add_argument('--order-module-details', help='order of the output of module_details_map',
+                        default='1, 2, 3')
+    parser.add_argument('-I', '--ignore', action='append', help='ignore these branches')
+    parser.add_argument('old-db', help="database prefixed with '-' in the output")
+    parser.add_argument('new-db', help="database prefixed with '+' in the output")
+    args = parser.parse_args()
 
-"$DIFF" -u <(run_sqlite "$1") <(run_sqlite "$2")
+    if args.color:
+        os.environ['FORCE_COLOR'] = '1'
+
+    if args.branch and args.ignore:
+        print(colored('You cannot specify both ignores and branches', 'red'), file=sys.stderr)
+        sys.exit(1)
+
+    result['order-conf_file_map_view'] = checkOrder(args.order_conf_file)
+    result['order-conf_branch_map_view'] = checkOrder(args.order_conf_branch)
+    result['order-module_file_map_view'] = checkOrder(args.order_module_file)
+    result['order-module_details_map_view'] = checkOrder(args.order_module_details)
+    result['branches'] = args.branch
+    result['ignores'] = args.ignore
+    result['old-db'] = getattr(args, 'old-db')
+    result['new-db'] = getattr(args, 'new-db')
+
+    return result
+
+def buildSelect(sel : list[str], params : list[str], columns : str, db: str, table : str,
+                opts : dict):
+    sel.append(f'SELECT {columns} FROM {db}{table}')
+    branches = opts['branches']
+    ignores = opts['ignores']
+    if branches or ignores:
+        sel.append('WHERE branch')
+        if branches:
+            array = branches
+        else:
+            sel.append('NOT')
+            array = ignores
+        placeholders = ', '.join('?' * len(array))
+        sel.append(f'IN ({placeholders})')
+        params += array
+
+def compareTablesDir(added : bool, old : str, new : str, table: str, columns : str,
+                     cur : sqlite3.Cursor, opts : dict):
+    params : list[str] = []
+    sel : list[str] = []
+    buildSelect(sel, params, columns, old, table, opts)
+    sel.append('EXCEPT')
+    buildSelect(sel, params, columns, new, table, opts)
+    sel.append(f'ORDER BY {opts["order-" + table]}')
+    selStr = ' '.join(sel)
+
+    #pp(selStr)
+    #pp(params)
+
+    color : Color
+    if added:
+        prefix = '+'
+        color = 'green'
+    else:
+        prefix = '-'
+        color = 'red'
+
+    for row in cur.execute(selStr, params):
+        cprint(f'{prefix}{",".join(row)}', color)
+
+def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict):
+    cprint(f'=== Comparing "{table}" ===', 'light_green')
+    compareTablesDir(False, '', 'new.', table, columns, cur, opts)
+    compareTablesDir(True, 'new.', '', table, columns, cur, opts)
+
+def compareDBs(cur : sqlite3.Cursor, opts : dict):
+    compareTables('conf_file_map_view', 'branch, config, path', cur, opts)
+    compareTables('conf_branch_map_view', 'branch, flavor, arch, config, value', cur, opts)
+    compareTables('module_file_map_view', 'branch, module, path', cur, opts)
+    compareTables('module_details_map_view', 'branch, module, supported', cur, opts)
+
+opts = handleArgs()
+
+with closing(sqlite3.connect(opts['old-db'])) as db:
+    with closing(db.cursor()) as cur:
+        cur.execute('PRAGMA foreign_keys = ON;')
+        cur.execute('ATTACH ? AS new;', (opts['new-db'],))
+        compareDBs(cur, opts)

@@ -80,51 +80,50 @@ static std::optional<std::filesystem::path> prepareScratchArea(const cxxopts::Pa
 	return std::filesystem::absolute(scratchArea);
 }
 
-static int prepareKsourceGit(const std::filesystem::path &scratchArea, SlGit::Repo &repo)
+static std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratchArea)
 {
 	static const std::string kerncvs { "jslaby@kerncvs.suse.de:/srv/git/kernel-source.git" };
 
 	auto ourKsourceGit = scratchArea / "kernel-source";
 
 	if (std::filesystem::exists(ourKsourceGit))
-		return repo.open(ourKsourceGit);
+		return SlGit::Repo::open(ourKsourceGit);
 
-	int ret = repo.init(ourKsourceGit, false, kerncvs);
-	if (ret) {
+	auto repo = SlGit::Repo::init(ourKsourceGit, false, kerncvs);
+	if (!repo) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot init: " <<
 						git_error_last()->message;
-		return ret;
+		return std::nullopt;
 	}
 
-	SlGit::Remote origin;
-	origin.lookup(repo, "origin");
-	ret = origin.fetch("scripts", 1, false);
+	auto origin = repo->remoteLookup("origin");
+	auto ret = origin->fetch("scripts", 1, false);
 	if (ret) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot fetch: " <<
 						git_error_last()->message;
-		return ret;
+		return std::nullopt;
 	}
 
-	ret = repo.checkout("refs/remotes/origin/scripts");
+	ret = repo->checkout("refs/remotes/origin/scripts");
 	if (ret) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot checkout: " <<
 						git_error_last()->message;
-		return ret;
+		return std::nullopt;
 	}
 
 	std::error_code ec;
 	SlHelpers::PushD push(ourKsourceGit, ec);
 	if (ec)
-		return ec.value();
+		return std::nullopt;
 
 	auto stat = std::system("./scripts/install-git-hooks");
 	if (stat) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot install hooks: " <<
 						WEXITSTATUS(stat);
-		return stat;
+		return std::nullopt;
 	}
 
-	return 0;
+	return repo;
 }
 
 static std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesystem::path &DBPath,
@@ -179,18 +178,18 @@ static std::optional<bool> skipBranch(const std::unique_ptr<SQL::F2CSQLConn> &sq
 	return sql->hasBranch(branch);
 }
 
-static int checkoutBranch(const std::string &branchNote, const std::string &branch,
-			  SlGit::Repo &repo, SlGit::Commit &commit)
+static std::optional<SlGit::Commit> checkoutBranch(const std::string &branchNote,
+						   const std::string &branch,
+						   const SlGit::Repo &repo)
 {
 	Clr(Clr::GREEN) << "== " << branchNote << " -- Checking Out ==";
 	if (repo.checkout("refs/remotes/origin/" + branch)) {
 		Clr(std::cerr, Clr::RED) << "Cannot check out '" << branch << "': " <<
-						git_error_last()->message;
-		return -1;
+					    git_error_last()->message;
+		return std::nullopt;
 	}
-	if (commit.revparseSingle(repo, "HEAD"))
-		return -1;
-	return 0;
+
+	return repo.commitRevparseSingle("HEAD");
 }
 
 static std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea,
@@ -230,8 +229,7 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 			     P.exitStatus() << '\n';
 	if (ret || P.exitStatus()) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot seq patch: " <<
-						P.lastError() <<
-						" (" << P.exitStatus() << ')';
+					    P.lastError() << " (" << P.exitStatus() << ')';
 		return -1;
 	}
 
@@ -356,9 +354,8 @@ int main(int argc, char **argv)
 	if (!scratchArea)
 		return EXIT_FAILURE;
 
-	SlGit::Repo repo;
-
-	if (prepareKsourceGit(*scratchArea, repo))
+	auto repo = prepareKsourceGit(*scratchArea);
+	if (!repo)
 		return EXIT_FAILURE;
 
 	SlKernCVS::Branches::BranchesList branches;
@@ -376,10 +373,10 @@ int main(int argc, char **argv)
 
 	Clr(Clr::GREEN) << "== Fetching branches ==";
 
-	SlGit::Remote remote;
-	if (remote.lookup(repo, "origin"))
+	auto remote = repo->remoteLookup("origin");
+	if (!remote)
 		return EXIT_FAILURE;
-	if (remote.fetchBranches(branches, 1, false)) {
+	if (remote->fetchBranches(branches, 1, false)) {
 		auto lastErr = git_error_last();
 		Clr(std::cerr, Clr::RED) << "fetch failed: " << lastErr->message <<
 						" (" << lastErr->klass << ')';
@@ -410,8 +407,8 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		SlGit::Commit branchCommit;
-		if (checkoutBranch(branchNote, branch, repo, branchCommit))
+		auto branchCommit = checkoutBranch(branchNote, branch, *repo);
+		if (!branchCommit)
 			return EXIT_FAILURE;
 
 		auto expandedTree = getExpandedDir(*scratchArea, branch);
@@ -419,7 +416,7 @@ int main(int argc, char **argv)
 		if (expandBranch(branchNote, *scratchArea, expandedTree))
 			return EXIT_FAILURE;
 
-		if (processBranch(branchNote, sql, branch, repo, branchCommit, skipWalk,
+		if (processBranch(branchNote, sql, branch, *repo, *branchCommit, skipWalk,
 				  expandedTree, dumpRefs, reportUnhandled))
 			return EXIT_FAILURE;
 	}

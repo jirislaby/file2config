@@ -96,7 +96,7 @@ def compareTablesDir(added : bool, old : str, new : str, table: str, columns : s
 
     for row in cur.execute(selStr, params):
         changedBranches[row[0]] = changedBranches.get(row[0], 0) + 1
-        cprint(f'{prefix}{",".join(row)}', color)
+        cprint(f'{prefix}{",".join(map(str, row))}', color)
 
 def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict):
     cprint(f'=== Comparing "{table}" ===', 'light_green')

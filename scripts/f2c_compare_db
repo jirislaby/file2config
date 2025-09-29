@@ -118,4 +118,7 @@ with closing(sqlite3.connect(opts['old-db'])) as db:
     with closing(db.cursor()) as cur:
         cur.execute('PRAGMA foreign_keys = ON;')
         cur.execute('ATTACH ? AS new;', (opts['new-db'],))
-        compareDBs(cur, opts)
+        try:
+            compareDBs(cur, opts)
+        except BrokenPipeError:
+            pass

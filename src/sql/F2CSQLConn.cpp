@@ -4,7 +4,7 @@
 
 using namespace SQL;
 
-int F2CSQLConn::createDB()
+bool F2CSQLConn::createDB()
 {
 	static const Tables create_tables {
 		{ "branch", {
@@ -142,74 +142,70 @@ int F2CSQLConn::createDB()
 			"FROM user_file_map_view GROUP BY email, path" },
 	};
 
-	if (createTables(create_tables) ||
-			createIndices(create_indexes) ||
-			createViews(create_views))
-		return -1;
-
-	return 0;
+	return createTables(create_tables) && createIndices(create_indexes) &&
+			createViews(create_views);
 }
 
-int F2CSQLConn::prepDB()
+bool F2CSQLConn::prepDB()
 {
-	if (prepareStatement("INSERT INTO branch(branch, sha)"
+	if (!prepareStatement("INSERT INTO branch(branch, sha)"
 			     "VALUES (:branch, :sha);",
 			     insBranch))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO config(config)"
+	if (!prepareStatement("INSERT INTO config(config)"
 			     "VALUES (:config);",
 			     insConfig))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO arch(arch)"
+	if (!prepareStatement("INSERT INTO arch(arch)"
 			     "VALUES (:arch);",
 			     insArch))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO flavor(flavor)"
+	if (!prepareStatement("INSERT INTO flavor(flavor)"
 			     "VALUES (:flavor);",
 			     insFlavor))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
+	if (!prepareStatement("INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
 			     "SELECT branch.id, config.id, arch.id, flavor.id, :value "
 			     "FROM branch, config, arch, flavor "
 			     "WHERE branch.branch = :branch AND config.config = :config AND "
 			     "arch.arch = :arch AND flavor.flavor = :flavor;",
 			     insCBMap))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",
+	if (!prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",
 			     insDir))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO file(file, dir) "
+	if (!prepareStatement("INSERT INTO file(file, dir) "
 			     "SELECT :file, dir.id FROM dir WHERE dir.dir = :dir;",
 			     insFile))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO conf_file_map(branch, config, file) "
+	if (!prepareStatement("INSERT INTO conf_file_map(branch, config, file) "
 			     "SELECT branch.id, config.id, file.id FROM branch, config, file "
 			     "LEFT JOIN dir ON file.dir = dir.id "
 			     "WHERE branch.branch = :branch AND config.config = :config AND "
 			     "file.file = :file AND dir.dir = :dir;",
 			     insCFMap))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO module(dir, module) "
+	if (!prepareStatement("INSERT INTO module(dir, module) "
 			     "SELECT dir.id, :module FROM dir WHERE dir.dir = :dir;",
 			     insModule))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO module_details_map(branch, module, supported) "
+	if (!prepareStatement("INSERT INTO module_details_map(branch, module, supported) "
 			     "SELECT branch.id, module.id, :supported FROM branch, module "
 			     "LEFT JOIN dir ON module.dir = dir.id "
 			     "WHERE branch.branch = :branch AND dir.dir = :module_dir AND "
 			     "module.module = :module;",
 			     insMDMap))
-		return -1;
-	if (prepareStatement("INSERT INTO module_file_map(branch, module, file) "
+		return false;
+	if (!prepareStatement("INSERT INTO module_file_map(branch, module, file) "
 			     "SELECT branch.id, module.id, file.id FROM branch, module, file "
 			     "LEFT JOIN dir ON file.dir = dir.id "
 			     "LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
@@ -217,30 +213,30 @@ int F2CSQLConn::prepDB()
 			     "module.module = :module AND "
 			     "file.file = :file AND dir.dir = :dir;",
 			     insMFMap))
-		return -1;
+		return false;
 
-	if (prepareStatement("INSERT INTO user(email) VALUES (:email);", insUser))
-		return -1;
+	if (!prepareStatement("INSERT INTO user(email) VALUES (:email);", insUser))
+		return false;
 
-	if (prepareStatement("INSERT INTO user_file_map(user, branch, file, count, count_no_fixes) "
+	if (!prepareStatement("INSERT INTO user_file_map(user, branch, file, count, count_no_fixes) "
 			     "SELECT user.id, branch.id, file.id, :count, :countnf "
 				"FROM user, branch, file "
 				"LEFT JOIN dir ON file.dir = dir.id "
 				"WHERE user.email = :email AND branch.branch = :branch AND "
 				"file.file = :file AND dir.dir = :dir;",
 			     insUFMap))
-		return -1;
+		return false;
 
-	if (prepareStatement("DELETE FROM branch WHERE branch = :branch;", delBranch))
-		return -1;
+	if (!prepareStatement("DELETE FROM branch WHERE branch = :branch;", delBranch))
+		return false;
 
-	if (prepareStatement("SELECT 1 FROM branch WHERE branch = :branch;", selBranch))
-		return -1;
+	if (!prepareStatement("SELECT 1 FROM branch WHERE branch = :branch;", selBranch))
+		return false;
 
-	return 0;
+	return true;
 }
 
-int F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha)
+bool F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha)
 {
 	return insert(insBranch, {
 			      { ":branch", branch },
@@ -248,24 +244,24 @@ int F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha)
 		      });
 }
 
-int F2CSQLConn::insertConfig(const std::string &config)
+bool F2CSQLConn::insertConfig(const std::string &config)
 {
 	return insert(insConfig, { { ":config", config } });
 }
 
-int F2CSQLConn::insertArch(const std::string &arch)
+bool F2CSQLConn::insertArch(const std::string &arch)
 {
 	return insert(insArch, { { ":arch", arch } });
 }
 
-int F2CSQLConn::insertFlavor(const std::string &flavor)
+bool F2CSQLConn::insertFlavor(const std::string &flavor)
 {
 	return insert(insFlavor, { { ":flavor", flavor } });
 }
 
-int F2CSQLConn::insertCBMap(const std::string &branch, const std::string &arch,
-			    const std::string &flavor, const std::string &config,
-			    const std::string &value)
+bool F2CSQLConn::insertCBMap(const std::string &branch, const std::string &arch,
+			     const std::string &flavor, const std::string &config,
+			     const std::string &value)
 {
 	return insert(insCBMap, {
 			      { ":branch", branch },
@@ -276,12 +272,12 @@ int F2CSQLConn::insertCBMap(const std::string &branch, const std::string &arch,
 		      });
 }
 
-int F2CSQLConn::insertDir(const std::string &dir)
+bool F2CSQLConn::insertDir(const std::string &dir)
 {
 	return insert(insDir, { { ":dir", dir } });
 }
 
-int F2CSQLConn::insertFile(const std::string &dir, const std::string &file)
+bool F2CSQLConn::insertFile(const std::string &dir, const std::string &file)
 {
 	return insert(insFile, {
 			      { ":dir", dir },
@@ -289,8 +285,8 @@ int F2CSQLConn::insertFile(const std::string &dir, const std::string &file)
 		      });
 }
 
-int F2CSQLConn::insertCFMap(const std::string &branch, const std::string &config,
-			    const std::string &dir, const std::string &file)
+bool F2CSQLConn::insertCFMap(const std::string &branch, const std::string &config,
+			     const std::string &dir, const std::string &file)
 {
 	return insert(insCFMap, {
 			      { ":branch", branch },
@@ -300,7 +296,7 @@ int F2CSQLConn::insertCFMap(const std::string &branch, const std::string &config
 		      });
 }
 
-int F2CSQLConn::insertModule(const std::string &dir, const std::string &module)
+bool F2CSQLConn::insertModule(const std::string &dir, const std::string &module)
 {
 	return insert(insModule, {
 			      { ":dir", dir },
@@ -308,8 +304,8 @@ int F2CSQLConn::insertModule(const std::string &dir, const std::string &module)
 		      });
 }
 
-int F2CSQLConn::insertMDMap(const std::string &branch, const std::string &module_dir,
-			    const std::string &module, int supported)
+bool F2CSQLConn::insertMDMap(const std::string &branch, const std::string &module_dir,
+			     const std::string &module, int supported)
 {
 	return insert(insMDMap, {
 			      { ":branch", branch },
@@ -319,8 +315,8 @@ int F2CSQLConn::insertMDMap(const std::string &branch, const std::string &module
 		      });
 }
 
-int F2CSQLConn::insertMFMap(const std::string &branch, const std::string &module_dir,
-			    const std::string &module, const std::string &dir, const std::string &file)
+bool F2CSQLConn::insertMFMap(const std::string &branch, const std::string &module_dir,
+			     const std::string &module, const std::string &dir, const std::string &file)
 {
 	return insert(insMFMap, {
 			      { ":branch", branch },
@@ -331,14 +327,14 @@ int F2CSQLConn::insertMFMap(const std::string &branch, const std::string &module
 		      });
 }
 
-int F2CSQLConn::insertUser(const std::string &email)
+bool F2CSQLConn::insertUser(const std::string &email)
 {
 	return insert(insUser, { { ":email", email } });
 }
 
-int F2CSQLConn::insertUFMap(const std::string &branch, const std::string &email,
-			    const std::string &dir, const std::string &file,
-			    int count, int countnf)
+bool F2CSQLConn::insertUFMap(const std::string &branch, const std::string &email,
+			     const std::string &dir, const std::string &file,
+			     int count, int countnf)
 {
 	return insert(insUFMap, {
 			      { ":branch", branch },
@@ -350,17 +346,14 @@ int F2CSQLConn::insertUFMap(const std::string &branch, const std::string &email,
 		      });
 }
 
-int F2CSQLConn::deleteBranch(const std::string &branch)
+bool F2CSQLConn::deleteBranch(const std::string &branch)
 {
 	return insert(delBranch, { { ":branch", branch } });
 }
 
 std::optional<bool> F2CSQLConn::hasBranch(const std::string &branch)
 {
-	SlSqlite::SQLConn::SelectResult res;
+	const auto res = select(selBranch, { { ":branch", branch } }, { typeid(int) });
 
-	if (select(selBranch, { { ":branch", branch } }, { typeid(int) }, res))
-		return {};
-
-	return res.size() && std::get<int>(res[0][0]) == 1;
+	return res && res->size() && std::get<int>((*res)[0][0]) == 1;
 }

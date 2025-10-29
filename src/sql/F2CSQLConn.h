@@ -13,28 +13,28 @@ class F2CSQLConn : public SlSqlite::SQLConn {
 public:
 	F2CSQLConn() {}
 
-	virtual int createDB();
-	virtual int prepDB();
+	virtual bool createDB() override;
+	virtual bool prepDB() override;
 
-	int insertBranch(const std::string &branch, const std::string &sha);
-	int insertConfig(const std::string &config);
-	int insertArch(const std::string &arch);
-	int insertFlavor(const std::string &flavor);
-	int insertCBMap(const std::string &branch, const std::string &arch,
-			const std::string &flavor, const std::string &config, const std::string &value);
-	int insertDir(const std::string &dir);
-	int insertFile(const std::string &dir, const std::string &file);
-	int insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
-			const std::string &file);
-	int insertModule(const std::string &dir, const std::string &module);
-	int insertMDMap(const std::string &branch, const std::string &module_dir,
-			const std::string &module, int supported);
-	int insertMFMap(const std::string &branch, const std::string &module_dir,
-			const std::string &module, const std::string &dir, const std::string &file);
-	int insertUser(const std::string &email);
-	int insertUFMap(const std::string &branch, const std::string &email, const std::string &dir,
-			const std::string &file, int count, int countnf);
-	int deleteBranch(const std::string &branch);
+	bool insertBranch(const std::string &branch, const std::string &sha);
+	bool insertConfig(const std::string &config);
+	bool insertArch(const std::string &arch);
+	bool insertFlavor(const std::string &flavor);
+	bool insertCBMap(const std::string &branch, const std::string &arch,
+			 const std::string &flavor, const std::string &config, const std::string &value);
+	bool insertDir(const std::string &dir);
+	bool insertFile(const std::string &dir, const std::string &file);
+	bool insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
+			 const std::string &file);
+	bool insertModule(const std::string &dir, const std::string &module);
+	bool insertMDMap(const std::string &branch, const std::string &module_dir,
+			 const std::string &module, int supported);
+	bool insertMFMap(const std::string &branch, const std::string &module_dir,
+			 const std::string &module, const std::string &dir, const std::string &file);
+	bool insertUser(const std::string &email);
+	bool insertUFMap(const std::string &branch, const std::string &email, const std::string &dir,
+			 const std::string &file, int count, int countnf);
+	bool deleteBranch(const std::string &branch);
 	std::optional<bool> hasBranch(const std::string &branch);
 private:
 	SlSqlite::SQLStmtHolder insBranch;

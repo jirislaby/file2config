@@ -136,17 +136,14 @@ static std::unique_ptr<SQL::F2CSQLConn> getSQL(bool sqlite, const std::filesyste
 	unsigned openFlags = 0;
 	if (createDB)
 		openFlags |= SlSqlite::CREATE;
-	int ret = sql->openDB(DBPath, openFlags);
-	if (ret)
+	if (!sql->openDB(DBPath, openFlags))
 		return {};
 	if (createDB) {
-		ret = sql->createDB();
-		if (ret)
+		if (!sql->createDB())
 			return {};
 	}
 	if (!skipWalk) {
-		ret = sql->prepDB();
-		if (ret)
+		if (!sql->prepDB())
 			return {};
 	}
 
@@ -170,7 +167,7 @@ static std::optional<bool> skipBranch(const std::unique_ptr<SQL::F2CSQLConn> &sq
 		return false;
 
 	if (force) {
-		if (sql->deleteBranch(branch))
+		if (!sql->deleteBranch(branch))
 			return {};
 		return false;
 	}
@@ -200,15 +197,15 @@ static std::filesystem::path getExpandedDir(const std::filesystem::path &scratch
 	return scratchArea / branchDir;
 }
 
-static int expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,
-			const std::filesystem::path &expandedTree)
+static bool expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,
+			 const std::filesystem::path &expandedTree)
 {
 	auto kernelSource = scratchArea / "kernel-source";
 	std::error_code ec;
 	SlHelpers::PushD push(kernelSource, ec);
 	if (ec) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot chdir to " << kernelSource;
-		return -1;
+		return false;
 	}
 
 	Clr(Clr::GREEN) << "== " << branchNote << " -- Expanding ==";
@@ -230,10 +227,10 @@ static int expandBranch(const std::string &branchNote, const std::filesystem::pa
 	if (ret || P.exitStatus()) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot seq patch: " <<
 					    P.lastError() << " (" << P.exitStatus() << ')';
-		return -1;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
@@ -257,55 +254,50 @@ static std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Repo &r
 	return SlKernCVS::SupportedConf { *suppConf };
 }
 
-static int processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
-			  const SlGit::Repo &repo, const SlGit::Commit &commit, bool dumpRefs,
-			  bool reportUnhandled)
+static bool processAuthors(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+			   const SlGit::Repo &repo, const SlGit::Commit &commit, bool dumpRefs,
+			   bool reportUnhandled)
 {
 	SlKernCVS::PatchesAuthors PA{repo, dumpRefs, reportUnhandled};
 
-	return PA.processAuthors(commit, [&sql](const std::string &email) -> int {
+	return PA.processAuthors(commit, [&sql](const std::string &email) -> bool {
 		return sql->insertUser(email);
 	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
-			unsigned count, unsigned realCount) -> int {
+			unsigned count, unsigned realCount) -> bool {
 		return sql->insertUFMap(branch, email, path.parent_path().string(),
 				     path.filename().string(), count, realCount);
 	});
-
-	return 0;
 }
 
-static int processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
-			  const SlGit::Repo &repo, const SlGit::Commit &commit)
+static bool processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+			   const SlGit::Repo &repo, const SlGit::Commit &commit)
 {
 	SlKernCVS::CollectConfigs CC{repo,
 		[&sql](const std::string &arch, const std::string &flavor) -> int {
-			if (sql->insertArch(arch))
-				return -1;
-			return sql->insertFlavor(flavor);
+			return sql->insertArch(arch) && sql->insertFlavor(flavor);
 		}, [&sql, &branch](const std::string &arch, const std::string &flavor,
 		      const std::string &config,
 		      const SlKernCVS::CollectConfigs::ConfigValue &value) -> int {
-			if (sql->insertConfig(config))
-				return -1;
-			return sql->insertCBMap(branch, arch, flavor, config,
-						std::string(1, value));
+			return sql->insertConfig(config) && sql->insertCBMap(branch, arch, flavor,
+									     config,
+									     std::string(1, value));
 	}};
 
 	return CC.collectConfigs(commit);
 }
 
-int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CSQLConn> &sql,
-		  const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		  bool skipWalk, const std::filesystem::path &root, bool dumpRefs,
-		  bool reportUnhandled)
+bool processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CSQLConn> &sql,
+		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
+		   bool skipWalk, const std::filesystem::path &root, bool dumpRefs,
+		   bool reportUnhandled)
 {
 	if (sql) {
 		sql->begin();
 		auto SHA = commit.idStr();
-		if (sql->insertBranch(branch, SHA)) {
+		if (!sql->insertBranch(branch, SHA)) {
 			Clr(std::cerr, Clr::RED) << "cannot add branch '" << branch <<
 							"' with SHA '" << SHA << '\'';
-			return -1;
+			return false;
 		}
 	}
 
@@ -313,7 +305,7 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
 		auto supp = getSupported(repo, commit);
 		if (!supp)
-			return -1;
+			return false;
 
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
 		auto visitor = getMakeVisitor(sql, *supp, branch, root);
@@ -322,13 +314,13 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 
 		if (sql) {
 			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
-			if (processConfigs(sql, branch, repo, commit))
-				return -1;
+			if (!processConfigs(sql, branch, repo, commit))
+				return false;
 
 			Clr(Clr::GREEN) << "== " << branchNote <<
 					       " -- Detecting authors of patches ==";
-			if (processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled))
-				return -1;
+			if (!processAuthors(sql, branch, repo, commit, dumpRefs, reportUnhandled))
+				return false;
 		}
 	}
 
@@ -337,7 +329,7 @@ int processBranch(const std::string &branchNote, const std::unique_ptr<SQL::F2CS
 		sql->end();
 	}
 
-	return 0;
+	return true;
 }
 
 int main(int argc, char **argv)
@@ -413,11 +405,11 @@ int main(int argc, char **argv)
 
 		auto expandedTree = getExpandedDir(*scratchArea, branch);
 
-		if (expandBranch(branchNote, *scratchArea, expandedTree))
+		if (!expandBranch(branchNote, *scratchArea, expandedTree))
 			return EXIT_FAILURE;
 
-		if (processBranch(branchNote, sql, branch, *repo, *branchCommit, skipWalk,
-				  expandedTree, dumpRefs, reportUnhandled))
+		if (!processBranch(branchNote, sql, branch, *repo, *branchCommit, skipWalk,
+				   expandedTree, dumpRefs, reportUnhandled))
 			return EXIT_FAILURE;
 	}
 

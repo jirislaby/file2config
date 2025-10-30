@@ -9,6 +9,7 @@
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
+#include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
@@ -90,9 +91,8 @@ std::optional<std::filesystem::path> prepareScratchArea(const Opts &opts)
 	std::filesystem::path scratchArea;
 	if (opts.hasDest) {
 		scratchArea = opts.dest;
-	} else if (auto scratchAreaEnv = std::getenv("SCRATCH_AREA")) {
-		scratchArea = scratchAreaEnv;
-		scratchArea /= "fill-db";
+	} else if (auto scratchAreaEnv = SlHelpers::Env::get<std::filesystem::path>("SCRATCH_AREA")) {
+		scratchArea = std::move(*scratchAreaEnv) / "fill-db";
 	} else {
 		Clr(std::cerr, Clr::YELLOW) << "Neither --dest, nor SCRATCH_AREA defined (defaulting to \"fill-db\")";
 		scratchArea = "fill-db";

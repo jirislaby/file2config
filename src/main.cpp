@@ -144,10 +144,11 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 	if (ec)
 		return std::nullopt;
 
-	auto stat = std::system("./scripts/install-git-hooks");
-	if (stat) {
+	SlHelpers::Process P;
+	ret = P.run("./scripts/install-git-hooks");
+	if (ret || P.exitStatus()) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot install hooks: " <<
-						WEXITSTATUS(stat);
+					    P.lastError() << " (" << P.exitStatus() << ')';
 		return std::nullopt;
 	}
 

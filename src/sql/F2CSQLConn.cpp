@@ -84,6 +84,12 @@ bool F2CSQLConn::createDB()
 			"count_no_fixes INTEGER NOT NULL",
 			"UNIQUE(branch, user, file)"
 		}},
+		{ "ignored_file_branch_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"UNIQUE(branch, file)"
+		}},
 	};
 
 	static const Indices create_indexes {
@@ -140,6 +146,13 @@ bool F2CSQLConn::createDB()
 			"SELECT email, path, SUM(count) AS count, "
 				"SUM(count_no_fixes) AS count_no_fixes "
 			"FROM user_file_map_view GROUP BY email, path" },
+		{ "ignored_file_branch_map_view",
+			"SELECT map.id, branch.branch, "
+				"dir.dir || '/' || file.file AS path "
+			"FROM ignored_file_branch_map AS map "
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN file ON map.file = file.id "
+			"LEFT JOIN dir ON file.dir = dir.id;" },
 	};
 
 	return createTables(create_tables) && createIndices(create_indexes) &&
@@ -225,6 +238,15 @@ bool F2CSQLConn::prepDB()
 				"WHERE user.email = :email AND branch.branch = :branch AND "
 				"file.file = :file AND dir.dir = :dir;",
 			     insUFMap))
+		return false;
+
+	if (!prepareStatement("INSERT INTO ignored_file_branch_map(branch, file) "
+			      "SELECT branch.id, file.id "
+				"FROM branch, file "
+				"LEFT JOIN dir ON file.dir = dir.id "
+				"WHERE branch.branch = :branch AND "
+				"file.file = :file AND dir.dir = :dir;",
+			     insIFBMap))
 		return false;
 
 	if (!prepareStatement("DELETE FROM branch WHERE branch = :branch;", delBranch))
@@ -343,6 +365,16 @@ bool F2CSQLConn::insertUFMap(const std::string &branch, const std::string &email
 			      { ":file", file },
 			      { ":count", count },
 			      { ":countnf", countnf },
+		      });
+}
+
+bool F2CSQLConn::insertIFBMap(const std::string &branch, const std::string &dir,
+			     const std::string &file)
+{
+	return insert(insIFBMap, {
+			      { ":branch", branch },
+			      { ":dir", dir },
+			      { ":file", file },
 		      });
 }
 

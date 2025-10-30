@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-project('make-parser', 'cpp',
+project('file2config', 'cpp',
   version: '1',
   default_options: [
     'optimization=g',
@@ -16,4 +16,8 @@ cpp_compiler = meson.get_compiler('cpp')
 subdir('src')
 subdir('tests')
 
+install_subdir('data',
+  install_dir : get_option('datadir') / meson.project_name(),
+  strip_directory : true
+)
 install_subdir('scripts', install_dir : 'bin', strip_directory : true)

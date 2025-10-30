@@ -5,6 +5,7 @@ subdir('sql')
 subdir('treewalker')
 
 cxxopts_lib = dependency('cxxopts')
+json_lib = dependency('nlohmann_json')
 slgit_lib = dependency('slgit++')
 slhelpers_lib = dependency('slhelpers++')
 slkerncvs_lib = dependency('slkerncvs++')
@@ -18,6 +19,6 @@ executable('f2c_create_db', [
     'Verbose.h',
   ],
   link_with: [ sqlite, treewalker ],
-  dependencies: [ cxxopts_lib, slgit_lib, slhelpers_lib, slkerncvs_lib ],
+  dependencies: [ cxxopts_lib, json_lib, slgit_lib, slhelpers_lib, slkerncvs_lib ],
   install: true,
 )

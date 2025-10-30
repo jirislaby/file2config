@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <cxxopts.hpp>
+#include <fnmatch.h>
+#include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #include <sl/kerncvs/Branches.h>
 #include <sl/kerncvs/CollectConfigs.h>
@@ -21,6 +24,7 @@
 #include "Verbose.h"
 
 using Clr = SlHelpers::Color;
+using Json = nlohmann::ordered_json;
 
 namespace {
 
@@ -35,6 +39,9 @@ struct Opts {
 
 	bool authorsDumpRefs;
 	bool authorsReportUnhandled;
+
+	std::filesystem::path ignoredFilesJSON;
+	bool hasIgnoredFiles;
 
 	std::filesystem::path sqlite;
 	bool hasSqlite;
@@ -63,6 +70,10 @@ Opts getOpts(int argc, char **argv)
 		("authors-report-unhandled", "report unhandled lines to stdout",
 			cxxopts::value(opts.authorsReportUnhandled)->default_value("false"))
 	;
+	options.add_options("files")
+		("ignored-files", "path to JSON containing files to be added to ignore table",
+			cxxopts::value(opts.ignoredFilesJSON))
+	;
 	options.add_options("sqlite")
 		("s,sqlite", "create db",
 			cxxopts::value(opts.sqlite)->implicit_value("conf_file_map.sqlite"))
@@ -77,6 +88,7 @@ Opts getOpts(int argc, char **argv)
 		F2C::verbose = cxxopts.count("verbose");
 		Clr::forceColor(cxxopts.contains("force-color"));
 		opts.hasDest = cxxopts.contains("dest");
+		opts.hasIgnoredFiles = cxxopts.contains("ignored-files");
 		opts.hasSqlite = cxxopts.contains("sqlite");
 		return opts;
 	} catch (const cxxopts::exceptions::parsing &e) {
@@ -173,6 +185,28 @@ std::unique_ptr<SQL::F2CSQLConn> getSQL(const Opts &opts)
 	}
 
 	return sql;
+}
+
+std::optional<Json> loadIgnoredFiles(const Opts &opts)
+{
+	if (!opts.hasIgnoredFiles)
+		return std::nullopt;
+
+	std::ifstream ifs{opts.ignoredFilesJSON};
+	if (!ifs) {
+		Clr(std::cerr, Clr::RED) << "cannot open JSON " << opts.ignoredFilesJSON;
+		return std::nullopt;
+	}
+	Json json;
+	try {
+		json = json.parse(ifs);
+	} catch (const Json::exception &e) {
+		Clr(std::cerr, Clr::RED) << "cannot parse JSON from " << opts.ignoredFilesJSON <<
+					    ": " << e.what();
+		return std::nullopt;
+	}
+
+	return json;
 }
 
 std::string getBranchNote(const std::string &branch, const unsigned &branchNo,
@@ -312,10 +346,54 @@ bool processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::stri
 	return CC.collectConfigs(commit);
 }
 
+bool processIgnore(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+		   const std::vector<Json> &patterns, const std::filesystem::path &relPath)
+{
+	for (const auto &pattern: patterns)
+		if (!fnmatch(pattern.get_ref<const Json::string_t &>().c_str(),
+			     relPath.c_str(), FNM_PATHNAME)) {
+			const auto dir = relPath.parent_path();
+			const auto file = relPath.filename();
+
+			if (!sql->insertDir(dir))
+				return false;
+			if (!sql->insertFile(dir, file))
+				return false;
+			if (!sql->insertIFBMap(branch, dir, file))
+				return false;
+		}
+
+	return true;
+}
+bool processIgnores(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+		    const Json &json, const std::filesystem::path &root)
+{
+	const auto allIt = json.find("all");
+	const auto all = (allIt != json.end()) ? &allIt->get_ref<const Json::array_t &>() : nullptr;
+
+	const auto forBranchIt = json.find(branch);
+	const auto forBranch = (forBranchIt != json.end()) ?
+				&forBranchIt->get_ref<const Json::array_t &>() : nullptr;
+
+	for (const auto &e: std::filesystem::recursive_directory_iterator(root)) {
+		if (!e.is_regular_file())
+			continue;
+
+		const auto relPath = e.path().lexically_relative(root);
+
+		if (all && !processIgnore(sql, branch, *all, relPath))
+			return false;
+		if (forBranch && !processIgnore(sql, branch, *forBranch, relPath))
+			return false;
+	}
+
+	return true;
+}
+
 bool processBranch(const Opts &opts, const std::string &branchNote,
 		   const std::unique_ptr<SQL::F2CSQLConn> &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		   const std::filesystem::path &root)
+		   const std::filesystem::path &root, const Json &ignoredFiles)
 {
 	if (sql) {
 		sql->begin();
@@ -346,6 +424,11 @@ bool processBranch(const Opts &opts, const std::string &branchNote,
 			Clr(Clr::GREEN) << "== " << branchNote <<
 					       " -- Detecting authors of patches ==";
 			if (!processAuthors(opts, sql, branch, repo, commit))
+				return false;
+
+			Clr(Clr::GREEN) << "== " << branchNote <<
+					       " -- Collecting ignored files ==";
+			if (!processIgnores(sql, branch, ignoredFiles, root))
 				return false;
 		}
 	}
@@ -400,6 +483,10 @@ int main(int argc, char **argv)
 	if (opts.hasSqlite && !sql)
 		return EXIT_FAILURE;
 
+	auto ignoredFiles = loadIgnoredFiles(opts);
+	if (opts.hasIgnoredFiles && !ignoredFiles)
+		return EXIT_FAILURE;
+
 	auto branchNo = 0U;
 	auto branchCnt = branches.size();
 
@@ -424,7 +511,7 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 
 		if (!processBranch(opts, branchNote, sql, branch, *repo, *branchCommit,
-				   expandedTree))
+				   expandedTree, *ignoredFiles))
 			return EXIT_FAILURE;
 	}
 

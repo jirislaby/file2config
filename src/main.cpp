@@ -236,8 +236,10 @@ bool expandBranch(const std::string &branchNote, const std::filesystem::path &sc
 
 	std::filesystem::path seqPatch{"./scripts/sequence-patch"};
 	// temporary for old branches
-	if (!std::filesystem::exists(seqPatch))
+	if (!std::filesystem::exists(seqPatch)) {
+		Clr(Clr::YELLOW) << "Running old sequence-patch.sh as sequence-patch does not exist";
 		seqPatch = "./scripts/sequence-patch.sh";
+	}
 	const std::vector<std::string> args {
 		"--dir=" + scratchArea.string(),
 		"--patch-dir=" + expandedTree.string(),

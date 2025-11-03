@@ -2,11 +2,11 @@
 
 test_parser = executable('test_parser', [
     'test_parser.cpp',
-    '../src/Verbose.cpp',
+    '../f2c_create_db/Verbose.cpp',
   ],
   cpp_args: '-DTESTS_DIR="' + meson.current_source_dir() + '"',
   link_with: parser,
-  include_directories: include_directories('../src/parser'),
+  include_directories: include_directories('../f2c_create_db/parser'),
 )
 
 test('parser unit tests', test_parser)

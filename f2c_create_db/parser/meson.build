@@ -9,9 +9,6 @@ generated_files = [
   'MakeListener.h',
 ]
 
-# the generated headers are buggy
-add_project_arguments('-Wno-overloaded-virtual', language : 'cpp')
-
 parser_include = include_directories('/usr/include/antlr4-runtime/')
 antlr4_lib = cpp_compiler.find_library('antlr4-runtime',
   has_headers : 'antlr4-runtime.h',
@@ -46,6 +43,8 @@ parser = static_library('parser', [
     'MakeExprListener.h',
     gen_antlr,
   ],
+  # the generated headers are buggy
+  cpp_args: [ '-Wno-overloaded-virtual' ],
   dependencies : antlr4_lib,
   include_directories : parser_include,
 )

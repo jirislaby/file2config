@@ -13,6 +13,7 @@ project('file2config', 'cpp',
 add_project_arguments('-ggdb', language : 'cpp')
 cpp_compiler = meson.get_compiler('cpp')
 
+subdir('f2c_cli')
 subdir('f2c_create_db')
 subdir('tests')
 

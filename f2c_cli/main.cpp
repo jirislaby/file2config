@@ -168,17 +168,12 @@ bool handleSHA(const F2CSQLConn &sql, const std::string &branch, const SlGit::Re
 	if (!diff)
 		return false;
 
-	struct CB : public SlGit::Diff::ForEachCB {
-		virtual int file(const git_diff_delta &delta, float) const override {
+	SlGit::Diff::ForEachCB cb = {
+		.file = [&sql, &branch](const git_diff_delta &delta, float) {
 			std::filesystem::path f(delta.new_file.path);
-			return selectConfigQuery(m_sql, m_branch, f) ? 0 : -1;
-		}
-		CB(const F2CSQLConn &sql, const std::string &branch) :
-			m_sql(sql), m_branch(branch) {}
-	private:
-		const F2CSQLConn &m_sql;
-		const std::string &m_branch;
-	} cb(sql, branch);
+			return selectConfigQuery(sql, branch, f) ? 0 : -1;
+		},
+	};
 
 	if (diff->forEach(cb))
 		return false;

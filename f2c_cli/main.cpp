@@ -32,7 +32,20 @@ public:
 						"FROM file "
 						"LEFT JOIN dir ON file.dir = dir.id "
 						"WHERE dir.dir = :dir AND file.file = :file);",
-					selConfig);
+					selConfig) &&
+			prepareStatement("SELECT module_dir.dir, module.module "
+					"FROM module_file_map AS mfmap "
+					"LEFT JOIN module ON mfmap.module = module.id "
+					"LEFT JOIN dir AS module_dir ON "
+					"	module.dir = module_dir.id "
+					"WHERE mfmap.branch = (SELECT id "
+					"	FROM branch "
+					"	WHERE branch = :branch) AND "
+					"mfmap.file IN (SELECT file.id "
+					"	FROM file "
+					"	LEFT JOIN dir ON file.dir = dir.id "
+					"	WHERE dir.dir = :dir AND file.file = :file);",
+					selModule);
 	}
 
 	auto selectConfig(const std::string &branch, const std::string &dir,
@@ -43,8 +56,18 @@ public:
 			      { ":file", file },
 			      }, { typeid(std::string) });
 	}
+
+	auto selectModule(const std::string &branch, const std::string &dir,
+			  const std::string &file) const {
+		return select(selModule, {
+			      { ":branch", branch },
+			      { ":dir", dir },
+			      { ":file", file },
+			      }, { typeid(std::string), typeid(std::string) });
+	}
 private:
 	SlSqlite::SQLStmtHolder selConfig;
+	SlSqlite::SQLStmtHolder selModule;
 };
 
 struct Opts {
@@ -55,6 +78,7 @@ struct Opts {
 	std::string branch;
 	std::vector<std::filesystem::path> files;
 	std::vector<std::string> shas;
+	bool module;
 };
 
 Opts getOpts(int argc, char **argv)
@@ -74,7 +98,7 @@ Opts getOpts(int argc, char **argv)
 			cxxopts::value(opts.sqlite)->default_value("S-G-M_cache_dir/conf_file_map.sqlite"))
 	;
 	options.add_options("query")
-		("b,branch", "branch to query", cxxopts::value(opts.branch))
+		("b,branch", "Branch to query", cxxopts::value(opts.branch))
 		("f,file", "file for which to find configs of; - for stdin. "
 			  "This option can be provided multiple times with different values.",
 			cxxopts::value(opts.files))
@@ -82,6 +106,7 @@ Opts getOpts(int argc, char **argv)
 			  "This option can be provided multiple times with different values. "
 			  "SHA could be in any form accepted by git-rev-parse.",
 			cxxopts::value(opts.shas))
+		("m,module", "Include also module path in the output", cxxopts::value(opts.module))
 	;
 
 	try {
@@ -133,27 +158,36 @@ bool handleCmdlineFiles(const FileTy &files,
 	return true;
 }
 
-bool selectConfigQuery(const F2CSQLConn &sql, const std::string &branch,
+bool selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 		       const std::filesystem::path &file)
 {
-	auto res = sql.selectConfig(branch, file.parent_path(), file.filename());
+	auto res = sql.selectConfig(opts.branch, file.parent_path(), file.filename());
 	if (!res || res->size() == 0)
 		return true;
+
+	std::string mod;
+	if (opts.module) {
+		auto modRes = sql.selectModule(opts.branch, file.parent_path(), file.filename());
+		if (modRes && res->size() != 0)
+			mod = ' ' + std::get<std::string>((*modRes)[0][0]) + '/' +
+					std::get<std::string>((*modRes)[0][1]);
+	}
+
 	for (const auto &conf: *res)
-		std::cout << file.string() << " " << std::get<std::string>(conf[0]) << '\n';
+		std::cout << file.string() << " " << std::get<std::string>(conf[0]) << mod << '\n';
 	return true;
 }
 
 bool handleFiles(const Opts &opts, const F2CSQLConn &sql)
 {
 	return handleCmdlineFiles<std::filesystem::path>(opts.files,
-			[&sql, &branch = opts.branch](const auto &file) {
-		return selectConfigQuery(sql, branch, file);
+			[&sql, &opts](const auto &file) {
+		return selectConfigQuery(opts, sql, file);
 	});
 }
 
-bool handleSHA(const F2CSQLConn &sql, const std::string &branch, const SlGit::Repo &repo,
-		const std::string_view &sha)
+bool handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
+	       const std::string_view &sha)
 {
 	const auto commit = repo.commitRevparseSingle(std::string(sha));
 	if (!commit)
@@ -169,9 +203,9 @@ bool handleSHA(const F2CSQLConn &sql, const std::string &branch, const SlGit::Re
 		return false;
 
 	SlGit::Diff::ForEachCB cb = {
-		.file = [&sql, &branch](const git_diff_delta &delta, float) {
+		.file = [&sql, &opts](const git_diff_delta &delta, float) {
 			std::filesystem::path f(delta.new_file.path);
-			return selectConfigQuery(sql, branch, f) ? 0 : -1;
+			return selectConfigQuery(opts, sql, f) ? 0 : -1;
 		},
 	};
 
@@ -195,8 +229,8 @@ bool handleSHAs(const Opts &opts, const F2CSQLConn &sql)
 	const auto rk = std::move(*rkOpt);
 
 	return handleCmdlineFiles<std::string_view>(opts.shas,
-			[&sql, &branch = opts.branch, &rk](const auto &sha) {
-		return handleSHA(sql, branch, rk, sha);
+			[&sql, &opts, &rk](const auto &sha) {
+		return handleSHA(opts, sql, rk, sha);
 	});
 }
 

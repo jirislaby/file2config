@@ -159,6 +159,11 @@ bool handleSHA(const F2CSQLConn &sql, const std::string &branch, const SlGit::Re
 	if (!commit)
 		return false;
 
+	if (commit->parentCount() > 1) {
+		Clr(std::cerr, Clr::YELLOW) << sha << " is a merge commit, skipping";
+		return true;
+	}
+
 	const auto diff = repo.diff(*commit, *commit->parent());
 	if (!diff)
 		return false;

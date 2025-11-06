@@ -84,7 +84,7 @@ struct Opts {
 Opts getOpts(int argc, char **argv)
 {
 	cxxopts::Options options { argv[0], "Client for the conf_file_map database" };
-	Opts opts;
+	Opts opts {};
 	options.add_options()
 		("h,help", "Print this help message")
 		("force-color", "Force color output")

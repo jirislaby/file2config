@@ -1,6 +1,7 @@
 {
 	"all": [
-		"fs/f2fs/*.h"
+		"fs/f2fs/*.h",
+		"include/linux/kasan.h"
 	],
 	"SLE15-SP7" : [
 	]

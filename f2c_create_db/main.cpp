@@ -305,10 +305,9 @@ std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQ
 		return std::make_unique<TW::ConsoleMakeVisitor>();
 }
 
-std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Repo &repo,
-						     const SlGit::Commit &commit)
+std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Commit &commit)
 {
-	auto suppConf = commit.catFile(repo, "supported.conf");
+	auto suppConf = commit.catFile("supported.conf");
 	if (!suppConf)
 		return {};
 
@@ -407,7 +406,7 @@ bool processBranch(const Opts &opts, const std::string &branchNote,
 
 	if (!opts.sqliteCreateOnly) {
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
-		auto supp = getSupported(repo, commit);
+		auto supp = getSupported(commit);
 		if (!supp)
 			return false;
 

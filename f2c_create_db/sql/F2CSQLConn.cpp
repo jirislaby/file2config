@@ -161,92 +161,95 @@ bool F2CSQLConn::createDB()
 
 bool F2CSQLConn::prepDB()
 {
-	if (!prepareStatement("INSERT INTO branch(branch, sha)"
-			     "VALUES (:branch, :sha);",
-			     insBranch))
+	if (!prepareStatement("INSERT INTO branch(branch, sha) "
+			      "VALUES (:branch, :sha);",
+			      insBranch))
 		return false;
 
-	if (!prepareStatement("INSERT INTO config(config)"
-			     "VALUES (:config);",
-			     insConfig))
+	if (!prepareStatement("INSERT INTO config(config) "
+			      "VALUES (:config);",
+			      insConfig))
 		return false;
 
-	if (!prepareStatement("INSERT INTO arch(arch)"
-			     "VALUES (:arch);",
-			     insArch))
+	if (!prepareStatement("INSERT INTO arch(arch) "
+			      "VALUES (:arch);",
+			      insArch))
 		return false;
 
-	if (!prepareStatement("INSERT INTO flavor(flavor)"
-			     "VALUES (:flavor);",
-			     insFlavor))
+	if (!prepareStatement("INSERT INTO flavor(flavor) "
+			      "VALUES (:flavor);",
+			      insFlavor))
 		return false;
 
 	if (!prepareStatement("INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
-			     "SELECT branch.id, config.id, arch.id, flavor.id, :value "
-			     "FROM branch, config, arch, flavor "
-			     "WHERE branch.branch = :branch AND config.config = :config AND "
-			     "arch.arch = :arch AND flavor.flavor = :flavor;",
-			     insCBMap))
+			      "VALUES ("
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM config WHERE config = :config), "
+			      "(SELECT id FROM arch WHERE arch = :arch), "
+			      "(SELECT id FROM flavor WHERE flavor = :flavor), "
+			      ":value);",
+			      insCBMap))
 		return false;
 
 	if (!prepareStatement("INSERT INTO dir(dir) VALUES (:dir);",
-			     insDir))
+			      insDir))
 		return false;
 
-	if (!prepareStatement("INSERT INTO file(file, dir) "
-			     "SELECT :file, dir.id FROM dir WHERE dir.dir = :dir;",
-			     insFile))
+	if (!prepareStatement("INSERT INTO file(file, dir) VALUES ("
+			      ":file, "
+			      "(SELECT id FROM dir WHERE dir = :dir));",
+			      insFile))
 		return false;
 
-	if (!prepareStatement("INSERT INTO conf_file_map(branch, config, file) "
-			     "SELECT branch.id, config.id, file.id FROM branch, config, file "
-			     "LEFT JOIN dir ON file.dir = dir.id "
-			     "WHERE branch.branch = :branch AND config.config = :config AND "
-			     "file.file = :file AND dir.dir = :dir;",
-			     insCFMap))
+	if (!prepareStatement("INSERT INTO conf_file_map(branch, config, file) VALUES ("
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM config WHERE config = :config), "
+			      "(SELECT id FROM file WHERE file = :file AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :dir)));",
+			      insCFMap))
 		return false;
 
-	if (!prepareStatement("INSERT INTO module(dir, module) "
-			     "SELECT dir.id, :module FROM dir WHERE dir.dir = :dir;",
+	if (!prepareStatement("INSERT INTO module(dir, module) VALUES ("
+			      "(SELECT id FROM dir WHERE dir = :dir), "
+			      ":module);",
 			     insModule))
 		return false;
 
-	if (!prepareStatement("INSERT INTO module_details_map(branch, module, supported) "
-			     "SELECT branch.id, module.id, :supported FROM branch, module "
-			     "LEFT JOIN dir ON module.dir = dir.id "
-			     "WHERE branch.branch = :branch AND dir.dir = :module_dir AND "
-			     "module.module = :module;",
-			     insMDMap))
+	if (!prepareStatement("INSERT INTO module_details_map(branch, module, supported) VALUES ("
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM module WHERE module = :module AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :module_dir)), "
+			      ":supported);",
+			      insMDMap))
 		return false;
-	if (!prepareStatement("INSERT INTO module_file_map(branch, module, file) "
-			     "SELECT branch.id, module.id, file.id FROM branch, module, file "
-			     "LEFT JOIN dir ON file.dir = dir.id "
-			     "LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
-			     "WHERE branch.branch = :branch AND module_dir.dir = :module_dir AND "
-			     "module.module = :module AND "
-			     "file.file = :file AND dir.dir = :dir;",
-			     insMFMap))
+
+	if (!prepareStatement("INSERT INTO module_file_map(branch, module, file) VALUES ("
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM module WHERE module = :module AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :module_dir)), "
+			      "(SELECT id FROM file WHERE file = :file AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :dir)));",
+			      insMFMap))
 		return false;
 
 	if (!prepareStatement("INSERT INTO user(email) VALUES (:email);", insUser))
 		return false;
 
 	if (!prepareStatement("INSERT INTO user_file_map(user, branch, file, count, count_no_fixes) "
-			     "SELECT user.id, branch.id, file.id, :count, :countnf "
-				"FROM user, branch, file "
-				"LEFT JOIN dir ON file.dir = dir.id "
-				"WHERE user.email = :email AND branch.branch = :branch AND "
-				"file.file = :file AND dir.dir = :dir;",
-			     insUFMap))
+			      "VALUES ("
+			      "(SELECT id FROM user WHERE email = :email), "
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM file WHERE file = :file AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :dir)), "
+			      ":count, :countnf);",
+			      insUFMap))
 		return false;
 
-	if (!prepareStatement("INSERT INTO ignored_file_branch_map(branch, file) "
-			      "SELECT branch.id, file.id "
-				"FROM branch, file "
-				"LEFT JOIN dir ON file.dir = dir.id "
-				"WHERE branch.branch = :branch AND "
-				"file.file = :file AND dir.dir = :dir;",
-			     insIFBMap))
+	if (!prepareStatement("INSERT INTO ignored_file_branch_map(branch, file) VALUES ("
+			      "(SELECT id FROM branch WHERE branch = :branch), "
+			      "(SELECT id FROM file WHERE file = :file AND "
+				      "dir = (SELECT id FROM dir WHERE dir = :dir)));",
+			      insIFBMap))
 		return false;
 
 	if (!prepareStatement("DELETE FROM branch WHERE branch = :branch;", delBranch))

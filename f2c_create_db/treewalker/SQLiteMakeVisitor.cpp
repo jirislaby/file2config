@@ -76,11 +76,17 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 
 	auto dirMod = relMod.parent_path();
 	auto fileMod = relMod.filename();
+	if (!sql.insertDir(dirMod))
+		return;
+	auto dirFile = sql.insertPath(relPath);
+	if (!dirFile)
+		return;
 	if (!sql.insertModule(dirMod, fileMod))
 		return;
 	auto supported = supp.supportState(relMod);
 	if (!sql.insertMDMap(branch, dirMod, fileMod, supported))
 		return;
-	if (!sql.insertMFMap(branch, dirMod, fileMod, relPath.parent_path(), relPath.filename()))
+	if (!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
+			     std::move(dirFile->second)))
 		return;
 }

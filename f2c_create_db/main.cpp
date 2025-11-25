@@ -323,8 +323,10 @@ bool processAuthors(const Opts &opts, const std::unique_ptr<SQL::F2CSQLConn> &sq
 		return sql->insertUser(email);
 	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
 			unsigned count, unsigned realCount) -> bool {
-		return sql->insertUFMap(branch, email, path.parent_path().string(),
-				     path.filename().string(), count, realCount);
+		auto fileDir = sql->insertPath(path);
+		return fileDir && sql->insertUFMap(branch, email, std::move(fileDir->first),
+						   std::move(fileDir->second),
+						   count, realCount);
 	});
 }
 

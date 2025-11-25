@@ -173,15 +173,23 @@ std::unique_ptr<SQL::F2CSQLConn> getSQL(const Opts &opts)
 	unsigned openFlags = 0;
 	if (opts.sqliteCreate)
 		openFlags |= SlSqlite::CREATE;
-	if (!sql->openDB(opts.sqlite, openFlags))
+	if (!sql->openDB(opts.sqlite, openFlags)) {
+		Clr(std::cerr, Clr::RED) << "cannot open/create the db at " << opts.sqlite << ": "
+					 << sql->lastError();
 		return {};
+	}
 	if (opts.sqliteCreate) {
-		if (!sql->createDB())
+		if (!sql->createDB()) {
+			Clr(std::cerr, Clr::RED) << "cannot create tables: " << sql->lastError();
 			return {};
+		}
 	}
 	if (!opts.sqliteCreateOnly) {
-		if (!sql->prepDB())
+		if (!sql->prepDB()) {
+			Clr(std::cerr, Clr::RED) << "cannot prepare statements: " <<
+						    sql->lastError();
 			return {};
+		}
 	}
 
 	return sql;

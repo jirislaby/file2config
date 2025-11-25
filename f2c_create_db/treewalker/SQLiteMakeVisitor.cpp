@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include <sl/helpers/Color.h>
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "../Verbose.h"
@@ -10,6 +11,8 @@
 #include "SQLiteMakeVisitor.h"
 
 using namespace TW;
+
+using Clr = SlHelpers::Color;
 
 SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 				     const std::string &branch, const std::filesystem::path &base) :
@@ -54,12 +57,12 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
 
 	auto dirFile = sql.insertPath(relPath);
-	if (!dirFile)
+	if (!dirFile || !sql.insertConfig(cond) ||
+			!sql.insertCFMap(branch, cond, std::move(dirFile->first),
+					 std::move(dirFile->second))) {
+		Clr(std::cerr, Clr::RED) << "cannot insert CFMap: " << sql.lastError();
 		return;
-	if (!sql.insertConfig(cond))
-		return;
-	if (!sql.insertCFMap(branch, cond, std::move(dirFile->first), std::move(dirFile->second)))
-		return;
+	}
 }
 
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
@@ -76,17 +79,14 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 
 	auto dirMod = relMod.parent_path();
 	auto fileMod = relMod.filename();
-	if (!sql.insertDir(dirMod))
-		return;
-	auto dirFile = sql.insertPath(relPath);
-	if (!dirFile)
-		return;
-	if (!sql.insertModule(dirMod, fileMod))
-		return;
 	auto supported = supp.supportState(relMod);
-	if (!sql.insertMDMap(branch, dirMod, fileMod, supported))
+	auto dirFile = sql.insertPath(relPath);
+	if (!dirFile || !sql.insertDir(dirMod) ||
+			!sql.insertModule(dirMod, fileMod) ||
+			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||
+			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
+					 std::move(dirFile->second))) {
+		Clr(std::cerr, Clr::RED) << "cannot insert module maps: " << sql.lastError();
 		return;
-	if (!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
-			     std::move(dirFile->second)))
-		return;
+	}
 }

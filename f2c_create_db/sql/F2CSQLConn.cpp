@@ -310,6 +310,20 @@ bool F2CSQLConn::insertFile(const std::string &dir, const std::string &file)
 		      });
 }
 
+std::optional<std::pair<std::string, std::string>>
+F2CSQLConn::insertPath(const std::filesystem::path &path)
+{
+	auto dir = path.parent_path();
+	auto file = path.filename();
+
+	if (!insertDir(dir))
+		return std::nullopt;
+	if (!insertFile(dir, file))
+		return std::nullopt;
+
+	return std::make_pair(dir.string(), file.string());
+}
+
 bool F2CSQLConn::insertCFMap(const std::string &branch, const std::string &config,
 			     const std::string &dir, const std::string &file)
 {

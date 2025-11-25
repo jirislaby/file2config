@@ -53,15 +53,12 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 	if (F2C::verbose > 1)
 		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
 
-	auto dir = relPath.parent_path();
-	auto file = relPath.filename();
+	auto dirFile = sql.insertPath(relPath);
+	if (!dirFile)
+		return;
 	if (!sql.insertConfig(cond))
 		return;
-	if (!sql.insertDir(dir))
-		return;
-	if (!sql.insertFile(dir, file))
-		return;
-	if (!sql.insertCFMap(branch, cond, dir, file))
+	if (!sql.insertCFMap(branch, cond, std::move(dirFile->first), std::move(dirFile->second)))
 		return;
 }
 

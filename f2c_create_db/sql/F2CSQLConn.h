@@ -24,6 +24,8 @@ public:
 			 const std::string &flavor, const std::string &config, const std::string &value);
 	bool insertDir(const std::string &dir);
 	bool insertFile(const std::string &dir, const std::string &file);
+	std::optional<std::pair<std::string, std::string>>
+		insertPath(const std::filesystem::path &path);
 	bool insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
 			 const std::string &file);
 	bool insertModule(const std::string &dir, const std::string &module);

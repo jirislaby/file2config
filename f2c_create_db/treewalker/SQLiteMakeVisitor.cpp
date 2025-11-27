@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
+#include <unordered_set>
 
 #include <sl/helpers/Color.h>
 #include <sl/kerncvs/SupportedConf.h>
@@ -35,14 +36,14 @@ bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
 	if (relPath.extension() != ".c")
 		return true;
 
-	static const std::string skipPaths[] = { "Documentation", "samples", "tools", };
+	static const std::unordered_set<std::string_view> skipPaths {
+		"Documentation",
+		"samples",
+		"tools",
+	};
 
-	auto first = *relPath.begin();
-	for (const auto &avoid : skipPaths)
-		if (avoid == first)
-			return true;
-
-	return false;
+	const auto first = relPath.begin()->string();
+	return skipPaths.contains(first);
 }
 
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,

@@ -8,7 +8,6 @@ import os
 import sqlite3
 import sys
 from termcolor import cprint, colored
-from termcolor._types import Color
 
 #from pprint import pp
 
@@ -89,7 +88,6 @@ def compareTablesDir(added : bool, old : str, new : str, table: str, columns : s
     #pp(selStr)
     #pp(params)
 
-    color : Color
     if added:
         prefix = '+'
         color = 'green'

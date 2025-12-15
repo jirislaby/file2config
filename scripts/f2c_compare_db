@@ -107,7 +107,29 @@ def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict)
     changes = [ f'{k} ({changedBranches[k]})' for k in changedBranches ]
     print(f'Changed branches: {", ".join(changes)}')
 
+def getSHANote(sha : str, note: str, noteToAdd : str) -> tuple[str, str]:
+    if sha is None:
+        note += ' <' + noteToAdd + '>'
+        return note, '0' * 12
+    return note, sha[:12]
+
+def dumpSHAs(cur : sqlite3.Cursor):
+    cprint('=== Branches SHAS ===', 'light_green')
+    for row in cur.execute('''SELECT main.branch.branch, main.branch.sha,
+                                new.branch.branch, new.branch.sha
+                              FROM main.branch FULL OUTER JOIN new.branch
+                                ON main.branch.branch = new.branch.branch
+                              ORDER BY 1,3;'''):
+        branch = row[0] or row[2]
+        branch += ':'
+        note, sha1 = getSHANote(row[1], '', 'ADDED')
+        note, sha2 = getSHANote(row[3], note, 'REMOVED')
+        if sha1 == sha2:
+            note += ' <UNCHANGED>'
+        print(f'{branch:30} {sha1}..{sha2}{note}')
+
 def compareDBs(cur : sqlite3.Cursor, opts : dict):
+    dumpSHAs(cur)
     compareTables('conf_file_map_view', 'branch, config, path', cur, opts)
     compareTables('conf_branch_map_view', 'branch, flavor, arch, config, value', cur, opts)
     compareTables('module_file_map_view', 'branch, module, path', cur, opts)

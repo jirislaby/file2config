@@ -132,7 +132,7 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 	auto repo = SlGit::Repo::init(ourKsourceGit, false, kerncvs);
 	if (!repo) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot init: " <<
-						git_error_last()->message;
+						repo->lastError();
 		return std::nullopt;
 	}
 
@@ -140,14 +140,14 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 	auto ret = origin->fetch("scripts", 1, false);
 	if (ret) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot fetch: " <<
-						git_error_last()->message;
+						repo->lastError();
 		return std::nullopt;
 	}
 
 	ret = repo->checkout("refs/remotes/origin/scripts");
 	if (ret) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot checkout: " <<
-						git_error_last()->message;
+						repo->lastError();
 		return std::nullopt;
 	}
 
@@ -246,9 +246,9 @@ std::optional<SlGit::Commit> checkoutBranch(const std::string &branchNote,
 					    const SlGit::Repo &repo)
 {
 	Clr(Clr::GREEN) << "== " << branchNote << " -- Checking Out ==";
-	if (repo.checkout("refs/remotes/origin/" + branch)) {
+	if (!repo.checkout("refs/remotes/origin/" + branch)) {
 		Clr(std::cerr, Clr::RED) << "Cannot check out '" << branch << "': " <<
-					    git_error_last()->message;
+					    repo.lastError();
 		return std::nullopt;
 	}
 
@@ -480,10 +480,9 @@ int main(int argc, char **argv)
 	auto remote = repo->remoteLookup("origin");
 	if (!remote)
 		return EXIT_FAILURE;
-	if (remote->fetchBranches(branches, 1, false)) {
-		auto lastErr = git_error_last();
-		Clr(std::cerr, Clr::RED) << "fetch failed: " << lastErr->message <<
-						" (" << lastErr->klass << ')';
+	if (!remote->fetchBranches(branches, 1, false)) {
+		Clr(std::cerr, Clr::RED) << "Fetch failed: " << repo->lastError() <<
+						" (" << repo->lastClass() << ')';
 		return EXIT_FAILURE;
 	}
 

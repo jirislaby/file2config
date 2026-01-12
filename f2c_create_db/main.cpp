@@ -157,8 +157,7 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 		return std::nullopt;
 
 	SlHelpers::Process P;
-	ret = P.run("./scripts/install-git-hooks");
-	if (ret || P.exitStatus()) {
+	if (!P.run("./scripts/install-git-hooks") || P.exitStatus()) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot install hooks: " <<
 					    P.lastError() << " (" << P.exitStatus() << ')';
 		return std::nullopt;
@@ -293,7 +292,7 @@ bool expandBranch(const std::string &branchNote, const std::filesystem::path &sc
 	if (F2C::verbose > 1)
 		std::cout << "cmd=" << seqPatch << " stat=" << P.lastErrorNo() << '/' <<
 			     P.exitStatus() << '\n';
-	if (ret || P.exitStatus()) {
+	if (!ret || P.exitStatus()) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot seq patch: " <<
 					    P.lastError() << " (" << P.exitStatus() << ')';
 		return false;

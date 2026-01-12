@@ -8,8 +8,6 @@
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
 #include <sl/helpers/Misc.h>
-#include <sl/helpers/Process.h>
-#include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
 

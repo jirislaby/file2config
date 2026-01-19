@@ -37,6 +37,9 @@ public:
 	bool insertUFMap(const std::string &branch, const std::string &email, const std::string &dir,
 			 const std::string &file, int count, int countnf);
 	bool insertIFBMap(const std::string &branch, const std::string &dir, const std::string &file);
+	bool insertRFVMap(unsigned int version, unsigned similarity,
+			  const std::string &olddir, const std::string &oldfile,
+			  const std::string &newdir, const std::string &newfile);
 	bool deleteBranch(const std::string &branch);
 	std::optional<bool> hasBranch(const std::string &branch);
 private:
@@ -54,6 +57,7 @@ private:
 	SlSqlite::SQLStmtHolder insUser;
 	SlSqlite::SQLStmtHolder insUFMap;
 	SlSqlite::SQLStmtHolder insIFBMap;
+	SlSqlite::SQLStmtHolder insRFVMap;
 	SlSqlite::SQLStmtHolder delBranch;
 	SlSqlite::SQLStmtHolder selBranch;
 };

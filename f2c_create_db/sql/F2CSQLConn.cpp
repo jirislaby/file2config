@@ -90,6 +90,15 @@ bool F2CSQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"UNIQUE(branch, file)"
 		}},
+		{ "rename_file_version_map", {
+			"id INTEGER PRIMARY KEY",
+			"version INTEGER NOT NULL CHECK(version > 0)",
+			"similarity INTEGER NOT NULL CHECK(similarity BETWEEN 0 AND 100)",
+			"oldfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"newfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"UNIQUE(version, oldfile)"
+			"UNIQUE(version, newfile)"
+		}},
 	};
 
 	static const Indices create_indexes {
@@ -153,6 +162,15 @@ bool F2CSQLConn::createDB()
 			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "rename_file_version_map_view",
+			"SELECT map.id, map.version, map.similarity, "
+				"olddir.dir || '/' || oldfile.file AS oldpath, "
+				"newdir.dir || '/' || newfile.file AS newpath "
+			"FROM rename_file_version_map AS map "
+			"LEFT JOIN file AS oldfile ON map.oldfile = oldfile.id "
+			"LEFT JOIN dir AS olddir ON oldfile.dir = olddir.id "
+			"LEFT JOIN file AS newfile ON map.newfile = newfile.id "
+			"LEFT JOIN dir AS newdir ON newfile.dir = newdir.id;" },
 	};
 
 	return createTables(create_tables) && createIndices(create_indexes) &&
@@ -208,6 +226,12 @@ bool F2CSQLConn::prepDB()
 					"(SELECT id FROM branch WHERE branch = :branch), "
 					"(SELECT id FROM file WHERE file = :file AND "
 					"dir = (SELECT id FROM dir WHERE dir = :dir)));" },
+		{ insRFVMap,	"INSERT INTO rename_file_version_map(version, similarity, oldfile, newfile) "
+					"VALUES (:version, :similarity, "
+					"(SELECT id FROM file WHERE file = :oldfile AND "
+					"dir = (SELECT id FROM dir WHERE dir = :olddir)), "
+					"(SELECT id FROM file WHERE file = :newfile AND "
+					"dir = (SELECT id FROM dir WHERE dir = :newdir)));" },
 		{ delBranch,	"DELETE FROM branch WHERE branch = :branch;" },
 		{ selBranch,	"SELECT 1 FROM branch WHERE branch = :branch;" },
 	};
@@ -346,6 +370,20 @@ bool F2CSQLConn::insertIFBMap(const std::string &branch, const std::string &dir,
 			      { ":branch", branch },
 			      { ":dir", dir },
 			      { ":file", file },
+		      });
+}
+
+bool F2CSQLConn::insertRFVMap(unsigned version, unsigned similarity,
+			      const std::string &olddir, const std::string &oldfile,
+			      const std::string &newdir, const std::string &newfile)
+{
+	return insert(insRFVMap, {
+			      { ":version", version },
+			      { ":similarity", similarity },
+			      { ":olddir", olddir },
+			      { ":oldfile", oldfile },
+			      { ":newdir", newdir },
+			      { ":newfile", newfile },
 		      });
 }
 

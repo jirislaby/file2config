@@ -9,11 +9,13 @@
 #include <sl/kerncvs/Branches.h>
 #include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/PatchesAuthors.h>
+#include <sl/kerncvs/RPMConfig.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
+#include <sl/helpers/PtrStore.h>
 #include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
 
@@ -449,11 +451,163 @@ bool processBranch(const Opts &opts, const std::string &branchNote,
 	return true;
 }
 
+auto getTagsFromKsourceTree(const SlKernCVS::Branches::BranchesList &branches,
+			    const SlGit::Repo &repo)
+{
+	std::set<std::string, SlHelpers::CmpVersions> ret;
+
+	for (const auto &b: branches) {
+		auto rpmConf = SlKernCVS::RPMConfig::create(repo, b);
+		if (!rpmConf) {
+			Clr(std::cerr, Clr::RED) << "cannot obtain a config for " <<
+						    std::quoted(b) << ": " << repo.lastError();
+			continue;
+		}
+		auto srcVer = rpmConf->get("SRCVERSION");
+		if (!srcVer) {
+			Clr(std::cerr, Clr::RED) << "no SRCVERSION in " << std::quoted(b);
+			continue;
+		}
+		ret.emplace(srcVer->get());
+	}
+
+	return ret;
+}
+
+struct RenameInfo {
+    std::string path;
+    unsigned similarity;
+};
+using RenameMap = std::unordered_map<std::string, RenameInfo, SlHelpers::String::Hash,
+		SlHelpers::String::Eq>;
+
+void processRenamesBetween(const std::unique_ptr<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
+			   std::string_view begin, std::string_view end, RenameMap &renames)
+{
+	auto begVersion = SlHelpers::Version::versionSum(begin);
+	std::ostringstream range;
+	range << 'v' << begin << "..";
+	if (end.empty())
+		range << "origin/master";
+	else
+		range << 'v' << end;
+
+	Clr() << '\t' << range.str();
+
+	// libgit2 is *very* slow at comparing trees, we have to call git log.
+	SlHelpers::Process p;
+	p.spawn("/usr/bin/git", { "-C", lrepo.workDir(), "log", "-M30", "-l0", "--oneline",
+				  "--no-merges", "--raw", "--diff-filter=R",
+				  "--format=", range.str() }, true);
+
+	SlHelpers::PtrStore<FILE, decltype([](FILE *f) { if (f) fclose(f); })> stream;
+	stream.reset(fdopen(p.readPipe(), "r"));
+	if (!stream)
+		throw std::runtime_error("cannot open stdout of git");
+
+	SlHelpers::PtrStore<char, decltype([](char *ptr) { free(ptr); })> lineRaw;
+	size_t len = 0;
+
+	while (getline(lineRaw.ptr(), &len, stream.get()) != -1) {
+		auto line = lineRaw.str();
+		if (line.empty() || line.front() != ':')
+			throw std::runtime_error("bad line: " + std::string(line));
+
+		auto vec = SlHelpers::String::splitSV(line, " \t\n");
+		if (vec.size() < 7)
+			throw std::runtime_error("bad formatted line: " + std::string(line));
+
+		unsigned int similarity{};
+		std::from_chars(vec[4].data() + 1, vec[4].data() + vec[4].size(), similarity);
+		if (!similarity)
+			throw std::runtime_error("bad rename part: " + std::string(vec[4]));
+		auto oldFile = vec[5];
+		auto newFile = vec[6];
+
+		auto it = renames.find(newFile);
+		if (it != renames.end()) {
+			auto final = std::move(it->second);
+			renames.erase(it);
+
+			// do not store reverted and back and forth renames
+			if (oldFile != final.path) {
+				final.similarity *= similarity;
+				final.similarity /= 100U;
+				renames.emplace(oldFile, std::move(final));
+			}
+		} else {
+			renames.emplace(oldFile, RenameInfo{std::string(newFile), similarity});
+		}
+	}
+
+	if (!feof(stream.get()) || ferror(stream.get()))
+		throw std::runtime_error(std::string("not completely read: ") + strerror(errno));
+
+	if (!p.waitForFinished())
+		throw std::runtime_error("cannot wait for git: " + p.lastError());
+
+	if (p.signalled())
+		throw std::runtime_error("git crashed");
+	if (auto e = p.exitStatus())
+		throw std::runtime_error("git exited with " + std::to_string(e));
+
+	auto trans = sql->beginAuto();
+	for (const auto &e: renames) {
+		auto oldP = sql->insertPath(e.first);
+		if (!oldP)
+			throw std::runtime_error("cannot insert old path: " + e.first + ": " +
+						 sql->lastError());
+		auto newP = sql->insertPath(e.second.path);
+		if (!newP)
+			throw std::runtime_error("cannot insert new path: " + e.second.path + ": " +
+						 sql->lastError());
+		if (!sql->insertRFVMap(begVersion, e.second.similarity, oldP->first, oldP->second,
+				       newP->first, newP->second))
+			throw std::runtime_error("cannot insert rename file map: " + e.first +
+						 " -> " + e.second.path + ": " + sql->lastError());
+	}
+}
+
+bool processRenames(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+		    const SlGit::Repo &lrepo, const SlGit::Repo &repo,
+		    SlKernCVS::Branches::BranchesList branches)
+{
+	try {
+		auto uniqTags = getTagsFromKsourceTree(branches, repo);
+		RenameMap map;
+		if (uniqTags.size() >= 1) {
+			auto curr = uniqTags.rbegin();
+
+			processRenamesBetween(sql, lrepo, *curr, "", map);
+			for (auto prev = std::next(curr); prev != uniqTags.rend(); ++curr, ++prev)
+				processRenamesBetween(sql, lrepo, *prev, *curr, map);
+		}
+	} catch (const std::runtime_error &e) {
+		Clr(Clr::RED) << e.what();
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
 {
 	const auto opts = getOpts(argc, argv);
+
+	const auto lpath = SlHelpers::Env::get<std::filesystem::path>("LINUX_GIT");
+	if (!lpath) {
+		Clr(std::cerr, Clr::RED) << "LINUX_GIT not set";
+		return EXIT_FAILURE;
+	}
+
+	auto lrepo = SlGit::Repo::open(*lpath);
+	if (!lrepo) {
+		Clr(std::cerr, Clr::RED) << "Cannot open LINUX_GIT repo: " <<
+					    SlGit::Repo::lastError() <<
+					    " (" << SlGit::Repo::lastClass() << ')';
+		return EXIT_FAILURE;
+	}
 
 	Clr(Clr::GREEN) << "== Preparing trees ==";
 
@@ -519,6 +673,12 @@ int main(int argc, char **argv)
 
 		if (!processBranch(opts, branchNote, sql, branch, *repo, *branchCommit,
 				   expandedTree, *ignoredFiles))
+			return EXIT_FAILURE;
+	}
+
+	if (sql) {
+		Clr(Clr::GREEN) << "== Collecting renames ==";
+		if (!processRenames(sql, *lrepo, *repo, branches))
 			return EXIT_FAILURE;
 	}
 

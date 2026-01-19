@@ -1,5 +1,7 @@
 {
 	"all": [
+		"drivers/iio/accel/*.h",
+		"drivers/net/ethernet/microchip/lan966x/*.h",
 		"fs/f2fs/*.h",
 		"fs/hfsplus/*.h",
 		"include/linux/f2fs_fs.h",

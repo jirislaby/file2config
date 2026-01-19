@@ -132,7 +132,7 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 	auto repo = SlGit::Repo::init(ourKsourceGit, false, kerncvs);
 	if (!repo) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot init: " <<
-						repo->lastError();
+						SlGit::Repo::lastError();
 		return std::nullopt;
 	}
 

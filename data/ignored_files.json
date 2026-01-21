@@ -1,9 +1,11 @@
 {
 	"all": [
+		"drivers/gpu/drm/tilcdc/*.h",
 		"drivers/iio/accel/*.h",
 		"drivers/net/ethernet/microchip/lan966x/*.h",
 		"fs/f2fs/*.h",
 		"fs/hfsplus/*.h",
+		"fs/smb/server/mgmt/*.h",
 		"include/linux/f2fs_fs.h",
 		"include/linux/kasan.h"
 	],

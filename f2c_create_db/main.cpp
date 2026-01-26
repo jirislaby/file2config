@@ -682,6 +682,11 @@ int main(int argc, char **argv)
 		Clr(Clr::GREEN) << "== Collecting renames ==";
 		if (!processRenames(sql, *lrepo, *repo, branches))
 			return EXIT_FAILURE;
+
+		if (!sql->exec("VACUUM;")) {
+			Clr(Clr::RED) << "Cannot VACUUM the DB";
+			return EXIT_FAILURE;
+		}
 	}
 
 	return 0;

@@ -622,8 +622,10 @@ int main(int argc, char **argv)
 	SlKernCVS::Branches::BranchesList branches { std::move(opts.branches) };
 	if (branches.empty()) {
 		auto branchesOpt = SlKernCVS::Branches::getBuildBranches();
-		if (!branchesOpt)
+		if (!branchesOpt) {
+			Clr(std::cerr, Clr::RED) << "Cannot download branches.conf";
 			return EXIT_FAILURE;
+		}
 		branches = *branchesOpt;
 	}
 

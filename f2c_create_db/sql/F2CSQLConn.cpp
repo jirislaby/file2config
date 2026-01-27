@@ -65,11 +65,10 @@ bool F2CSQLConn::createDB()
 			"UNIQUE(branch, module)"
 		}},
 		{ "module_file_map", {
-			"id INTEGER PRIMARY KEY",
 			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
 			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
-			"UNIQUE(branch, module, file)"
+			"PRIMARY KEY(branch, module, file)"
 		}},
 		{ "user", {
 			"id INTEGER PRIMARY KEY",
@@ -85,17 +84,16 @@ bool F2CSQLConn::createDB()
 			"UNIQUE(branch, user, file)"
 		}},
 		{ "ignored_file_branch_map", {
-			"id INTEGER PRIMARY KEY",
 			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
-			"UNIQUE(branch, file)"
+			"PRIMARY KEY(branch, file)"
 		}},
 		{ "rename_file_version_map", {
-			"id INTEGER PRIMARY KEY",
 			"version INTEGER NOT NULL CHECK(version > 0)",
 			"similarity INTEGER NOT NULL CHECK(similarity BETWEEN 0 AND 100)",
 			"oldfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"newfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"PRIMARY KEY (version, oldfile, newfile)",
 			"UNIQUE(version, oldfile)",
 			"UNIQUE(version, newfile)"
 		}},
@@ -133,7 +131,7 @@ bool F2CSQLConn::createDB()
 			"LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
 			"LEFT JOIN branch ON map.branch = branch.id;" },
 		{ "module_file_map_view",
-			"SELECT map.id, branch.branch, "
+			"SELECT branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
 				"dir.dir || '/' || file.file AS path "
 			"FROM module_file_map AS map "
@@ -156,14 +154,13 @@ bool F2CSQLConn::createDB()
 				"SUM(count_no_fixes) AS count_no_fixes "
 			"FROM user_file_map_view GROUP BY email, path" },
 		{ "ignored_file_branch_map_view",
-			"SELECT map.id, branch.branch, "
-				"dir.dir || '/' || file.file AS path "
+			"SELECT branch.branch, dir.dir || '/' || file.file AS path "
 			"FROM ignored_file_branch_map AS map "
 			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
 		{ "rename_file_version_map_view",
-			"SELECT map.id, map.version, map.similarity, "
+			"SELECT map.version, map.similarity, "
 				"olddir.dir || '/' || oldfile.file AS oldpath, "
 				"newdir.dir || '/' || newfile.file AS newpath "
 			"FROM rename_file_version_map AS map "

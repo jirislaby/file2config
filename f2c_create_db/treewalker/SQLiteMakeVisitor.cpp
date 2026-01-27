@@ -60,10 +60,8 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 	auto dirFile = sql.insertPath(relPath);
 	if (!dirFile || !sql.insertConfig(cond) ||
 			!sql.insertCFMap(branch, cond, std::move(dirFile->first),
-					 std::move(dirFile->second))) {
+					 std::move(dirFile->second)))
 		Clr(std::cerr, Clr::RED) << "cannot insert CFMap: " << sql.lastError();
-		return;
-	}
 }
 
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
@@ -86,8 +84,6 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			!sql.insertModule(dirMod, fileMod) ||
 			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||
 			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
-					 std::move(dirFile->second))) {
+					 std::move(dirFile->second)))
 		Clr(std::cerr, Clr::RED) << "cannot insert module maps: " << sql.lastError();
-		return;
-	}
 }

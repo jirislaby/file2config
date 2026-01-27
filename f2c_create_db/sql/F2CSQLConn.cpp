@@ -96,7 +96,7 @@ bool F2CSQLConn::createDB()
 			"similarity INTEGER NOT NULL CHECK(similarity BETWEEN 0 AND 100)",
 			"oldfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"newfile INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
-			"UNIQUE(version, oldfile)"
+			"UNIQUE(version, oldfile)",
 			"UNIQUE(version, newfile)"
 		}},
 	};

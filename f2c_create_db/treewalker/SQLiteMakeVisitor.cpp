@@ -64,6 +64,13 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		Clr(std::cerr, Clr::RED) << "cannot insert CFMap: " << sql.lastError();
 }
 
+void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &child) const
+{
+	if (!sql.insertConfig(parent) || !sql.insertConfig(child) ||
+			!sql.insertConfDep(branch, parent, child))
+		Clr(std::cerr, Clr::RED) << "cannot insert ConfDep: " << sql.lastError();
+}
+
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module) const
 {

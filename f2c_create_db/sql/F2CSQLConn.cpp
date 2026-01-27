@@ -51,6 +51,13 @@ bool F2CSQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"UNIQUE(branch, config, file)"
 		}},
+		{ "conf_dep", {
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"parent INTEGER NOT NULL REFERENCES config(id) ON DELETE CASCADE",
+			"child  INTEGER NOT NULL REFERENCES config(id) ON DELETE CASCADE",
+			"PRIMARY KEY(branch, parent, child)",
+			"CHECK(parent != child)"
+		}},
 		{ "module", {
 			"id INTEGER PRIMARY KEY",
 			"dir INTEGER NOT NULL REFERENCES dir(id)",
@@ -101,6 +108,7 @@ bool F2CSQLConn::createDB()
 
 	static const Indices create_indexes {
 		{ "conf_file_map_file_index", "conf_file_map(file)" },
+		{ "conf_dep_branch_child_index", "conf_dep(branch, child)" },
 	};
 
 	static const Views create_views {
@@ -122,6 +130,12 @@ bool F2CSQLConn::createDB()
 			"FROM conf_file_map_view_raw_file AS map "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "conf_dep_view",
+			"SELECT branch.branch, c_parent.config AS parent, c_child.config AS child "
+			"FROM conf_dep AS map "
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN config AS c_parent ON map.parent = c_parent.id "
+			"LEFT JOIN config AS c_child ON map.child = c_child.id;" },
 		{ "module_details_map_view",
 			"SELECT map.id, branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
@@ -197,6 +211,10 @@ bool F2CSQLConn::prepDB()
 					"(SELECT id FROM config WHERE config = :config), "
 					"(SELECT id FROM file WHERE file = :file AND "
 					"dir = (SELECT id FROM dir WHERE dir = :dir)));" },
+		{ insConfDep,	"INSERT INTO conf_dep(branch, parent, child) VALUES ("
+					"(SELECT id FROM branch WHERE branch = :branch), "
+					"(SELECT id FROM config WHERE config = :parent), "
+					"(SELECT id FROM config WHERE config = :child));" },
 		{ insModule,	"INSERT INTO module(dir, module) VALUES ("
 					"(SELECT id FROM dir WHERE dir = :dir), "
 					":module);" },
@@ -307,6 +325,16 @@ bool F2CSQLConn::insertCFMap(const std::string &branch, const std::string &confi
 			      { ":config", config },
 			      { ":dir", dir },
 			      { ":file", file },
+		      });
+}
+
+bool F2CSQLConn::insertConfDep(const std::string &branch, const std::string &parent,
+			       const std::string &child)
+{
+	return insert(insConfDep, {
+			      { ":branch", branch },
+			      { ":parent", parent },
+			      { ":child", child },
 		      });
 }
 

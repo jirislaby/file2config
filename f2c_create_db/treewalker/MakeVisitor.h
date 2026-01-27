@@ -15,6 +15,7 @@ public:
 
 	virtual void ignored(const std::filesystem::path &objPath, const std::string &cond) const = 0;
 	virtual void config(const std::filesystem::path &srcPath, const std::string &cond) const = 0;
+	virtual void configDep(const std::string &parent, const std::string &child) const = 0;
 	virtual void module(const std::filesystem::path &srcPath,
 			    const std::filesystem::path &module) const = 0;
 private:

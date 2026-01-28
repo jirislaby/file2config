@@ -404,7 +404,7 @@ bool processIgnores(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::stri
 bool processBranch(const Opts &opts, const std::string &branchNote,
 		   const std::unique_ptr<SQL::F2CSQLConn> &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		   const std::filesystem::path &root, const Json &ignoredFiles)
+		   const std::filesystem::path &root, const std::optional<Json> &ignoredFiles)
 {
 	if (sql) {
 		sql->begin();
@@ -437,10 +437,12 @@ bool processBranch(const Opts &opts, const std::string &branchNote,
 			if (!processAuthors(opts, sql, branch, repo, commit))
 				return false;
 
-			Clr(Clr::GREEN) << "== " << branchNote <<
-					       " -- Collecting ignored files ==";
-			if (!processIgnores(sql, branch, ignoredFiles, root))
-				return false;
+			if (ignoredFiles) {
+				Clr(Clr::GREEN) << "== " << branchNote <<
+						       " -- Collecting ignored files ==";
+				if (!processIgnores(sql, branch, *ignoredFiles, root))
+					return false;
+			}
 		}
 	}
 
@@ -675,7 +677,7 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 
 		if (!processBranch(opts, branchNote, sql, branch, *repo, *branchCommit,
-				   expandedTree, *ignoredFiles))
+				   expandedTree, ignoredFiles))
 			return EXIT_FAILURE;
 	}
 

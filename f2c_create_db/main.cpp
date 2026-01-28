@@ -89,6 +89,7 @@ Opts getOpts(int argc, char **argv)
 		auto cxxopts = options.parse(argc, argv);
 		F2C::verbose = cxxopts.count("verbose");
 		Clr::forceColor(cxxopts.contains("force-color"));
+		Clr::forceColorValue(cxxopts.contains("force-color"));
 		opts.hasDest = cxxopts.contains("dest");
 		opts.hasIgnoredFiles = cxxopts.contains("ignored-files");
 		opts.hasSqlite = cxxopts.contains("sqlite");

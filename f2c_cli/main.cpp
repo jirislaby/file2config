@@ -58,7 +58,7 @@ public:
 			      { ":branch", branch },
 			      { ":dir", dir },
 			      { ":file", file },
-			      }, { typeid(std::string) });
+			      });
 	}
 
 	auto selectModule(const std::string &branch, const std::string &dir,
@@ -67,7 +67,7 @@ public:
 			      { ":branch", branch },
 			      { ":dir", dir },
 			      { ":file", file },
-			      }, { typeid(std::string), typeid(std::string) });
+			      });
 	}
 private:
 	SlSqlite::SQLStmtHolder selConfig;

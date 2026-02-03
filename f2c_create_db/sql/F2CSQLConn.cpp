@@ -419,7 +419,7 @@ bool F2CSQLConn::deleteBranch(const std::string &branch)
 
 std::optional<bool> F2CSQLConn::hasBranch(const std::string &branch)
 {
-	const auto res = select(selBranch, { { ":branch", branch } }, { typeid(int) });
+	const auto res = select(selBranch, { { ":branch", branch } });
 
 	return res && res->size() && std::get<int>((*res)[0][0]) == 1;
 }

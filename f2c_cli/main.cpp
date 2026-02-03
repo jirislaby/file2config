@@ -24,7 +24,9 @@ public:
 	F2CSQLConn() {}
 
 	virtual bool prepDB() override {
-		return prepareStatement("SELECT config.config "
+		return prepareStatements({
+			{ selConfig,
+				"SELECT config.config "
 					"FROM conf_file_map AS cfmap "
 					"LEFT JOIN config ON cfmap.config = config.id "
 					"WHERE branch = (SELECT id "
@@ -33,9 +35,9 @@ public:
 					"cfmap.file = (SELECT file.id "
 						"FROM file "
 						"LEFT JOIN dir ON file.dir = dir.id "
-						"WHERE dir.dir = :dir AND file.file = :file);",
-					selConfig) &&
-			prepareStatement("SELECT module_dir.dir, module.module "
+						"WHERE dir.dir = :dir AND file.file = :file);" },
+			{ selModule,
+				"SELECT module_dir.dir, module.module "
 					"FROM module_file_map AS mfmap "
 					"LEFT JOIN module ON mfmap.module = module.id "
 					"LEFT JOIN dir AS module_dir ON "
@@ -47,7 +49,7 @@ public:
 					"	FROM file "
 					"	LEFT JOIN dir ON file.dir = dir.id "
 					"	WHERE dir.dir = :dir AND file.file = :file);",
-					selModule);
+			} });
 	}
 
 	auto selectConfig(const std::string &branch, const std::string &dir,

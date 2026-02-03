@@ -7,12 +7,15 @@
 #include <sl/curl/Curl.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
+#include <sl/helpers/Exception.h>
 #include <sl/helpers/HomeDir.h>
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
 
 using Clr = SlHelpers::Color;
+using RunEx = SlHelpers::RuntimeException;
+using SlHelpers::raise;
 
 namespace {
 
@@ -133,36 +136,32 @@ Opts getOpts(int argc, char **argv)
 }
 
 template<typename T = std::string_view>
-bool handleCmdlineFile(const std::string &file,
-		       const std::function<bool (const T &)> &callback)
+void handleCmdlineFile(const std::string &file,
+		       const std::function<void (const T &)> &callback)
 {
-	if (file != "-")
-		return callback(file);
+	if (file != "-") {
+		callback(file);
+		return;
+	}
 
 	for (std::string line; std::getline(std::cin, line);)
-		if (!callback(SlHelpers::String::trim(std::string_view(line))))
-			return false;
-
-	return true;
+		callback(SlHelpers::String::trim(std::string_view(line)));
 }
 
 template<typename ParamTy = std::string_view, typename FileTy>
-bool handleCmdlineFiles(const FileTy &files,
-			const std::function<bool (const ParamTy &)> &callback)
+void handleCmdlineFiles(const FileTy &files,
+			const std::function<void (const ParamTy &)> &callback)
 {
 	for (const auto &f: files)
-		if (!handleCmdlineFile<ParamTy>(f, callback))
-			return false;
-
-	return true;
+		handleCmdlineFile<ParamTy>(f, callback);
 }
 
-bool selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
-		       const std::filesystem::path &file)
+void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
+		       const std::filesystem::path &file) noexcept
 {
 	auto res = sql.selectConfig(opts.branch, file.parent_path(), file.filename());
 	if (!res || res->size() == 0)
-		return true;
+		return;
 
 	std::string mod;
 	if (opts.module) {
@@ -174,76 +173,67 @@ bool selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 
 	for (const auto &conf: *res)
 		std::cout << file.string() << " " << std::get<std::string>(conf[0]) << mod << '\n';
-	return true;
 }
 
-bool handleFiles(const Opts &opts, const F2CSQLConn &sql)
+void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept
 {
-	return handleCmdlineFiles<std::filesystem::path>(opts.files,
-			[&sql, &opts](const auto &file) {
-		return selectConfigQuery(opts, sql, file);
+	handleCmdlineFiles<std::filesystem::path>(opts.files, [&sql, &opts](const auto &file) {
+		selectConfigQuery(opts, sql, file);
 	});
 }
 
-bool handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
-	       const std::string_view &sha)
+void handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
+	       std::string_view sha)
 {
 	const auto commit = repo.commitRevparseSingle(std::string(sha));
 	if (!commit)
-		return false;
+		RunEx("Cannot find commit ") << sha << ": " << repo.lastError() << raise;
 
 	if (commit->parentCount() > 1) {
 		Clr(std::cerr, Clr::YELLOW) << sha << " is a merge commit, skipping";
-		return true;
+		return;
 	}
 
 	const auto diff = repo.diff(*commit, *commit->parent());
 	if (!diff)
-		return false;
+		RunEx("Cannot diff commit ") << sha << " to parent: " << repo.lastError() << raise;
 
 	SlGit::Diff::ForEachCB cb = {
 		.file = [&sql, &opts](const git_diff_delta &delta, float) {
 			std::filesystem::path f(delta.new_file.path);
-			return selectConfigQuery(opts, sql, f) ? 0 : -1;
+			selectConfigQuery(opts, sql, f);
+			return 0;
 		},
 	};
 
 	if (diff->forEach(cb))
-		return false;
-
-	return true;
+		RunEx("Cannot walk diff for commit ") << sha << ": " << repo.lastError() << raise;
 }
 
-bool handleSHAs(const Opts &opts, const F2CSQLConn &sql)
+void handleSHAs(const Opts &opts, const F2CSQLConn &sql)
 {
 	if (opts.shas.empty())
-		return true;
+		return;
 
 	auto rkOpt = SlGit::Repo::open(opts.kernelTree);
-	if (!rkOpt) {
-		Clr(std::cerr, Clr::RED) << "Unable to open kernel tree: " <<
-					    git_error_last()->message;
-		return false;
-	}
+	if (!rkOpt)
+		RunEx("Unable to open kernel tree: ") << SlGit::Repo::lastError() << raise;
+
 	const auto rk = std::move(*rkOpt);
 
-	return handleCmdlineFiles<std::string_view>(opts.shas,
+	handleCmdlineFiles<std::string_view>(opts.shas,
 			[&sql, &opts, &rk](const auto &sha) {
-		return handleSHA(opts, sql, rk, sha);
+		handleSHA(opts, sql, rk, sha);
 	});
 }
 
-} // namespace
-
-int main(int argc, char **argv)
+void handleEx(int argc, char **argv)
 {
 	auto opts = getOpts(argc, argv);
 
 	const auto SGMCacheDir = SlHelpers::HomeDir::createCacheDir("suse-get-maintainers");
-	if (SGMCacheDir.empty()) {
-		std::cerr << "Unable to create a cache dir\n";
-		return EXIT_FAILURE;
-	}
+	if (SGMCacheDir.empty())
+		RunEx("Unable to create a cache dir") << raise;
 
 	if (!opts.hasSqlite) {
 		opts.sqlite = SlCurl::LibCurl::fetchFileIfNeeded(SGMCacheDir / "conf_file_map.sqlite",
@@ -253,18 +243,23 @@ int main(int argc, char **argv)
 	}
 
 	F2CSQLConn sql;
-	if (!sql.open(opts.sqlite)) {
-		Clr(std::cerr, Clr::RED) << "Unable to open the db " << opts.sqlite << ": " <<
-					    sql.lastError();
+	if (!sql.open(opts.sqlite))
+		RunEx("Unable to open the db ") << opts.sqlite << ": " << sql.lastError() << raise;
+
+	handleFiles(opts, sql);
+	handleSHAs(opts, sql);
+}
+
+} // namespace
+
+int main(int argc, char **argv)
+{
+	try {
+		handleEx(argc, argv);
+	} catch (std::runtime_error &e) {
+		Clr(std::cerr, Clr::RED) << e.what();
 		return EXIT_FAILURE;
 	}
-
-	if (!handleFiles(opts, sql))
-		return EXIT_FAILURE;
-
-	if (!handleSHAs(opts, sql))
-		return EXIT_FAILURE;
-
 
 	return 0;
 }

@@ -137,25 +137,26 @@ Opts getOpts(int argc, char **argv)
 	}
 }
 
-template<typename T = std::string_view>
-void handleCmdlineFile(const std::string &file,
-		       const std::function<void (const T &)> &callback)
+template<typename T, typename Callback>
+requires std::invocable<Callback, T> &&
+	std::invocable<Callback, std::string> && // for stdin
+	std::equality_comparable_with<T, const char *>
+void handleCmdlineFile(T &&file, Callback &&callback)
 {
 	if (file != "-") {
-		callback(file);
+		std::invoke(callback, std::forward<T>(file));
 		return;
 	}
 
 	for (std::string line; std::getline(std::cin, line);)
-		callback(SlHelpers::String::trim(std::string_view(line)));
+		std::invoke(callback, SlHelpers::String::trim(line));
 }
 
-template<typename ParamTy = std::string_view, typename FileTy>
-void handleCmdlineFiles(const FileTy &files,
-			const std::function<void (const ParamTy &)> &callback)
+template<std::ranges::input_range FileTy, typename Callback>
+void handleCmdlineFiles(FileTy &&files, Callback &&callback)
 {
-	for (const auto &f: files)
-		handleCmdlineFile<ParamTy>(f, callback);
+	for (auto &&f: files)
+		handleCmdlineFile(std::forward<decltype(f)>(f), callback);
 }
 
 void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
@@ -179,15 +180,15 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 
 void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept
 {
-	handleCmdlineFiles<std::filesystem::path>(opts.files, [&sql, &opts](const auto &file) {
+	handleCmdlineFiles(opts.files, [&sql, &opts](const std::filesystem::path &file) {
 		selectConfigQuery(opts, sql, file);
 	});
 }
 
 void handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
-	       std::string_view sha)
+	       const std::string &sha)
 {
-	const auto commit = repo.commitRevparseSingle(std::string(sha));
+	const auto commit = repo.commitRevparseSingle(sha);
 	if (!commit)
 		RunEx("Cannot find commit ") << sha << ": " << repo.lastError() << raise;
 
@@ -223,8 +224,7 @@ void handleSHAs(const Opts &opts, const F2CSQLConn &sql)
 
 	const auto rk = std::move(*rkOpt);
 
-	handleCmdlineFiles<std::string_view>(opts.shas,
-			[&sql, &opts, &rk](const auto &sha) {
+	handleCmdlineFiles(opts.shas, [&sql, &opts, &rk](const std::string &sha) {
 		handleSHA(opts, sql, rk, sha);
 	});
 }

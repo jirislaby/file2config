@@ -140,15 +140,13 @@ std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratc
 	}
 
 	auto origin = repo->remoteLookup("origin");
-	auto ret = origin->fetch("scripts", 1, false);
-	if (ret) {
+	if (!origin->fetch("scripts", 1, false)) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot fetch: " <<
 						repo->lastError();
 		return std::nullopt;
 	}
 
-	ret = repo->checkout("refs/remotes/origin/scripts");
-	if (ret) {
+	if (!repo->checkout("refs/remotes/origin/scripts")) {
 		Clr(std::cerr, Clr::RED) << __func__ << ": cannot checkout: " <<
 						repo->lastError();
 		return std::nullopt;

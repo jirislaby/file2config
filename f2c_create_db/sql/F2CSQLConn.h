@@ -47,7 +47,7 @@ public:
 			  const std::string &olddir, const std::string &oldfile,
 			  const std::string &newdir, const std::string &newfile);
 	bool deleteBranch(const std::string &branch);
-	std::optional<bool> hasBranch(const std::string &branch);
+	bool hasBranch(const std::string &branch);
 private:
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfig;

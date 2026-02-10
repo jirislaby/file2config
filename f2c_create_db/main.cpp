@@ -13,6 +13,7 @@
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
+#include <sl/helpers/Exception.h>
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PtrStore.h>
@@ -27,6 +28,8 @@
 
 using Clr = SlHelpers::Color;
 using Json = nlohmann::ordered_json;
+using RunEx = SlHelpers::RuntimeException;
+using SlHelpers::raise;
 
 namespace {
 
@@ -101,7 +104,7 @@ Opts getOpts(int argc, char **argv)
 	}
 }
 
-std::optional<std::filesystem::path> prepareScratchArea(const Opts &opts)
+std::filesystem::path prepareScratchArea(const Opts &opts)
 {
 	std::filesystem::path scratchArea;
 	if (opts.hasDest) {
@@ -112,85 +115,70 @@ std::optional<std::filesystem::path> prepareScratchArea(const Opts &opts)
 		Clr(std::cerr, Clr::YELLOW) << "Neither --dest, nor SCRATCH_AREA defined (defaulting to \"fill-db\")";
 		scratchArea = "fill-db";
 	}
-	std::error_code ec;
-	std::filesystem::create_directories(scratchArea, ec);
-	if (ec) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot create " << scratchArea <<
-						": error=" << ec;
-		return {};
+	try {
+		std::filesystem::create_directories(scratchArea);
+	} catch (std::filesystem::filesystem_error &e) {
+		RunEx(__func__) << ": cannot create " << scratchArea << ": error=" << e.what() <<
+				" (" << e.code() << ')' << raise;
 	}
 
 	return std::filesystem::absolute(scratchArea);
 }
 
-std::optional<SlGit::Repo> prepareKsourceGit(const std::filesystem::path &scratchArea)
+SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 {
 	static const std::string kerncvs { "jslaby@kerncvs.suse.de:/srv/git/kernel-source.git" };
 
 	auto ourKsourceGit = scratchArea / "kernel-source";
 
-	if (std::filesystem::exists(ourKsourceGit))
-		return SlGit::Repo::open(ourKsourceGit);
+	if (std::filesystem::exists(ourKsourceGit)) {
+		if (auto repo = SlGit::Repo::open(ourKsourceGit))
+			return std::move(*repo);
+		RunEx(__func__) << ": cannot open: " << SlGit::Repo::lastError() << raise;
+	}
 
 	auto repo = SlGit::Repo::init(ourKsourceGit, false, kerncvs);
-	if (!repo) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot init: " <<
-						SlGit::Repo::lastError();
-		return std::nullopt;
-	}
+	if (!repo)
+		RunEx(__func__) << ": cannot init: " << SlGit::Repo::lastError() << raise;
 
 	auto origin = repo->remoteLookup("origin");
-	if (!origin->fetch("scripts", 1, false)) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot fetch: " <<
-						repo->lastError();
-		return std::nullopt;
-	}
+	if (!origin->fetch("scripts", 1, false))
+		RunEx(__func__) << ": cannot fetch: " << repo->lastError() << raise;
 
-	if (!repo->checkout("refs/remotes/origin/scripts")) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot checkout: " <<
-						repo->lastError();
-		return std::nullopt;
-	}
+	if (!repo->checkout("refs/remotes/origin/scripts"))
+		RunEx(__func__) << ": cannot checkout: " << repo->lastError() << raise;
 
 	std::error_code ec;
 	SlHelpers::PushD push(ourKsourceGit, ec);
 	if (ec)
-		return std::nullopt;
+		RunEx(__func__) << ": cannot chdir to " << ourKsourceGit << raise;
 
 	SlHelpers::Process P;
-	if (!P.run("./scripts/install-git-hooks") || P.exitStatus()) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot install hooks: " <<
-					    P.lastError() << " (" << P.exitStatus() << ')';
-		return std::nullopt;
-	}
+	if (!P.run("./scripts/install-git-hooks") || P.exitStatus())
+		RunEx(__func__) << ": cannot install hooks: " << P.lastError() <<
+				   " (" << P.exitStatus() << ')' << raise;
 
-	return repo;
+	return std::move(*repo);
 }
 
-std::unique_ptr<SQL::F2CSQLConn> getSQL(const Opts &opts)
+std::optional<SQL::F2CSQLConn> getSQL(const Opts &opts)
 {
-	auto sql = std::make_unique<SQL::F2CSQLConn>();
+	if (!opts.hasSqlite)
+		return std::nullopt;
+
+	SQL::F2CSQLConn sql;
 	unsigned openFlags = 0;
 	if (opts.sqliteCreate)
 		openFlags |= SlSqlite::CREATE;
-	if (!sql->openDB(opts.sqlite, openFlags)) {
-		Clr(std::cerr, Clr::RED) << "cannot open/create the db at " << opts.sqlite << ": "
-					 << sql->lastError();
-		return {};
-	}
-	if (opts.sqliteCreate) {
-		if (!sql->createDB()) {
-			Clr(std::cerr, Clr::RED) << "cannot create tables: " << sql->lastError();
-			return {};
-		}
-	}
-	if (!opts.sqliteCreateOnly) {
-		if (!sql->prepDB()) {
-			Clr(std::cerr, Clr::RED) << "cannot prepare statements: " <<
-						    sql->lastError();
-			return {};
-		}
-	}
+	if (!sql.openDB(opts.sqlite, openFlags))
+		RunEx("Cannot open/create the db at ") << opts.sqlite << ": " << sql.lastError() <<
+							  raise;
+
+	if (opts.sqliteCreate && !sql.createDB())
+		RunEx("Cannot create tables: ") << sql.lastError() << raise;
+
+	if (!opts.sqliteCreateOnly && !sql.prepDB())
+		RunEx("Cannot prepare statements: ") << sql.lastError() << raise;
 
 	return sql;
 }
@@ -201,17 +189,15 @@ std::optional<Json> loadIgnoredFiles(const Opts &opts)
 		return std::nullopt;
 
 	std::ifstream ifs{opts.ignoredFilesJSON};
-	if (!ifs) {
-		Clr(std::cerr, Clr::RED) << "cannot open JSON " << opts.ignoredFilesJSON;
-		return std::nullopt;
-	}
+	if (!ifs)
+		RunEx("Cannot open JSON: ") << opts.ignoredFilesJSON << raise;
+
 	Json json;
 	try {
 		json = json.parse(ifs);
 	} catch (const Json::exception &e) {
-		Clr(std::cerr, Clr::RED) << "cannot parse JSON from " << opts.ignoredFilesJSON <<
-					    ": " << e.what();
-		return std::nullopt;
+		RunEx("Cannot parse JSON from ") << opts.ignoredFilesJSON << ": " << e.what() <<
+						    raise;
 	}
 
 	return json;
@@ -221,39 +207,39 @@ std::string getBranchNote(const std::string &branch, const unsigned &branchNo,
 			  const unsigned &branchCnt)
 {
 	auto percent = 100.0 * branchNo / branchCnt;
-	std::stringstream ss;
+	std::ostringstream ss;
 	ss << branch << " (" << branchNo << "/" << branchCnt << " -- " <<
 	      std::fixed << std::setprecision(2) << percent << " %)";
 	return ss.str();
 }
 
-std::optional<bool> skipBranch(const std::unique_ptr<SQL::F2CSQLConn> &sql,
-			       const std::string &branch, bool force)
+bool skipBranch(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch, bool force)
 {
 	if (!sql)
 		return false;
 
 	if (force) {
 		if (!sql->deleteBranch(branch))
-			return {};
+			RunEx("Cannot delete branch '") << branch << "': " << sql->lastError() <<
+							  raise;
 		return false;
 	}
 
 	return sql->hasBranch(branch);
 }
 
-std::optional<SlGit::Commit> checkoutBranch(const std::string &branchNote,
-					    const std::string &branch,
-					    const SlGit::Repo &repo)
+SlGit::Commit checkoutBranch(const std::string &branchNote, const std::string &branch,
+			     const SlGit::Repo &repo)
 {
 	Clr(Clr::GREEN) << "== " << branchNote << " -- Checking Out ==";
-	if (!repo.checkout("refs/remotes/origin/" + branch)) {
-		Clr(std::cerr, Clr::RED) << "Cannot check out '" << branch << "': " <<
-					    repo.lastError();
-		return std::nullopt;
-	}
+	if (!repo.checkout("refs/remotes/origin/" + branch))
+		RunEx("Cannot check out '") << branch << "': " << repo.lastError() << raise;
 
-	return repo.commitRevparseSingle("HEAD");
+	auto commit = repo.commitRevparseSingle("HEAD");
+	if (!commit)
+		RunEx("Cannot find HEAD: ") << repo.lastError() << raise;
+
+	return std::move(*commit);
 }
 
 std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea,
@@ -264,16 +250,14 @@ std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea,
 	return scratchArea / branchDir;
 }
 
-bool expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,
+void expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,
 		  const std::filesystem::path &expandedTree)
 {
 	auto kernelSource = scratchArea / "kernel-source";
 	std::error_code ec;
 	SlHelpers::PushD push(kernelSource, ec);
-	if (ec) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot chdir to " << kernelSource;
-		return false;
-	}
+	if (ec)
+		RunEx(__func__) << ": cannot chdir to " << kernelSource << raise;
 
 	Clr(Clr::GREEN) << "== " << branchNote << " -- Expanding ==";
 
@@ -293,16 +277,12 @@ bool expandBranch(const std::string &branchNote, const std::filesystem::path &sc
 	if (F2C::verbose > 1)
 		std::cout << "cmd=" << seqPatch << " stat=" << P.lastErrorNo() << '/' <<
 			     P.exitStatus() << '\n';
-	if (!ret || P.exitStatus()) {
-		Clr(std::cerr, Clr::RED) << __func__ << ": cannot seq patch: " <<
-					    P.lastError() << " (" << P.exitStatus() << ')';
-		return false;
-	}
-
-	return true;
+	if (!ret || P.exitStatus())
+		RunEx(__func__) << ": cannot seq patch: " << P.lastError() <<
+				   " (" << P.exitStatus() << ')' << raise;
 }
 
-std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQLConn> &sql,
+std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &sql,
 						const SlKernCVS::SupportedConf &supp,
 						const std::string &branch,
 						const std::filesystem::path &root)
@@ -313,21 +293,21 @@ std::unique_ptr<TW::MakeVisitor> getMakeVisitor(const std::unique_ptr<SQL::F2CSQ
 		return std::make_unique<TW::ConsoleMakeVisitor>();
 }
 
-std::optional<SlKernCVS::SupportedConf> getSupported(const SlGit::Commit &commit)
+SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
 {
 	auto suppConf = commit.catFile("supported.conf");
 	if (!suppConf)
-		return {};
+		RunEx("Cannot obtain supported.conf: ") << commit.repo().lastError() << raise;
 
 	return SlKernCVS::SupportedConf { *suppConf };
 }
 
-bool processAuthors(const Opts &opts, const std::unique_ptr<SQL::F2CSQLConn> &sql,
+void processAuthors(const Opts &opts, std::optional<SQL::F2CSQLConn> &sql,
 		    const std::string &branch, const SlGit::Repo &repo, const SlGit::Commit &commit)
 {
 	SlKernCVS::PatchesAuthors PA{repo, opts.authorsDumpRefs, opts.authorsReportUnhandled};
 
-	return PA.processAuthors(commit, [&sql](const std::string &email) -> bool {
+	auto ret = PA.processAuthors(commit, [&sql](const std::string &email) -> bool {
 		return sql->insertUser(email);
 	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
 			unsigned count, unsigned realCount) -> bool {
@@ -336,9 +316,11 @@ bool processAuthors(const Opts &opts, const std::unique_ptr<SQL::F2CSQLConn> &sq
 						   std::move(fileDir->second),
 						   count, realCount);
 	});
+	if (!ret)
+		RunEx("Cannot process authors").raise();
 }
 
-bool processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+void processConfigs(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
 		    const SlGit::Repo &repo, const SlGit::Commit &commit)
 {
 	SlKernCVS::CollectConfigs CC{repo,
@@ -352,10 +334,11 @@ bool processConfigs(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::stri
 									     std::string(1, value));
 	}};
 
-	return CC.collectConfigs(commit);
+	if (!CC.collectConfigs(commit))
+		RunEx("Cannot collect configs").raise();
 }
 
-bool processIgnore(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+void processIgnore(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
 		   const std::vector<Json> &patterns, const std::filesystem::path &relPath)
 {
 	for (const auto &pattern: patterns)
@@ -364,17 +347,13 @@ bool processIgnore(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::strin
 			const auto dir = relPath.parent_path();
 			const auto file = relPath.filename();
 
-			if (!sql->insertDir(dir))
-				return false;
-			if (!sql->insertFile(dir, file))
-				return false;
-			if (!sql->insertIFBMap(branch, dir, file))
-				return false;
+			if (!sql->insertDir(dir) || !sql->insertFile(dir, file) ||
+					!sql->insertIFBMap(branch, dir, file))
+				RunEx("Cannot insert ignore: ") << sql->lastError() << raise;
 		}
-
-	return true;
 }
-bool processIgnores(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::string &branch,
+
+void processIgnores(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
 		    const Json &json, const std::filesystem::path &root)
 {
 	const auto allIt = json.find("all");
@@ -390,56 +369,47 @@ bool processIgnores(const std::unique_ptr<SQL::F2CSQLConn> &sql, const std::stri
 
 		const auto relPath = e.path().lexically_relative(root);
 
-		if (all && !processIgnore(sql, branch, *all, relPath))
-			return false;
-		if (forBranch && !processIgnore(sql, branch, *forBranch, relPath))
-			return false;
+		if (all)
+			processIgnore(sql, branch, *all, relPath);
+		if (forBranch)
+			processIgnore(sql, branch, *forBranch, relPath);
 	}
-
-	return true;
 }
 
-bool processBranch(const Opts &opts, const std::string &branchNote,
-		   const std::unique_ptr<SQL::F2CSQLConn> &sql,
+void processBranch(const Opts &opts, const std::string &branchNote,
+		   std::optional<SQL::F2CSQLConn> &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
 		   const std::filesystem::path &root, const std::optional<Json> &ignoredFiles)
 {
 	if (sql) {
 		sql->begin();
 		auto SHA = commit.idStr();
-		if (!sql->insertBranch(branch, SHA)) {
-			Clr(std::cerr, Clr::RED) << "cannot add branch '" << branch <<
-							"' with SHA '" << SHA << '\'';
-			return false;
-		}
+		if (!sql->insertBranch(branch, SHA))
+			RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<
+							raise;
 	}
 
 	if (!opts.sqliteCreateOnly) {
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
 		auto supp = getSupported(commit);
-		if (!supp)
-			return false;
 
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
-		auto visitor = getMakeVisitor(sql, *supp, branch, root);
+		auto visitor = getMakeVisitor(sql, supp, branch, root);
 		TW::TreeWalker tw(root, *visitor);
 		tw.walk();
 
 		if (sql) {
 			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
-			if (!processConfigs(sql, branch, repo, commit))
-				return false;
+			processConfigs(sql, branch, repo, commit);
 
 			Clr(Clr::GREEN) << "== " << branchNote <<
 					       " -- Detecting authors of patches ==";
-			if (!processAuthors(opts, sql, branch, repo, commit))
-				return false;
+			processAuthors(opts, sql, branch, repo, commit);
 
 			if (ignoredFiles) {
 				Clr(Clr::GREEN) << "== " << branchNote <<
 						       " -- Collecting ignored files ==";
-				if (!processIgnores(sql, branch, *ignoredFiles, root))
-					return false;
+				processIgnores(sql, branch, *ignoredFiles, root);
 			}
 		}
 	}
@@ -448,8 +418,6 @@ bool processBranch(const Opts &opts, const std::string &branchNote,
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Committing ==";
 		sql->end();
 	}
-
-	return true;
 }
 
 auto getTagsFromKsourceTree(const SlKernCVS::Branches::BranchesList &branches,
@@ -482,7 +450,7 @@ struct RenameInfo {
 using RenameMap = std::unordered_map<std::string, RenameInfo, SlHelpers::String::Hash,
 		SlHelpers::String::Eq>;
 
-void processRenamesBetween(const std::unique_ptr<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
+void processRenamesBetween(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
 			   std::string_view begin, std::string_view end, RenameMap &renames)
 {
 	auto begVersion = SlHelpers::Version::versionSum(begin);
@@ -504,7 +472,7 @@ void processRenamesBetween(const std::unique_ptr<SQL::F2CSQLConn> &sql, const Sl
 	SlHelpers::PtrStore<FILE, decltype([](FILE *f) { if (f) fclose(f); })> stream;
 	stream.reset(fdopen(p.readPipe(), "r"));
 	if (!stream)
-		throw std::runtime_error("cannot open stdout of git");
+		RunEx("Cannot open stdout of git").raise();
 
 	SlHelpers::PtrStore<char, decltype([](char *ptr) { free(ptr); })> lineRaw;
 	size_t len = 0;
@@ -512,16 +480,16 @@ void processRenamesBetween(const std::unique_ptr<SQL::F2CSQLConn> &sql, const Sl
 	while (getline(lineRaw.ptr(), &len, stream.get()) != -1) {
 		auto line = lineRaw.str();
 		if (line.empty() || line.front() != ':')
-			throw std::runtime_error("bad line: " + std::string(line));
+			RunEx("Bad line: ") << line << raise;
 
 		auto vec = SlHelpers::String::splitSV(line, " \t\n");
 		if (vec.size() < 7)
-			throw std::runtime_error("bad formatted line: " + std::string(line));
+			RunEx("Bad formatted line: ") << line << raise;
 
 		unsigned int similarity{};
 		std::from_chars(vec[4].data() + 1, vec[4].data() + vec[4].size(), similarity);
 		if (!similarity)
-			throw std::runtime_error("bad rename part: " + std::string(vec[4]));
+			RunEx("Bad rename part: ") << std::string(vec[4]) << raise;
 		auto oldFile = vec[5];
 		auto newFile = vec[6];
 
@@ -542,91 +510,74 @@ void processRenamesBetween(const std::unique_ptr<SQL::F2CSQLConn> &sql, const Sl
 	}
 
 	if (!feof(stream.get()) || ferror(stream.get()))
-		throw std::runtime_error(std::string("not completely read: ") + strerror(errno));
+		RunEx("Not completely read: ") << strerror(errno) << raise;
 
 	if (!p.waitForFinished())
-		throw std::runtime_error("cannot wait for git: " + p.lastError());
+		RunEx("Cannot wait for git: ") << p.lastError() << raise;
 
 	if (p.signalled())
-		throw std::runtime_error("git crashed");
+		RunEx("git crashed").raise();
 	if (auto e = p.exitStatus())
-		throw std::runtime_error("git exited with " + std::to_string(e));
+		RunEx("git exited with ") << e << raise;
 
 	auto trans = sql->beginAuto();
 	for (const auto &e: renames) {
 		auto oldP = sql->insertPath(e.first);
 		if (!oldP)
-			throw std::runtime_error("cannot insert old path: " + e.first + ": " +
-						 sql->lastError());
+			RunEx("Cannot insert old path: ") << e.first << ": " <<
+						 sql->lastError() << raise;
 		auto newP = sql->insertPath(e.second.path);
 		if (!newP)
-			throw std::runtime_error("cannot insert new path: " + e.second.path + ": " +
-						 sql->lastError());
+			RunEx("Cannot insert new path: ") << e.second.path << ": " <<
+						 sql->lastError() << raise;
 		if (!sql->insertRFVMap(begVersion, e.second.similarity, oldP->first, oldP->second,
 				       newP->first, newP->second))
-			throw std::runtime_error("cannot insert rename file map: " + e.first +
-						 " -> " + e.second.path + ": " + sql->lastError());
+			RunEx("Cannot insert rename file map: ") << e.first << " -> " <<
+								    e.second.path << ": " <<
+								    sql->lastError() << raise;
 	}
 }
 
-bool processRenames(const std::unique_ptr<SQL::F2CSQLConn> &sql,
-		    const SlGit::Repo &lrepo, const SlGit::Repo &repo,
-		    SlKernCVS::Branches::BranchesList branches)
+void processRenames(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
+		    const SlGit::Repo &repo, SlKernCVS::Branches::BranchesList branches)
 {
-	try {
-		auto uniqTags = getTagsFromKsourceTree(branches, repo);
-		RenameMap map;
-		if (uniqTags.size() >= 1) {
-			auto curr = uniqTags.rbegin();
+	auto uniqTags = getTagsFromKsourceTree(branches, repo);
+	RenameMap map;
+	if (uniqTags.size() >= 1) {
+		auto curr = uniqTags.rbegin();
 
-			processRenamesBetween(sql, lrepo, *curr, "", map);
-			for (auto prev = std::next(curr); prev != uniqTags.rend(); ++curr, ++prev)
-				processRenamesBetween(sql, lrepo, *prev, *curr, map);
-		}
-	} catch (const std::runtime_error &e) {
-		Clr(Clr::RED) << e.what();
-		return false;
+		processRenamesBetween(sql, lrepo, *curr, "", map);
+		for (auto prev = std::next(curr); prev != uniqTags.rend(); ++curr, ++prev)
+			processRenamesBetween(sql, lrepo, *prev, *curr, map);
 	}
-	return true;
 }
 
 } // namespace
 
-int main(int argc, char **argv)
+void handleEx(int argc, char **argv)
 {
 	const auto opts = getOpts(argc, argv);
 
 	const auto lpath = SlHelpers::Env::get<std::filesystem::path>("LINUX_GIT");
-	if (!lpath) {
-		Clr(std::cerr, Clr::RED) << "LINUX_GIT not set";
-		return EXIT_FAILURE;
-	}
+	if (!lpath)
+		RunEx("LINUX_GIT not set").raise();
 
 	auto lrepo = SlGit::Repo::open(*lpath);
-	if (!lrepo) {
-		Clr(std::cerr, Clr::RED) << "Cannot open LINUX_GIT repo: " <<
-					    SlGit::Repo::lastError() <<
-					    " (" << SlGit::Repo::lastClass() << ')';
-		return EXIT_FAILURE;
-	}
+	if (!lrepo)
+		RunEx("Cannot open LINUX_GIT repo: ") << SlGit::Repo::lastError() <<
+							 " (" << SlGit::Repo::lastClass() << ')' <<
+							 raise;
 
 	Clr(Clr::GREEN) << "== Preparing trees ==";
 
 	auto scratchArea = prepareScratchArea(opts);
-	if (!scratchArea)
-		return EXIT_FAILURE;
-
-	auto repo = prepareKsourceGit(*scratchArea);
-	if (!repo)
-		return EXIT_FAILURE;
+	auto repo = prepareKsourceGit(scratchArea);
 
 	SlKernCVS::Branches::BranchesList branches { std::move(opts.branches) };
 	if (branches.empty()) {
 		auto branchesOpt = SlKernCVS::Branches::getBuildBranches();
-		if (!branchesOpt) {
-			Clr(std::cerr, Clr::RED) << "Cannot download branches.conf";
-			return EXIT_FAILURE;
-		}
+		if (!branchesOpt)
+			RunEx("Cannot download branches.conf").raise();
 		branches = *branchesOpt;
 	}
 
@@ -634,22 +585,16 @@ int main(int argc, char **argv)
 
 	Clr(Clr::GREEN) << "== Fetching branches ==";
 
-	auto remote = repo->remoteLookup("origin");
+	auto remote = repo.remoteLookup("origin");
 	if (!remote)
-		return EXIT_FAILURE;
-	if (!remote->fetchBranches(branches, 1, false)) {
-		Clr(std::cerr, Clr::RED) << "Fetch failed: " << repo->lastError() <<
-						" (" << repo->lastClass() << ')';
-		return EXIT_FAILURE;
-	}
+		RunEx("No origin").raise();
+	if (!remote->fetchBranches(branches, 1, false))
+		RunEx("Fetch failed: ") << repo.lastError() << " (" << repo.lastClass() << ')' <<
+					   raise;
 
-	auto sql = opts.hasSqlite ? getSQL(opts) : nullptr;
-	if (opts.hasSqlite && !sql)
-		return EXIT_FAILURE;
+	auto sql = getSQL(opts);
 
 	auto ignoredFiles = loadIgnoredFiles(opts);
-	if (opts.hasIgnoredFiles && !ignoredFiles)
-		return EXIT_FAILURE;
 
 	auto branchNo = 0U;
 	auto branchCnt = branches.size();
@@ -657,37 +602,35 @@ int main(int argc, char **argv)
 	for (const auto &branch: branches) {
 		auto branchNote = getBranchNote(branch, ++branchNo, branchCnt);
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Starting ==";
-		auto skipOpt = skipBranch(sql, branch, opts.force);
-		if (!skipOpt)
-			return EXIT_FAILURE;
-		if (*skipOpt) {
+		if (skipBranch(sql, branch, opts.force)) {
 			Clr(Clr::YELLOW) << "Already present, skipping, use -f to force re-creation";
 			continue;
 		}
 
-		auto branchCommit = checkoutBranch(branchNote, branch, *repo);
-		if (!branchCommit)
-			return EXIT_FAILURE;
+		auto branchCommit = checkoutBranch(branchNote, branch, repo);
+		auto expandedTree = getExpandedDir(scratchArea, branch);
 
-		auto expandedTree = getExpandedDir(*scratchArea, branch);
-
-		if (!expandBranch(branchNote, *scratchArea, expandedTree))
-			return EXIT_FAILURE;
-
-		if (!processBranch(opts, branchNote, sql, branch, *repo, *branchCommit,
-				   expandedTree, ignoredFiles))
-			return EXIT_FAILURE;
+		expandBranch(branchNote, scratchArea, expandedTree);
+		processBranch(opts, branchNote, sql, branch, repo, branchCommit, expandedTree,
+			      ignoredFiles);
 	}
 
 	if (sql) {
 		Clr(Clr::GREEN) << "== Collecting renames ==";
-		if (!processRenames(sql, *lrepo, *repo, branches))
-			return EXIT_FAILURE;
+		processRenames(sql, *lrepo, repo, branches);
 
-		if (!sql->exec("VACUUM;")) {
-			Clr(Clr::RED) << "Cannot VACUUM the DB";
-			return EXIT_FAILURE;
-		}
+		if (!sql->exec("VACUUM;"))
+			RunEx("Cannot VACUUM the DB: ") << sql->lastError() << raise;
+	}
+}
+
+int main(int argc, char **argv)
+{
+	try {
+		handleEx(argc, argv);
+	} catch (std::runtime_error &e) {
+		Clr(std::cerr, Clr::RED) << e.what();
+		return EXIT_FAILURE;
 	}
 
 	return 0;

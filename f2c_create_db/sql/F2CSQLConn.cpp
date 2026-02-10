@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <sl/helpers/Exception.h>
+
 #include "F2CSQLConn.h"
 
 using namespace SQL;
+using RunEx = SlHelpers::RuntimeException;
+using SlHelpers::raise;
 
 bool F2CSQLConn::createDB()
 {
@@ -417,9 +421,11 @@ bool F2CSQLConn::deleteBranch(const std::string &branch)
 	return insert(delBranch, { { ":branch", branch } });
 }
 
-std::optional<bool> F2CSQLConn::hasBranch(const std::string &branch)
+bool F2CSQLConn::hasBranch(const std::string &branch)
 {
 	const auto res = select(selBranch, { { ":branch", branch } });
+	if (!res)
+		RunEx("Cannot select branch: ") << lastError() << raise;
 
-	return res && res->size() && std::get<int>((*res)[0][0]) == 1;
+	return res->size() && std::get<int>((*res)[0][0]) == 1;
 }

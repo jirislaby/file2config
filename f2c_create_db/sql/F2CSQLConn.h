@@ -12,6 +12,10 @@ namespace SQL {
 class F2CSQLConn : public SlSqlite::SQLConn {
 public:
 	F2CSQLConn() {}
+	virtual ~F2CSQLConn() = default;
+
+	F2CSQLConn(F2CSQLConn &&) = default;
+	F2CSQLConn &operator=(F2CSQLConn &&) = default;
 
 	virtual bool createDB() override;
 	virtual bool prepDB() override;

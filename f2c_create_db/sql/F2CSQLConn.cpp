@@ -14,7 +14,8 @@ bool F2CSQLConn::createDB()
 		{ "branch", {
 			"id INTEGER PRIMARY KEY",
 			"branch TEXT NOT NULL UNIQUE",
-			"sha TEXT NOT NULL"
+			"sha TEXT NOT NULL",
+			"version INTEGER NOT NULL",
 		}},
 		{ "config", {
 			"id INTEGER PRIMARY KEY",
@@ -195,7 +196,8 @@ bool F2CSQLConn::createDB()
 bool F2CSQLConn::prepDB()
 {
 	const Statements stmts {
-		{ insBranch,	"INSERT INTO branch(branch, sha) VALUES (:branch, :sha);" },
+		{ insBranch,	"INSERT INTO branch(branch, sha, version) VALUES "
+				"(:branch, :sha, :version);" },
 		{ insConfig,	"INSERT INTO config(config) VALUES (:config);" },
 		{ insArch,	"INSERT INTO arch(arch) VALUES (:arch);" },
 		{ insFlavor,	"INSERT INTO flavor(flavor) VALUES (:flavor);" },
@@ -258,11 +260,12 @@ bool F2CSQLConn::prepDB()
 	return prepareStatements(stmts);
 }
 
-bool F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha)
+bool F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha, unsigned version)
 {
 	return insert(insBranch, {
 			      { ":branch", branch },
 			      { ":sha", sha },
+			      { ":version", version },
 		      });
 }
 

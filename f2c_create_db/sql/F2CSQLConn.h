@@ -20,7 +20,7 @@ public:
 	virtual bool createDB() override;
 	virtual bool prepDB() override;
 
-	bool insertBranch(const std::string &branch, const std::string &sha);
+	bool insertBranch(const std::string &branch, const std::string &sha, unsigned version);
 	bool insertConfig(const std::string &config);
 	bool insertArch(const std::string &arch);
 	bool insertFlavor(const std::string &flavor);

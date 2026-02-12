@@ -376,17 +376,45 @@ void processIgnores(std::optional<SQL::F2CSQLConn> &sql, const std::string &bran
 	}
 }
 
+struct BranchProps {
+	BranchProps(std::string versionStr) : versionStr(std::move(versionStr)),
+		version(SlHelpers::Version::versionSum(BranchProps::versionStr)) { }
+
+	std::string versionStr;
+	unsigned version;
+};
+using BranchesProps = std::unordered_map<std::string, BranchProps>;
+
+BranchProps getBranchProps(const SlGit::Commit &commit)
+{
+	auto rpmConf = SlKernCVS::RPMConfig::create(*commit.tree());
+	if (!rpmConf)
+		RunEx("Cannot obtain a config from ") << std::quoted(commit.idStr()) << ": " <<
+							 commit.repo().lastError() << raise;
+
+	auto srcVer = rpmConf->get("SRCVERSION");
+	if (!srcVer)
+		RunEx("No SRCVERSION in rpm/config.sh of ") << std::quoted(commit.idStr()) << raise;
+
+	return BranchProps(*srcVer);
+}
+
 void processBranch(const Opts &opts, const std::string &branchNote,
 		   std::optional<SQL::F2CSQLConn> &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		   const std::filesystem::path &root, const std::optional<Json> &ignoredFiles)
+		   const std::filesystem::path &root, const std::optional<Json> &ignoredFiles,
+		   BranchesProps &branchesProps)
 {
 	if (sql) {
 		sql->begin();
 		auto SHA = commit.idStr();
-		if (!sql->insertBranch(branch, SHA))
+		auto props = getBranchProps(commit);
+
+		if (!sql->insertBranch(branch, SHA, props.version))
 			RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<
 							raise;
+
+		branchesProps.emplace(branch, std::move(props));
 	}
 
 	if (!opts.sqliteCreateOnly) {
@@ -420,26 +448,13 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 	}
 }
 
-auto getTagsFromKsourceTree(const SlKernCVS::Branches::BranchesList &branches,
-			    const SlGit::Repo &repo)
+auto getUniqTags(const BranchesProps &branchesProps)
 {
-	std::set<std::string, SlHelpers::CmpVersions> ret;
-
-	for (const auto &b: branches) {
-		auto rpmConf = SlKernCVS::RPMConfig::create(repo, b);
-		if (!rpmConf) {
-			Clr(std::cerr, Clr::RED) << "cannot obtain a config for " <<
-						    std::quoted(b) << ": " << repo.lastError();
-			continue;
-		}
-		auto srcVer = rpmConf->get("SRCVERSION");
-		if (!srcVer) {
-			Clr(std::cerr, Clr::RED) << "no SRCVERSION in " << std::quoted(b);
-			continue;
-		}
-		ret.emplace(srcVer->get());
-	}
-
+	std::set<BranchProps, decltype([](const auto &e1, const auto &e2) {
+		return e1.version < e2.version;
+	})> ret;
+	for (const auto &[branch, prop]: branchesProps)
+		ret.insert(prop);
 	return ret;
 }
 
@@ -451,11 +466,11 @@ using RenameMap = std::unordered_map<std::string, RenameInfo, SlHelpers::String:
 		SlHelpers::String::Eq>;
 
 void processRenamesBetween(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
-			   std::string_view begin, std::string_view end, RenameMap &renames)
+			   const BranchProps &begin, std::string_view end, RenameMap &renames)
 {
-	auto begVersion = SlHelpers::Version::versionSum(begin);
+	auto begVersion = begin.version;
 	std::ostringstream range;
-	range << 'v' << begin << "..";
+	range << 'v' << begin.versionStr << "..";
 	if (end.empty())
 		range << "origin/master";
 	else
@@ -539,16 +554,16 @@ void processRenamesBetween(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Rep
 }
 
 void processRenames(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
-		    const SlGit::Repo &repo, SlKernCVS::Branches::BranchesList branches)
+		    const BranchesProps &branchesProps)
 {
-	auto uniqTags = getTagsFromKsourceTree(branches, repo);
-	RenameMap map;
+	auto uniqTags = getUniqTags(branchesProps);
 	if (uniqTags.size() >= 1) {
 		auto curr = uniqTags.rbegin();
 
+		RenameMap map;
 		processRenamesBetween(sql, lrepo, *curr, "", map);
 		for (auto prev = std::next(curr); prev != uniqTags.rend(); ++curr, ++prev)
-			processRenamesBetween(sql, lrepo, *prev, *curr, map);
+			processRenamesBetween(sql, lrepo, *prev, curr->versionStr, map);
 	}
 }
 
@@ -599,6 +614,7 @@ void handleEx(int argc, char **argv)
 	auto branchNo = 0U;
 	auto branchCnt = branches.size();
 
+	BranchesProps branchesProps;
 	for (const auto &branch: branches) {
 		auto branchNote = getBranchNote(branch, ++branchNo, branchCnt);
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Starting ==";
@@ -612,12 +628,12 @@ void handleEx(int argc, char **argv)
 
 		expandBranch(branchNote, scratchArea, expandedTree);
 		processBranch(opts, branchNote, sql, branch, repo, branchCommit, expandedTree,
-			      ignoredFiles);
+			      ignoredFiles, branchesProps);
 	}
 
 	if (sql) {
 		Clr(Clr::GREEN) << "== Collecting renames ==";
-		processRenames(sql, *lrepo, repo, branches);
+		processRenames(sql, *lrepo, branchesProps);
 
 		if (!sql->exec("VACUUM;"))
 			RunEx("Cannot VACUUM the DB: ") << sql->lastError() << raise;

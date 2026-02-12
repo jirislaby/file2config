@@ -48,8 +48,19 @@ public:
 					"mfmap.file IN (SELECT file.id "
 					"	FROM file "
 					"	LEFT JOIN dir ON file.dir = dir.id "
-					"	WHERE dir.dir = :dir AND file.file = :file);",
-			} });
+					"	WHERE dir.dir = :dir AND file.file = :file);" },
+			{ selRename,
+				"SELECT map.similarity, olddir.dir, oldfile.file "
+					"FROM rename_file_version_map AS map "
+					"LEFT JOIN file AS oldfile ON map.oldfile = oldfile.id "
+					"LEFT JOIN dir AS olddir ON oldfile.dir = olddir.id "
+					"WHERE map.version IS (SELECT version "
+						"FROM branch "
+						"WHERE branch = :branch) AND "
+					"map.newfile IS (SELECT id FROM file "
+						"WHERE file = :file AND dir = (SELECT id "
+						"FROM dir WHERE dir = :dir));" },
+			});
 	}
 
 	auto selectConfig(const std::string &branch, const std::string &dir,
@@ -69,16 +80,30 @@ public:
 			      { ":file", file },
 			      });
 	}
+	auto selectRename(const std::string &branch, const std::string &dir,
+			  const std::string &file) const {
+		return select(selRename, {
+			      { ":branch", branch },
+			      { ":dir", dir },
+			      { ":file", file },
+			      });
+	}
 private:
 	SlSqlite::SQLStmtHolder selConfig;
 	SlSqlite::SQLStmtHolder selModule;
+	SlSqlite::SQLStmtHolder selRename;
 };
 
 struct Opts {
 	bool refresh;
+
 	std::filesystem::path kernelTree;
 	std::filesystem::path sqlite;
 	bool hasSqlite;
+
+	bool configs;
+	bool renames;
+
 	std::string branch;
 	std::vector<std::filesystem::path> files;
 	std::vector<std::string> shas;
@@ -95,40 +120,55 @@ Opts getOpts(int argc, char **argv)
 		("r,refresh", "Refresh the db file",
 			cxxopts::value(opts.refresh)->default_value("false"))
 	;
-	options.add_options("paths")
+	options.add_options("Paths")
 		("k,kernel-tree", "Clone of the mainline kernel repo",
 			cxxopts::value(opts.kernelTree)->default_value("$LINUX_GIT"))
 		("sqlite", "Path to the db",
 			cxxopts::value(opts.sqlite)->default_value("S-G-M_cache_dir/conf_file_map.sqlite"))
 	;
-	options.add_options("query")
+	options.add_options("General query")
 		("b,branch", "Branch to query", cxxopts::value(opts.branch))
-		("f,file", "file for which to find configs of; - for stdin. "
+		("f,file", "files to use for searching; - for stdin. "
 			  "This option can be provided multiple times with different values.",
 			cxxopts::value(opts.files))
-		("s,sha", "SHA of a commit for which to find configs of; - for stdin. "
+		("s,sha", "SHA of a commit from which to extract filenames; - for stdin. "
 			  "This option can be provided multiple times with different values. "
 			  "SHA could be in any form accepted by git-rev-parse.",
 			cxxopts::value(opts.shas))
+	;
+	options.add_options("Action")
+		("configs", "Find configs (and modules) of the specified files (default if no action specified)",
+			cxxopts::value(opts.configs)->default_value("false"))
+		("renames", "Find renames of the specified files",
+			cxxopts::value(opts.renames)->default_value("false"))
+	;
+	options.add_options("Configs query")
 		("m,module", "Include also module path in the output", cxxopts::value(opts.module))
 	;
 
 	try {
+		// General
 		auto cxxopts = options.parse(argc, argv);
 		if (cxxopts.contains("help")) {
 			std::cout << options.help();
 			exit(0);
 		}
 		Clr::forceColor(cxxopts.contains("force-color"));
-		opts.hasSqlite = cxxopts.contains("sqlite");
-		if (!cxxopts.contains("branch")) {
-			Clr(std::cerr, Clr::RED) << "branch not specified";
-			std::cerr << options.help();
-			exit(EXIT_FAILURE);
-		}
+
+		// Paths
 		if (!cxxopts.contains("kernel-tree"))
 			if (const auto path = SlHelpers::Env::get<std::filesystem::path>("LINUX_GIT"))
 				opts.kernelTree = *path;
+		opts.hasSqlite = cxxopts.contains("sqlite");
+
+		// General query
+		if (!cxxopts.contains("branch"))
+			RunEx("Branch not specified!").raise();
+
+		// Action
+		if (cxxopts.contains("configs") + cxxopts.contains("renames") == 0)
+			opts.configs = true;
+
 		return opts;
 	} catch (const cxxopts::exceptions::parsing &e) {
 		Clr(std::cerr, Clr::RED) << "arguments error: " << e.what();
@@ -159,29 +199,55 @@ void handleCmdlineFiles(FileTy &&files, Callback &&callback)
 		handleCmdlineFile(std::forward<decltype(f)>(f), callback);
 }
 
-void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql,
+void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
+			const std::filesystem::path &file) noexcept
+{
+	const auto res = sql.selectRename(opts.branch, dir, file);
+	if (!res || res->size() == 0)
+		return;
+
+	for (const auto &conf: *res)
+		std::cout << std::get<int>(conf[0]) << ' ' <<
+			     std::get<std::string>(conf[1]) << '/' <<
+			     std::get<std::string>(conf[2]) << ' ' <<
+			     (dir / file).string() << '\n';
+}
+
+void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
 		       const std::filesystem::path &file) noexcept
 {
-	auto res = sql.selectConfig(opts.branch, file.parent_path(), file.filename());
+	const auto res = sql.selectConfig(opts.branch, dir, file);
 	if (!res || res->size() == 0)
 		return;
 
 	std::string mod;
 	if (opts.module) {
-		auto modRes = sql.selectModule(opts.branch, file.parent_path(), file.filename());
+		const auto modRes = sql.selectModule(opts.branch, dir, file);
 		if (modRes && res->size() != 0)
 			mod = ' ' + std::get<std::string>((*modRes)[0][0]) + '/' +
 					std::get<std::string>((*modRes)[0][1]);
 	}
 
 	for (const auto &conf: *res)
-		std::cout << file.string() << " " << std::get<std::string>(conf[0]) << mod << '\n';
+		std::cout << (dir / file).string() << " " << std::get<std::string>(conf[0]) <<
+			     mod << '\n';
+}
+
+void selectQuery(const Opts &opts, const F2CSQLConn &sql,
+		       const std::filesystem::path &path) noexcept
+{
+	const auto dir = path.parent_path();
+	const auto file = path.filename();
+	if (opts.configs)
+		selectConfigQuery(opts, sql, dir, file);
+	if (opts.renames)
+		selectRenamesQuery(opts, sql, dir, file);
 }
 
 void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept
 {
 	handleCmdlineFiles(opts.files, [&sql, &opts](const std::filesystem::path &file) {
-		selectConfigQuery(opts, sql, file);
+		selectQuery(opts, sql, file);
 	});
 }
 
@@ -204,7 +270,7 @@ void handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
 	SlGit::Diff::ForEachCB cb = {
 		.file = [&sql, &opts](const git_diff_delta &delta, float) {
 			std::filesystem::path f(delta.new_file.path);
-			selectConfigQuery(opts, sql, f);
+			selectQuery(opts, sql, f);
 			return 0;
 		},
 	};

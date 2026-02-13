@@ -212,18 +212,23 @@ void handleCmdlineFiles(FileTy &&files, Callback &&callback)
 		handleCmdlineFile(std::forward<decltype(f)>(f), callback);
 }
 
-void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
-			const std::filesystem::path &file) noexcept
+void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, std::filesystem::path &dir,
+			std::filesystem::path &file) noexcept
 {
-	const auto res = sql.selectRename(opts.branch, dir, file);
+	auto res = sql.selectRename(opts.branch, dir, file);
 	if (!res || res->size() == 0)
 		return;
 
-	for (const auto &conf: *res)
-		std::cout << std::get<int>(conf[0]) << ' ' <<
-			     std::get<std::string>(conf[1]) << '/' <<
-			     std::get<std::string>(conf[2]) << ' ' <<
+	auto &row = res->at(0);
+	std::filesystem::path oldDir(std::get<std::string>(std::move(row[1])));
+	std::filesystem::path oldFile(std::get<std::string>(std::move(row[2])));
+
+	if (opts.renames)
+		std::cout << std::get<int>(row[0]) << ' ' << (oldDir / oldFile).string() << ' ' <<
 			     (dir / file).string() << '\n';
+
+	dir = oldDir;
+	file = oldFile;
 }
 
 void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
@@ -249,12 +254,11 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 void selectQuery(const Opts &opts, const F2CSQLConn &sql,
 		       const std::filesystem::path &path) noexcept
 {
-	const auto dir = path.parent_path();
-	const auto file = path.filename();
+	auto dir = path.parent_path();
+	auto file = path.filename();
+	selectRenamesQuery(opts, sql, dir, file);
 	if (opts.configs)
 		selectConfigQuery(opts, sql, dir, file);
-	if (opts.renames)
-		selectRenamesQuery(opts, sql, dir, file);
 }
 
 void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept

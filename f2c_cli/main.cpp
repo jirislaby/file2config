@@ -13,6 +13,10 @@
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
 
+#include "OutputFormatter.h"
+
+using namespace F2C;
+
 using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
@@ -113,7 +117,12 @@ struct Opts {
 	std::string branch;
 	std::vector<std::filesystem::path> files;
 	std::vector<std::string> shas;
+
 	bool module;
+
+	bool json;
+
+	std::unique_ptr<OutputFormatter> formatter;
 };
 
 Opts getOpts(int argc, char **argv)
@@ -122,7 +131,6 @@ Opts getOpts(int argc, char **argv)
 	Opts opts {};
 	options.add_options()
 		("h,help", "Print this help message")
-		("force-color", "Force color output")
 		("r,refresh", "Refresh the db file",
 			cxxopts::value(opts.refresh)->default_value("false"))
 	;
@@ -150,6 +158,11 @@ Opts getOpts(int argc, char **argv)
 	;
 	options.add_options("Configs query")
 		("m,module", "Include also module path in the output", cxxopts::value(opts.module))
+	;
+	options.add_options("Output")
+		("force-color", "Force color output")
+		("j,json", "Output JSON",
+			cxxopts::value(opts.json)->default_value("false"))
 	;
 
 	try {
@@ -212,6 +225,14 @@ void handleCmdlineFiles(FileTy &&files, Callback &&callback)
 		handleCmdlineFile(std::forward<decltype(f)>(f), callback);
 }
 
+void setFormatter(Opts &opts)
+{
+	if (opts.json)
+		opts.formatter = std::make_unique<OutputFormatterJSON>();
+	else
+		opts.formatter = std::make_unique<OutputFormatterSimple>(opts.module);
+}
+
 void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, std::filesystem::path &dir,
 			std::filesystem::path &file) noexcept
 {
@@ -224,8 +245,7 @@ void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, std::filesystem
 	std::filesystem::path oldFile(std::get<std::string>(std::move(row[2])));
 
 	if (opts.renames)
-		std::cout << std::get<int>(row[0]) << ' ' << (oldDir / oldFile).string() << ' ' <<
-			     (dir / file).string() << '\n';
+		opts.formatter->addRename(oldDir / oldFile, dir / file, std::get<int>(row[0]));
 
 	dir = oldDir;
 	file = oldFile;
@@ -238,21 +258,21 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 	if (!res || res->size() == 0)
 		return;
 
-	std::string mod;
-	if (opts.module) {
+	std::filesystem::path mod;
+	if (opts.module || opts.json) {
 		const auto modRes = sql.selectModule(opts.branch, dir, file);
-		if (modRes && res->size() != 0)
-			mod = ' ' + std::get<std::string>((*modRes)[0][0]) + '/' +
-					std::get<std::string>((*modRes)[0][1]);
+		if (modRes && res->size() != 0) {
+			mod = std::get<std::string>(std::move(modRes->at(0)[0]));
+			mod /= std::get<std::string>(std::move(modRes->at(0)[1]));
+		}
 	}
 
 	for (const auto &conf: *res)
-		std::cout << (dir / file).string() << " " << std::get<std::string>(conf[0]) <<
-			     mod << '\n';
+		opts.formatter->addConfig(dir / file, std::get<std::string>(conf[0]), mod);
 }
 
 void selectQuery(const Opts &opts, const F2CSQLConn &sql,
-		       const std::filesystem::path &path) noexcept
+		 const std::filesystem::path &path) noexcept
 {
 	auto dir = path.parent_path();
 	auto file = path.filename();
@@ -264,6 +284,7 @@ void selectQuery(const Opts &opts, const F2CSQLConn &sql,
 void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept
 {
 	handleCmdlineFiles(opts.files, [&sql, &opts](const std::filesystem::path &file) {
+		opts.formatter->newObj("file", file.string());
 		selectQuery(opts, sql, file);
 	});
 }
@@ -308,6 +329,7 @@ void handleSHAs(const Opts &opts, const F2CSQLConn &sql)
 	const auto rk = std::move(*rkOpt);
 
 	handleCmdlineFiles(opts.shas, [&sql, &opts, &rk](const std::string &sha) {
+		opts.formatter->newObj("sha", sha);
 		handleSHA(opts, sql, rk, sha);
 	});
 }
@@ -315,6 +337,8 @@ void handleSHAs(const Opts &opts, const F2CSQLConn &sql)
 void handleEx(int argc, char **argv)
 {
 	auto opts = getOpts(argc, argv);
+
+	setFormatter(opts);
 
 	const auto SGMCacheDir = SlHelpers::HomeDir::createCacheDir("suse-get-maintainers");
 	if (SGMCacheDir.empty())
@@ -335,6 +359,8 @@ void handleEx(int argc, char **argv)
 
 	handleFiles(opts, sql);
 	handleSHAs(opts, sql);
+
+	opts.formatter->print();
 }
 
 } // namespace

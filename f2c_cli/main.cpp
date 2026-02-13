@@ -25,6 +25,7 @@ public:
 
 	virtual bool prepDB() override {
 		return prepareStatements({
+			{ selBranch, "SELECT 1 FROM branch WHERE branch = :branch;" },
 			{ selConfig,
 				"SELECT config.config "
 					"FROM conf_file_map AS cfmap "
@@ -63,6 +64,10 @@ public:
 			});
 	}
 
+	auto selectBranch(const std::string &branch) const noexcept {
+		return select(selBranch, { { ":branch", branch } });
+	}
+
 	auto selectConfig(const std::string &branch, const std::string &dir,
 			  const std::string &file) const {
 		return select(selConfig, {
@@ -89,6 +94,7 @@ public:
 			      });
 	}
 private:
+	SlSqlite::SQLStmtHolder selBranch;
 	SlSqlite::SQLStmtHolder selConfig;
 	SlSqlite::SQLStmtHolder selModule;
 	SlSqlite::SQLStmtHolder selRename;
@@ -175,6 +181,13 @@ Opts getOpts(int argc, char **argv)
 		std::cerr << options.help();
 		exit(EXIT_FAILURE);
 	}
+}
+
+void checkBranch(const F2CSQLConn &sql, const std::string &branch)
+{
+	const auto sel = sql.selectBranch(branch);
+	if (!sel || !sel->size() || std::get<int>(sel->at(0)[0]) != 1 )
+		RunEx("Branch '") << branch << "' not found in the DB!" << raise;
 }
 
 template<typename T, typename Callback>
@@ -313,6 +326,8 @@ void handleEx(int argc, char **argv)
 	F2CSQLConn sql;
 	if (!sql.open(opts.sqlite))
 		RunEx("Unable to open the db ") << opts.sqlite << ": " << sql.lastError() << raise;
+
+	checkBranch(sql, opts.branch);
 
 	handleFiles(opts, sql);
 	handleSHAs(opts, sql);

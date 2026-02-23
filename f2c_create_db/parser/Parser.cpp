@@ -9,6 +9,8 @@
 #include "ErrorListener.h"
 #include "Parser.h"
 #include "../Verbose.h"
+#include "kconfig/KconfigLexer.h"
+#include "kconfig/KconfigParser.h"
 #include "make/MakeLexer.h"
 #include "make/MakeParser.h"
 
@@ -118,4 +120,5 @@ void Parser<ALexer, AParser>::reset()
 	m_parser.reset();
 }
 
+template class Parsers::Parser<KconfigLexer, KconfigParser>;
 template class Parsers::Parser<MakeLexer, MakeParser>;

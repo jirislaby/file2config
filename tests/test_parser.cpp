@@ -4,12 +4,19 @@
 #include <iostream>
 #include <set>
 
+#include <sl/helpers/Color.h>
+
+#include "kconfig/Parser.h"
 #include "make/EntryVisitor.h"
 #include "make/Parser.h"
 
-static void testVisitor()
+using Clr = SlHelpers::Color;
+
+namespace {
+
+void testVisitor()
 {
-	std::cout << __func__ << '\n';
+	Clr(std::cerr, Clr::GREEN) << __func__;
 
 	MP::Parser parser;
 
@@ -49,28 +56,28 @@ static void testVisitor()
 
 	parser.walkTree({}, visitor);
 
-	std::cout << "data:\n";
+	std::cerr << "data:\n";
 	for (const auto &e : data)
-		std::cout << "\tcond=" << e.second.first << " mod=" << e.second.second << "\n";
+		std::cerr << "\tcond=" << e.second.first << " mod=" << e.second.second << "\n";
 
-	std::cout << "found:\n";
+	std::cerr << "found:\n";
 	for (const auto &e : cont)
-		std::cout << "\tcond=" << e.first << " mod=" << e.second << "\n";
+		std::cerr << "\tcond=" << e.first << " mod=" << e.second << "\n";
 
 	for (const auto &e : data)
 		assert(cont.find(e.second) != cont.end());
 }
 
-static void testMakefile(const std::filesystem::path &makefile)
+void testMakefile(const std::filesystem::path &makefile)
 {
-	std::cout << "Testing " << makefile.filename() << '\n';
+	Clr(std::cerr, Clr::GREEN) << "Tesing " << makefile.filename();
 
 	assert(MP::Parser().parse(makefile));
 }
 
-static void testMakefiles(const std::filesystem::path &makefiles)
+void testMakefiles(const std::filesystem::path &makefiles)
 {
-	std::cout << __func__ << '\n';
+	Clr(std::cerr, Clr::GREEN) << __func__;
 
 	std::error_code ec;
 
@@ -82,6 +89,35 @@ static void testMakefiles(const std::filesystem::path &makefiles)
 			testMakefile(entry.path());
 }
 
+void testKconfig()
+{
+	Clr(std::cerr, Clr::GREEN) << __func__;
+
+	Kconfig::Parser p;
+	static constinit std::string_view kconf(
+		"config ABC\n"
+		"tristate \"some desc\"\n"
+		"\tdepends on XYZ\n"
+		"\thelp\n"
+		" Some text\n"
+		"config DEF\n"
+		"bool\n"
+	);
+
+	assert(p.parse(kconf, false));
+
+	std::unordered_map<std::string, Kconfig::ConfType> configs;
+	p.walkConfigs([&configs](auto conf, auto type) {
+		configs.emplace(std::move(conf), type);
+	});
+	assert(configs.find("ABC") != configs.end());
+	assert(configs.find("DEF") != configs.end());
+	assert(configs["ABC"] == Kconfig::ConfType::Tristate);
+	assert(configs["DEF"] == Kconfig::ConfType::Bool);
+}
+
+} // namespace
+
 #ifndef TESTS_DIR
 #define TESTS_DIR	"."
 #endif
@@ -90,10 +126,12 @@ int main()
 {
 	std::filesystem::path tests{TESTS_DIR};
 
-	std::cout << "Tests dir: " << tests << '\n';
+	Clr(std::cerr) << "Tests dir: " << tests;
 
 	testVisitor();
 	testMakefiles(tests/"makefiles");
+
+	testKconfig();
 
 	return 0;
 }

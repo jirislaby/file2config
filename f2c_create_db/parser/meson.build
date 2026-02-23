@@ -8,6 +8,7 @@ antlr4_lib = declare_dependency(
 
 antlr4 = find_program('antlr4')
 
+subdir('kconfig')
 subdir('make')
 
 parsers = static_library('parsers', [
@@ -18,5 +19,5 @@ parsers = static_library('parsers', [
   ],
   # antlr headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
-  dependencies: [ antlr4_lib, make_parser ],
+  dependencies: [ antlr4_lib, kconfig_parser, make_parser ],
 )

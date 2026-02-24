@@ -1,18 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-generated_files = [
-  'MakeLexer.cpp',
-  'MakeLexer.h',
-  'MakeParser.cpp',
-  'MakeParser.h',
-  'MakeListener.cpp',
-  'MakeListener.h',
-]
-
-parser_include = include_directories('/usr/include/antlr4-runtime/')
-antlr4_lib = cpp_compiler.find_library('antlr4-runtime',
-  has_headers : 'antlr4-runtime.h',
-  header_include_directories : parser_include
+antlr4_noinc = dependency('antlr4-runtime', modules: ['antlr4_shared'])
+antlr4_lib = declare_dependency(
+  dependencies: antlr4_noinc,
+  include_directories: antlr4_noinc.get_variable(cmake : 'ANTLR4_INCLUDE_DIR'),
 )
 
 antlr4 = find_program('antlr4')
@@ -25,12 +16,15 @@ copy_grammar = custom_target('copy_grammar',
 
 gen_antlr = custom_target('gen_antlr',
   input : copy_grammar,
-  output : generated_files,
+  output : [
+    'MakeLexer.cpp',
+    'MakeLexer.h',
+    'MakeParser.cpp',
+    'MakeParser.h',
+    'MakeListener.cpp',
+    'MakeListener.h',
+  ],
   command : [ antlr4, '-Dlanguage=Cpp', '-message-format', 'gnu', '@INPUT@' ],
-)
-
-parser_generated_files = declare_dependency(
-  sources : gen_antlr
 )
 
 parser = static_library('parser', [
@@ -46,5 +40,4 @@ parser = static_library('parser', [
   # the generated headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
   dependencies : antlr4_lib,
-  include_directories : parser_include,
 )

@@ -58,7 +58,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &sour
 	return 0;
 }
 
-int Parser::parse(const std::vector<std::string> &archs, const std::string &str,
+int Parser::parse(const std::vector<std::string> &archs, std::string_view str,
 		  const EntryVisitor &entryVisitor)
 {
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(str);

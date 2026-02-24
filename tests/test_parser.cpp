@@ -46,7 +46,7 @@ static void testVisitor()
 		EntryCont &cont;
 	} visitor(cont);
 
-	parser.parse({}, ss.str(), visitor);
+	parser.parse({}, ss.view(), visitor);
 
 	std::cout << "data:\n";
 	for (const auto &e : data)

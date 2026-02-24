@@ -26,7 +26,7 @@ public:
 	Parser();
 	~Parser();
 
-	int parse(const std::vector<std::string> &archs, const std::string &str,
+	int parse(const std::vector<std::string> &archs, std::string_view str,
 		  const EntryVisitor &entryVisitor);
 	int parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
 		  const EntryVisitor &entryVisitor);

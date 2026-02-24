@@ -13,6 +13,7 @@ namespace F2C {
 class OutputFormatter {
 public:
 	OutputFormatter() {}
+	virtual ~OutputFormatter() = default;
 
 	virtual void newObj(const std::string &/*type*/, const std::string &/*value*/) {}
 	virtual void addConfig(const std::filesystem::path &path, const std::string &config,

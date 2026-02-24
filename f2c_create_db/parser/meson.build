@@ -8,36 +8,14 @@ antlr4_lib = declare_dependency(
 
 antlr4 = find_program('antlr4')
 
-copy_grammar = custom_target('copy_grammar',
-  input : 'Make.g4',
-  output : 'Make.g4',
-  command : [ 'cp', '@INPUT@', '@OUTPUT@' ]
-)
+subdir('make')
 
-gen_antlr = custom_target('gen_antlr',
-  input : copy_grammar,
-  output : [
-    'MakeLexer.cpp',
-    'MakeLexer.h',
-    'MakeParser.cpp',
-    'MakeParser.h',
-    'MakeListener.cpp',
-    'MakeListener.h',
-  ],
-  command : [ antlr4, '-Dlanguage=Cpp', '-message-format', 'gnu', '@INPUT@' ],
-)
-
-parser = static_library('parser', [
-    'Parser.cpp',
-    'Parser.h',
-    'EntryVisitor.h',
+parsers = static_library('parsers', [
     'ErrorListener.cpp',
     'ErrorListener.h',
-    'MakeExprListener.cpp',
-    'MakeExprListener.h',
-    gen_antlr,
   ],
-  # the generated headers are buggy
+  # antlr headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
-  dependencies : antlr4_lib,
+  link_with: [ make_parser ],
+  dependencies: antlr4_lib,
 )

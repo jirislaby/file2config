@@ -4,8 +4,8 @@
 #include <iostream>
 #include <set>
 
-#include "EntryVisitor.h"
-#include "Parser.h"
+#include "make/EntryVisitor.h"
+#include "make/Parser.h"
 
 static void testVisitor()
 {

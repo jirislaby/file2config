@@ -4,7 +4,7 @@
 
 #include <sl/helpers/Views.h>
 
-#include "../parser/EntryVisitor.h"
+#include "../parser/make/EntryVisitor.h"
 #include "MakeVisitor.h"
 #include "TreeWalker.h"
 #include "../Verbose.h"

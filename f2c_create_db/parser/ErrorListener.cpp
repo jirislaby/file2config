@@ -4,7 +4,7 @@
 
 #include "ErrorListener.h"
 
-using namespace MP;
+using namespace Parsers;
 
 void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *offendingSymbol,
 				size_t line, size_t column, const std::string &msg,

@@ -3,12 +3,12 @@
 #include <iostream>
 #include <errno.h>
 
-#include "ErrorListener.h"
+#include "../ErrorListener.h"
 #include "MakeExprListener.h"
 #include "MakeLexer.h"
 #include "MakeParser.h"
 #include "Parser.h"
-#include "../Verbose.h"
+#include "../../Verbose.h"
 
 using namespace MP;
 
@@ -36,7 +36,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &sour
 			std::cerr << source << ": SLL not enough, trying LL\n";
 
 		m_parser->removeErrorListeners();
-		ErrorListener EL(source);
+		Parsers::ErrorListener EL(source);
 		m_parser->addErrorListener(&EL);
 
 		m_parser->setErrorHandler(origErrStrategy);

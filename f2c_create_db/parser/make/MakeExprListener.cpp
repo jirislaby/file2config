@@ -5,7 +5,7 @@
 
 #include "EntryVisitor.h"
 #include "MakeExprListener.h"
-#include "../Verbose.h"
+#include "../../Verbose.h"
 
 using namespace MP;
 

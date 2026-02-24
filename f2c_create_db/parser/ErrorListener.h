@@ -5,7 +5,7 @@
 
 #include <antlr4-runtime.h>
 
-namespace MP {
+namespace Parsers {
 
 class ErrorListener : public antlr4::BaseErrorListener {
 public:

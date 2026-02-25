@@ -154,7 +154,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		bool &found;
 	} visitor(*this, s, objPath, lookingFor, found);
 
-	parser.walkTree(visitor);
+	parser.walkTree(archs, visitor);
 
 	if (F2C::verbose > 1) {
 		std::cout << __func__ << " DONE: obj=" << objPath << " found=" << found << '\n';
@@ -248,6 +248,8 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << kbPath << "\n";
 
+	parser.parse(kbPath);
+
 	class RegularVisitor : public MP::EntryVisitor {
 	public:
 		RegularVisitor(TreeWalker &TW, const CondStack &s,
@@ -285,7 +287,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		const std::filesystem::path &kbPath;
 	} visitor(*this, s, kbPath);
 
-	parser.parse(archs, kbPath, visitor);
+	parser.walkTree(archs, visitor);
 }
 
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,

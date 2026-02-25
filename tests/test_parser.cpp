@@ -21,13 +21,14 @@ static void testVisitor()
 		{ "$(CONFIG_ABC)",	{ "CONFIG_ABC", "mod-abc.o" } },
 	};
 
-	EntryCont cont;
-
 	std::stringstream ss;
 	for (const auto &e : data) {
 		ss << "obj-" << e.first << " := " << e.second.second << "\n";
 	}
 
+	parser.parse(ss.view());
+
+	EntryCont cont;
 
 	class TestVisitor : public MP::EntryVisitor {
 	public:
@@ -46,7 +47,7 @@ static void testVisitor()
 		EntryCont &cont;
 	} visitor(cont);
 
-	parser.parse({}, ss.view(), visitor);
+	parser.walkTree({}, visitor);
 
 	std::cout << "data:\n";
 	for (const auto &e : data)
@@ -64,22 +65,7 @@ static void testMakefile(const std::filesystem::path &makefile)
 {
 	std::cout << "Testing " << makefile.filename() << '\n';
 
-	MP::Parser parser;
-
-	class TestVisitor : public MP::EntryVisitor {
-	public:
-		TestVisitor() {}
-
-		virtual const std::any isInteresting(const std::string &) const {
-			return true;
-		}
-
-		virtual void entry(const std::any &, const std::string &,
-				   const enum MP::EntryType &, const std::string &) const {
-		}
-	} visitor;
-
-	assert(parser.parse({}, makefile, visitor) == 0);
+	assert(MP::Parser().parse(makefile) == 0);
 }
 
 static void testMakefiles(const std::filesystem::path &makefiles)

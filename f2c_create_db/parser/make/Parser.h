@@ -26,18 +26,14 @@ public:
 	Parser();
 	~Parser();
 
-	int parse(const std::vector<std::string> &archs, std::string_view str,
-		  const EntryVisitor &entryVisitor);
-	int parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
-		  const EntryVisitor &entryVisitor);
+	int parse(std::string_view str);
+	int parse(const std::filesystem::path &file);
 	void reset();
 
-	void walkTree(const EntryVisitor &entryVisitor);
+	void walkTree(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
 private:
-	int parse(const std::vector<std::string> &archs, const std::string &source,
-		  antlr4::ANTLRInputStream &is, const EntryVisitor &entryVisitor);
+	int parse(const std::string &source, antlr4::ANTLRInputStream &is);
 
-	std::vector<std::string> m_archs;
 	antlr4::ParserRuleContext *m_tree;
 	std::unique_ptr<antlr4::ANTLRInputStream> m_input;
 	std::unique_ptr<MakeLexer> m_lexer;

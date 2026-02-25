@@ -16,8 +16,7 @@ Parser::Parser() {}
 
 Parser::~Parser() {}
 
-int Parser::parse(const std::vector<std::string> &archs, const std::string &source,
-		  antlr4::ANTLRInputStream &is, const EntryVisitor &entryVisitor)
+int Parser::parse(const std::string &source, antlr4::ANTLRInputStream &is)
 {
 	m_lexer = std::make_unique<MakeLexer>(&is);
 	m_tokens = std::make_unique<antlr4::CommonTokenStream>(m_lexer.get());
@@ -51,27 +50,20 @@ int Parser::parse(const std::vector<std::string> &archs, const std::string &sour
 		}
 	}
 
-	MakeExprListener l{ archs, entryVisitor };
-	antlr4::tree::ParseTreeWalker walker;
-	walker.walk(&l, m_tree);
-
 	return 0;
 }
 
-int Parser::parse(const std::vector<std::string> &archs, std::string_view str,
-		  const EntryVisitor &entryVisitor)
+int Parser::parse(std::string_view str)
 {
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(str);
 
-	return parse(archs, "string", *m_input.get(), entryVisitor);
+	return parse("string", *m_input.get());
 }
 
-int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::path &file,
-		  const EntryVisitor &entryVisitor)
+int Parser::parse(const std::filesystem::path &file)
 {
 	std::ifstream ifs;
 
-	this->m_archs = archs;
 	ifs.open(file);
 	if (!ifs) {
 		std::cerr << "cannot read " << file.string() << ": " << strerror(errno) << "\n";
@@ -80,7 +72,7 @@ int Parser::parse(const std::vector<std::string> &archs, const std::filesystem::
 
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(ifs);
 
-	return parse(archs, file.string(), *m_input.get(), entryVisitor);
+	return parse(file.string(), *m_input.get());
 }
 
 void Parser::reset()
@@ -91,9 +83,9 @@ void Parser::reset()
 	m_parser.reset();
 }
 
-void Parser::walkTree(const EntryVisitor &entryVisitor)
+void Parser::walkTree(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor)
 {
 	antlr4::tree::ParseTreeWalker walker;
-	MakeExprListener l{ m_archs, entryVisitor };
+	MakeExprListener l{ archs, entryVisitor };
 	walker.walk(&l, m_tree);
 }

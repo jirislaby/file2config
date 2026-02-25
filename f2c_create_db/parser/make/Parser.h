@@ -2,43 +2,23 @@
 
 #pragma once
 
-#include <filesystem>
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "../Parser.h"
+
 class MakeLexer;
 class MakeParser;
-
-namespace antlr4 {
-class ANTLRInputStream;
-class CommonTokenStream;
-class ParserRuleContext;
-}
 
 namespace MP {
 
 class EntryVisitor;
 
-class Parser
-{
+class Parser : public Parsers::Parser<MakeLexer, MakeParser> {
 public:
-	Parser();
-	~Parser();
-
-	bool parse(std::string_view str);
-	bool parse(const std::filesystem::path &file);
-	void reset();
-
 	void walkTree(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
-private:
-	bool parse(const std::string &source, antlr4::ANTLRInputStream &is);
-
-	antlr4::ParserRuleContext *m_tree;
-	std::unique_ptr<antlr4::ANTLRInputStream> m_input;
-	std::unique_ptr<MakeLexer> m_lexer;
-	std::unique_ptr<antlr4::CommonTokenStream> m_tokens;
-	std::unique_ptr<MakeParser> m_parser;
+protected:
+	virtual antlr4::ParserRuleContext *getTree();
 };
 
 }

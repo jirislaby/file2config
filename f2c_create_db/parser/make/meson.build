@@ -19,7 +19,7 @@ gen_antlr = custom_target('gen_antlr',
   command : [ antlr4, '-Dlanguage=Cpp', '-message-format', 'gnu', '@INPUT@' ],
 )
 
-make_parser = static_library('make_parser', [
+make_parser_lib = static_library('make_parser', [
     'Parser.cpp',
     'Parser.h',
     'EntryVisitor.h',
@@ -30,4 +30,9 @@ make_parser = static_library('make_parser', [
   # antlr headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
   dependencies : antlr4_lib,
+)
+
+make_parser = declare_dependency(
+  link_with: make_parser_lib,
+  sources: [ gen_antlr[1], gen_antlr[3] ],
 )

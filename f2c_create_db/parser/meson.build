@@ -13,9 +13,10 @@ subdir('make')
 parsers = static_library('parsers', [
     'ErrorListener.cpp',
     'ErrorListener.h',
+    'Parser.cpp',
+    'Parser.h',
   ],
   # antlr headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
-  link_with: [ make_parser ],
-  dependencies: antlr4_lib,
+  dependencies: [ antlr4_lib, make_parser ],
 )

@@ -5,6 +5,7 @@
 		"drivers/net/ethernet/microchip/lan966x/*.h",
 		"fs/f2fs/*.h",
 		"fs/hfsplus/*.h",
+		"fs/nilfs2/*.h",
 		"fs/smb/server/mgmt/*.h",
 		"include/linux/f2fs_fs.h",
 		"include/linux/kasan.h"

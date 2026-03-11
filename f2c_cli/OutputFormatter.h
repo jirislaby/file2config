@@ -74,7 +74,7 @@ public:
 			       const std::filesystem::path &module) override {
 		m_configs << path.string() << ' ' << config;
 		if (m_modules)
-			  m_configs << module.string();
+			  m_configs << ' ' << module.string();
 		m_configs << '\n';
 	}
 

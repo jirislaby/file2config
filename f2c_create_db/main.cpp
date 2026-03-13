@@ -282,6 +282,15 @@ void expandBranch(const std::string &branchNote, const std::filesystem::path &sc
 				   " (" << P.exitStatus() << ')' << raise;
 }
 
+SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
+{
+	auto suppConf = commit.catFile("supported.conf");
+	if (!suppConf)
+		RunEx("Cannot obtain supported.conf: ") << commit.repo().lastError() << raise;
+
+	return SlKernCVS::SupportedConf { *suppConf };
+}
+
 std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &sql,
 						const SlKernCVS::SupportedConf &supp,
 						const std::string &branch,
@@ -293,13 +302,12 @@ std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &
 		return std::make_unique<TW::ConsoleMakeVisitor>();
 }
 
-SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
+void processF2C(std::optional<SQL::F2CSQLConn> &sql, const SlKernCVS::SupportedConf &supp,
+		const std::string &branch, const std::filesystem::path &root)
 {
-	auto suppConf = commit.catFile("supported.conf");
-	if (!suppConf)
-		RunEx("Cannot obtain supported.conf: ") << commit.repo().lastError() << raise;
-
-	return SlKernCVS::SupportedConf { *suppConf };
+	auto visitor = getMakeVisitor(sql, supp, branch, root);
+	TW::TreeWalker tw(root, *visitor);
+	tw.walk();
 }
 
 void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &branch,
@@ -422,9 +430,7 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 		auto supp = getSupported(commit);
 
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
-		auto visitor = getMakeVisitor(sql, supp, branch, root);
-		TW::TreeWalker tw(root, *visitor);
-		tw.walk();
+		processF2C(sql, supp, branch, root);
 
 		if (sql) {
 			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";

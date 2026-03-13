@@ -17,9 +17,14 @@ bool F2CSQLConn::createDB()
 			"sha TEXT NOT NULL",
 			"version INTEGER NOT NULL",
 		}},
+		{ "config_type", {
+			"id INTEGER PRIMARY KEY",
+			"type TEXT NOT NULL UNIQUE",
+		}},
 		{ "config", {
 			"id INTEGER PRIMARY KEY",
-			"config TEXT NOT NULL UNIQUE"
+			"config TEXT NOT NULL UNIQUE",
+			"type INTEGER NOT NULL REFERENCES config_type(id) ON DELETE CASCADE",
 		}},
 		{ "arch", {
 			"id INTEGER PRIMARY KEY",
@@ -117,6 +122,9 @@ bool F2CSQLConn::createDB()
 	};
 
 	static const Views create_views {
+		{ "config_view", "SELECT config.id, config.config, config_type.type "
+			"FROM config "
+			"LEFT JOIN config_type ON config.type = config_type.id;" },
 		{ "conf_branch_map_view",
 			"SELECT map.id, branch.branch, arch.arch, flavor.flavor, config.config, "
 				"value "
@@ -198,7 +206,8 @@ bool F2CSQLConn::prepDB()
 	const Statements stmts {
 		{ insBranch,	"INSERT INTO branch(branch, sha, version) VALUES "
 				"(:branch, :sha, :version);" },
-		{ insConfig,	"INSERT INTO config(config) VALUES (:config);" },
+		{ insConfigType,"INSERT INTO config_type(id, type) VALUES (:id, :type);" },
+		{ insConfig,	"INSERT INTO config(config, type) VALUES (:config, :type);" },
 		{ insArch,	"INSERT INTO arch(arch) VALUES (:arch);" },
 		{ insFlavor,	"INSERT INTO flavor(flavor) VALUES (:flavor);" },
 		{ insCBMap,	"INSERT INTO conf_branch_map(branch, config, arch, flavor, value) "
@@ -269,9 +278,20 @@ bool F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha,
 		      });
 }
 
-bool F2CSQLConn::insertConfig(const std::string &config)
+bool F2CSQLConn::insertConfigType(unsigned int id, const std::string &type)
 {
-	return insert(insConfig, { { ":config", config } });
+	return insert(insConfigType, {
+			      { ":id", id },
+			      { ":type", type },
+		      });
+}
+
+bool F2CSQLConn::insertConfig(const std::string &config, unsigned type)
+{
+	return insert(insConfig, {
+			      { ":config", config },
+			      { ":type", type },
+		      });
 }
 
 bool F2CSQLConn::insertArch(const std::string &arch)

@@ -21,7 +21,8 @@ public:
 	virtual bool prepDB() override;
 
 	bool insertBranch(const std::string &branch, const std::string &sha, unsigned version);
-	bool insertConfig(const std::string &config);
+	bool insertConfigType(unsigned id, const std::string &type);
+	bool insertConfig(const std::string &config, unsigned type);
 	bool insertArch(const std::string &arch);
 	bool insertFlavor(const std::string &flavor);
 	bool insertCBMap(const std::string &branch, const std::string &arch,
@@ -50,6 +51,7 @@ public:
 	bool hasBranch(const std::string &branch);
 private:
 	SlSqlite::SQLStmtHolder insBranch;
+	SlSqlite::SQLStmtHolder insConfigType;
 	SlSqlite::SQLStmtHolder insConfig;
 	SlSqlite::SQLStmtHolder insArch;
 	SlSqlite::SQLStmtHolder insFlavor;

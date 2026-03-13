@@ -20,6 +20,7 @@
 #include <sl/helpers/PushD.h>
 #include <sl/helpers/String.h>
 
+#include "parser/kconfig/Parser.h"
 #include "sql/F2CSQLConn.h"
 #include "treewalker/ConsoleMakeVisitor.h"
 #include "treewalker/SQLiteMakeVisitor.h"
@@ -305,9 +306,60 @@ std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &
 		return std::make_unique<TW::ConsoleMakeVisitor>();
 }
 
+void insertConfigSQL(const Kconfig::Parser &p, SQL::F2CSQLConn &sql)
+{
+	p.walkConfigs([&sql](auto conf, auto type) {
+		if (!sql.insertConfig("CONFIG_" + conf, static_cast<unsigned>(type)))
+			RunEx("Cannot insert config '") << conf << "': " << sql.lastError() <<
+							   raise;
+	});
+}
+
+void insertConfigConsole(const Kconfig::Parser &p)
+{
+	p.walkConfigs([](auto conf, auto type) {
+		Clr() << "CONF " << conf << ' ' << static_cast<unsigned>(type);
+	});
+}
+
 void processF2C(std::optional<SQL::F2CSQLConn> &sql, const SlKernCVS::SupportedConf &supp,
 		const std::string &branch, const std::filesystem::path &root)
 {
+	Kconfig::Parser p;
+	const auto excludeDir = root / "scripts" / "kconfig" / "tests";
+	const auto excludePath = root / "scripts" / "Kconfig.include";
+
+	if (sql)
+		for (const auto &e: Kconfig::ConfTypeMeta::all)
+			if (!sql->insertConfigType(static_cast<unsigned>(e.first),
+						   std::string(e.second)))
+				RunEx("Cannot insert config type '") << e.second << "': " <<
+								       sql->lastError() << raise;
+
+	for (auto it = std::filesystem::recursive_directory_iterator(root);
+	     it != std::filesystem::end(it); ++it) {
+		const auto &path = it->path();
+		if (it->is_directory()) {
+			if (path == excludeDir)
+				it.disable_recursion_pending();
+			continue;
+		}
+		if (!it->is_regular_file())
+			continue;
+		if (path.stem() != "Kconfig" && path.stem() != "Kconfig-nommu")
+			continue;
+		if (path == excludePath)
+			continue;
+
+		if (!p.parse(path, false))
+			RunEx("Cannot parse: ") << path << raise;
+
+		if (sql)
+			insertConfigSQL(p, *sql);
+		else
+			insertConfigConsole(p);
+	}
+
 	auto visitor = getMakeVisitor(sql, supp, branch, root);
 	TW::TreeWalker tw(root, *visitor);
 	tw.walk();
@@ -345,9 +397,8 @@ void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit
 		}, [&sql, &branch, &error](const std::string &arch, const std::string &flavor,
 					   const std::string &config,
 					   const SlKernCVS::CollectConfigs::ConfigValue &value) {
-			auto ret = sql.insertConfig(config) &&
-					sql.insertCBMap(branch, arch, flavor, config,
-							std::string(1, value));
+			auto ret = sql.insertCBMap(branch, arch, flavor, config,
+						   std::string(1, value));
 			if (!ret)
 				error = sql.lastError();
 			return ret;

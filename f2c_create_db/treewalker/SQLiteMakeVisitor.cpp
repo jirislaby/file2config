@@ -61,16 +61,14 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
 
 	auto dirFile = sql.insertPath(relPath);
-	if (!dirFile || !sql.insertConfig(cond) ||
-			!sql.insertCFMap(branch, cond, std::move(dirFile->first),
+	if (!dirFile || !sql.insertCFMap(branch, cond, std::move(dirFile->first),
 					 std::move(dirFile->second)))
 		RunEx("cannot insert CFMap: ") << sql.lastError() << raise;
 }
 
 void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &child) const
 {
-	if (!sql.insertConfig(parent) || !sql.insertConfig(child) ||
-			!sql.insertConfDep(branch, parent, child))
+	if (!sql.insertConfDep(branch, parent, child))
 		RunEx("cannot insert ConfDep: ") << sql.lastError() << raise;
 }
 

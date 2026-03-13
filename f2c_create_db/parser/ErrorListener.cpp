@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
+#include <ranges>
+
+#include <sl/helpers/Color.h>
+#include <sl/helpers/String.h>
 
 #include "ErrorListener.h"
 
 using namespace Parsers;
+using Clr = SlHelpers::Color;
 
 void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *offendingSymbol,
 				size_t line, size_t column, const std::string &msg,
@@ -12,28 +17,24 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
 {
 	auto parser = dynamic_cast<antlr4::Parser *>(recognizer);
 	auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(recognizer->getInputStream());
-	std::cerr << "error: " << file << ":" << line << ":" << column << " "
-		  << msg << '\n';
+	Clr(std::cerr, Clr::RED) << "error: " << file << ":" << line << ":" << column << " " << msg;
+
 	auto input = tokens->getTokenSource()->getInputStream()->toString();
-	std::istringstream ISS(input);
-	std::string errorLine;
+	SlHelpers::GetLine gl(input);
+	decltype(gl.get()) errorLine;
 	size_t l = 0;
-	while (std::getline(ISS, errorLine, '\n')) {
-		l++;
-		if (l == line)
+	while ((errorLine = gl.get()))
+		if (++l == line) {
+			Clr(std::cerr) << *errorLine;
 			break;
-	}
-	std::cerr << errorLine << '\n';
-	for (unsigned i = 0; i < column; ++i)
-		std::cerr << ' ';
+		}
+
 	auto start = offendingSymbol->getStartIndex();
 	auto stop = offendingSymbol->getStopIndex();
-	for (unsigned i = 0; i < stop - start + 1; ++i)
-		std::cerr << '^';
-	std::cerr << '\n';
+	Clr(std::cerr) << std::string(column, ' ') << std::string(stop - start + 1, '^');
+
 	auto stack = parser->getRuleInvocationStack();
-	std::cerr << "rule stack: ";
-	for (auto I = stack.rbegin(); I != stack.rend(); ++I)
-		std::cerr << *I << ',';
-	std::cerr << '\n';
+	std::cerr << "rule stack: [";
+	SlHelpers::String::join(std::cerr, stack | std::views::reverse);
+	std::cerr << "]\n";
 }

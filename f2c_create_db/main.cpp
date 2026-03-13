@@ -302,17 +302,17 @@ SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
 	return SlKernCVS::SupportedConf { *suppConf };
 }
 
-void processAuthors(const Opts &opts, std::optional<SQL::F2CSQLConn> &sql,
-		    const std::string &branch, const SlGit::Repo &repo, const SlGit::Commit &commit)
+void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &branch,
+		    const SlGit::Repo &repo, const SlGit::Commit &commit)
 {
 	SlKernCVS::PatchesAuthors PA{repo, opts.authorsDumpRefs, opts.authorsReportUnhandled};
 
 	auto ret = PA.processAuthors(commit, [&sql](const std::string &email) -> bool {
-		return sql->insertUser(email);
+		return sql.insertUser(email);
 	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
 			unsigned count, unsigned realCount) -> bool {
-		auto fileDir = sql->insertPath(path);
-		return fileDir && sql->insertUFMap(branch, email, std::move(fileDir->first),
+		auto fileDir = sql.insertPath(path);
+		return fileDir && sql.insertUFMap(branch, email, std::move(fileDir->first),
 						   std::move(fileDir->second),
 						   count, realCount);
 	});
@@ -320,16 +320,16 @@ void processAuthors(const Opts &opts, std::optional<SQL::F2CSQLConn> &sql,
 		RunEx("Cannot process authors").raise();
 }
 
-void processConfigs(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
-		    const SlGit::Repo &repo, const SlGit::Commit &commit)
+void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit::Repo &repo,
+		    const SlGit::Commit &commit)
 {
 	SlKernCVS::CollectConfigs CC{repo,
 		[&sql](const std::string &arch, const std::string &flavor) -> int {
-			return sql->insertArch(arch) && sql->insertFlavor(flavor);
+			return sql.insertArch(arch) && sql.insertFlavor(flavor);
 		}, [&sql, &branch](const std::string &arch, const std::string &flavor,
 		      const std::string &config,
 		      const SlKernCVS::CollectConfigs::ConfigValue &value) -> int {
-			return sql->insertConfig(config) && sql->insertCBMap(branch, arch, flavor,
+			return sql.insertConfig(config) && sql.insertCBMap(branch, arch, flavor,
 									     config,
 									     std::string(1, value));
 	}};
@@ -338,7 +338,7 @@ void processConfigs(std::optional<SQL::F2CSQLConn> &sql, const std::string &bran
 		RunEx("Cannot collect configs").raise();
 }
 
-void processIgnore(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
+void processIgnore(SQL::F2CSQLConn &sql, const std::string &branch,
 		   const std::vector<Json> &patterns, const std::filesystem::path &relPath)
 {
 	for (const auto &pattern: patterns)
@@ -347,14 +347,14 @@ void processIgnore(std::optional<SQL::F2CSQLConn> &sql, const std::string &branc
 			const auto dir = relPath.parent_path();
 			const auto file = relPath.filename();
 
-			if (!sql->insertDir(dir) || !sql->insertFile(dir, file) ||
-					!sql->insertIFBMap(branch, dir, file))
-				RunEx("Cannot insert ignore: ") << sql->lastError() << raise;
+			if (!sql.insertDir(dir) || !sql.insertFile(dir, file) ||
+					!sql.insertIFBMap(branch, dir, file))
+				RunEx("Cannot insert ignore: ") << sql.lastError() << raise;
 		}
 }
 
-void processIgnores(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch,
-		    const Json &json, const std::filesystem::path &root)
+void processIgnores(SQL::F2CSQLConn &sql, const std::string &branch, const Json &json,
+		    const std::filesystem::path &root)
 {
 	const auto allIt = json.find("all");
 	const auto all = (allIt != json.end()) ? &allIt->get_ref<const Json::array_t &>() : nullptr;
@@ -428,16 +428,16 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 
 		if (sql) {
 			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
-			processConfigs(sql, branch, repo, commit);
+			processConfigs(*sql, branch, repo, commit);
 
 			Clr(Clr::GREEN) << "== " << branchNote <<
 					       " -- Detecting authors of patches ==";
-			processAuthors(opts, sql, branch, repo, commit);
+			processAuthors(opts, *sql, branch, repo, commit);
 
 			if (ignoredFiles) {
 				Clr(Clr::GREEN) << "== " << branchNote <<
 						       " -- Collecting ignored files ==";
-				processIgnores(sql, branch, *ignoredFiles, root);
+				processIgnores(*sql, branch, *ignoredFiles, root);
 			}
 		}
 	}

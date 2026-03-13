@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include <sl/helpers/Color.h>
+#include <sl/helpers/Exception.h>
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "../Verbose.h"
@@ -14,6 +15,8 @@
 using namespace TW;
 
 using Clr = SlHelpers::Color;
+using RunEx = SlHelpers::RuntimeException;
+using SlHelpers::raise;
 
 SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 				     const std::string &branch, const std::filesystem::path &base) :
@@ -61,14 +64,14 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 	if (!dirFile || !sql.insertConfig(cond) ||
 			!sql.insertCFMap(branch, cond, std::move(dirFile->first),
 					 std::move(dirFile->second)))
-		Clr(std::cerr, Clr::RED) << "cannot insert CFMap: " << sql.lastError();
+		RunEx("cannot insert CFMap: ") << sql.lastError() << raise;
 }
 
 void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &child) const
 {
 	if (!sql.insertConfig(parent) || !sql.insertConfig(child) ||
 			!sql.insertConfDep(branch, parent, child))
-		Clr(std::cerr, Clr::RED) << "cannot insert ConfDep: " << sql.lastError();
+		RunEx("cannot insert ConfDep: ") << sql.lastError() << raise;
 }
 
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
@@ -92,5 +95,5 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||
 			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
 					 std::move(dirFile->second)))
-		Clr(std::cerr, Clr::RED) << "cannot insert module maps: " << sql.lastError();
+		RunEx("cannot insert module maps: ") << sql.lastError() << raise;
 }

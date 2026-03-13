@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include <sl/helpers/Exception.h>
 #include <sl/helpers/Views.h>
 
 #include "../parser/make/EntryVisitor.h"
@@ -10,6 +11,8 @@
 #include "../Verbose.h"
 
 using namespace TW;
+using RunEx = SlHelpers::RuntimeException;
+using SlHelpers::raise;
 
 void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 			    const std::function<void(const std::filesystem::path &entry)> &CB)
@@ -248,7 +251,8 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << kbPath << "\n";
 
-	parser.parse(kbPath);
+	if (!parser.parse(kbPath))
+		RunEx("cannot parse ") << kbPath << raise;
 
 	class RegularVisitor : public MP::EntryVisitor {
 	public:

@@ -26,7 +26,7 @@ static void testVisitor()
 		ss << "obj-" << e.first << " := " << e.second.second << "\n";
 	}
 
-	parser.parse(ss.view());
+	assert(parser.parse(ss.view()));
 
 	EntryCont cont;
 
@@ -65,7 +65,7 @@ static void testMakefile(const std::filesystem::path &makefile)
 {
 	std::cout << "Testing " << makefile.filename() << '\n';
 
-	assert(MP::Parser().parse(makefile) == 0);
+	assert(MP::Parser().parse(makefile));
 }
 
 static void testMakefiles(const std::filesystem::path &makefiles)

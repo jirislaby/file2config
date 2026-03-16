@@ -26,13 +26,13 @@ public:
 	Parser();
 	~Parser();
 
-	int parse(std::string_view str);
-	int parse(const std::filesystem::path &file);
+	bool parse(std::string_view str);
+	bool parse(const std::filesystem::path &file);
 	void reset();
 
 	void walkTree(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
 private:
-	int parse(const std::string &source, antlr4::ANTLRInputStream &is);
+	bool parse(const std::string &source, antlr4::ANTLRInputStream &is);
 
 	antlr4::ParserRuleContext *m_tree;
 	std::unique_ptr<antlr4::ANTLRInputStream> m_input;

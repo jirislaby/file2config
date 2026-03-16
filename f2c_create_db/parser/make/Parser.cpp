@@ -16,7 +16,7 @@ Parser::Parser() {}
 
 Parser::~Parser() {}
 
-int Parser::parse(const std::string &source, antlr4::ANTLRInputStream &is)
+bool Parser::parse(const std::string &source, antlr4::ANTLRInputStream &is)
 {
 	m_lexer = std::make_unique<MakeLexer>(&is);
 	m_tokens = std::make_unique<antlr4::CommonTokenStream>(m_lexer.get());
@@ -46,28 +46,28 @@ int Parser::parse(const std::string &source, antlr4::ANTLRInputStream &is)
 		m_tree = m_parser->makefile();
 		if (auto errs = m_parser->getNumberOfSyntaxErrors()) {
 			std::cerr << source << ": LL failed to parse too: " << errs << " errors\n";
-			return -1;
+			return false;
 		}
 	}
 
-	return 0;
+	return true;
 }
 
-int Parser::parse(std::string_view str)
+bool Parser::parse(std::string_view str)
 {
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(str);
 
 	return parse("string", *m_input.get());
 }
 
-int Parser::parse(const std::filesystem::path &file)
+bool Parser::parse(const std::filesystem::path &file)
 {
 	std::ifstream ifs;
 
 	ifs.open(file);
 	if (!ifs) {
 		std::cerr << "cannot read " << file.string() << ": " << strerror(errno) << "\n";
-		return -1;
+		return false;
 	}
 
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(ifs);

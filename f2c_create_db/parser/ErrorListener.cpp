@@ -18,6 +18,7 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
 	auto parser = dynamic_cast<antlr4::Parser *>(recognizer);
 	auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(recognizer->getInputStream());
 	Clr(std::cerr, Clr::RED) << "error: " << file << ":" << line << ":" << column << " " << msg;
+	Clr(std::cerr) << "token: " << offendingSymbol->toString();
 
 	auto input = tokens->getTokenSource()->getInputStream()->toString();
 	SlHelpers::GetLine gl(input);
@@ -44,5 +45,29 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
 	auto stack = parser->getRuleInvocationStack();
 	std::cerr << "rule stack: [";
 	SlHelpers::String::join(std::cerr, stack | std::views::reverse);
+	std::cerr << "]\n";
+
+	static auto constexpr const surround = 5U;
+	std::cerr << "surrounding (at most) " << surround << " tokens: [";
+	auto tokStart = offendingSymbol->getTokenIndex() > surround ?
+				offendingSymbol->getTokenIndex() - surround : 0U;
+	auto tokEnd = std::min(tokStart + surround * 2, tokens->size() - 1);
+	SlHelpers::String::join(std::cerr, tokens->get(tokStart, tokEnd),
+				[](auto &out, const auto &tok) {
+		out << '[' << tok->getType() << ",'";
+		for (char c: tok->getText())
+			switch (c) {
+			case '\t':
+				out << "\\t";
+				break;
+			case '\n':
+				out << "\\n";
+				break;
+			default:
+				out << c;
+				break;
+			}
+		out << "']";
+	});
 	std::cerr << "]\n";
 }

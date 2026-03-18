@@ -4,7 +4,7 @@ parser grammar KconfigParser;
 
 options { tokenVocab=KconfigLexer; }
 
-kbuild : cmdNL* EOF ;
+kbuild : cmdNL* cmd? EOF ;
 
 cmdNL : cmd? NL ;
 
@@ -39,7 +39,12 @@ ec_content :
 
 comp : GT | GEQ | LT | LEQ | EQ | NE ;
 
-source : Source STRING ;
+str_or_src :
+	  STRING
+	| SOURCE // old kernels allowed unquoted: source a/b/c.d
+;
+
+source : Source str_or_src ;
 
 cond_cmd :
 	cond NL
@@ -49,19 +54,29 @@ cond_cmd :
 
 cond : If expr ;
 
-config : (Menuconfig | Config) ID
+config_id :
+	  ID
+	| integer
+;
+
+config : (Menuconfig | Config) config_id
 	(NL config_line?)*
 ;
 
+config_type :
+	  Bool | Tristate | Int | Hex | String
+	| Def_bool | Def_tristate
+;
+
 config_line:
-	  type=(Bool | Tristate | Int | Hex | String) STRING? cond?
+	  type=config_type expr? cond?
 	| prompt
 	| Transitional
 	| default
-	| type=(Def_bool | Def_tristate) expr cond?
-	| ( Select | Imply ) ID cond?
+	| ( Select | Imply ) config_id cond?
 	| Range expr expr cond?
 	| Modules
+	| Option (Modules | ID) (EQ expr)?
 	| depends_on
 	| help
 ;
@@ -71,7 +86,8 @@ prompt :
 ;
 
 default :
-	Default expr cond?
+	// old kernels: SOURCE
+	Default (expr | SOURCE) cond?
 ;
 
 depends_on :
@@ -92,16 +108,18 @@ comment :
 ;
 
 choice :
-	Choice
+	Choice ID? // old kernels: ID
 	(choice_line? NL)*
 	cmdNL*
 	Endchoice
 ;
 
 choice_line:
-	  prompt
+	  config_type STRING // old kernels
+	| prompt
 	| default
 	| depends_on
+	| Optional
 	| help
 ;
 

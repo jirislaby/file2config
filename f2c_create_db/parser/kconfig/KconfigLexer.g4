@@ -63,7 +63,8 @@ void deb(unsigned level, Args&&... args) {
 
 }
 
-COMMENT : '#' ~'\n'* -> skip ;
+// \# for old kernels
+COMMENT : '\\'* '#' ~'\n'* -> skip ;
 
 CONT_LINE : '\\' ' '* NL -> skip ;
 
@@ -87,10 +88,16 @@ Endif	: 'endif' ;
 Menuconfig : 'menuconfig' ;
 Config : 'config' ;
 
-Bool : 'bool' ;
+// old kernels support:
+// * boolean and def_boolean
+// * option
+// * optional
+Bool : 'bool' | 'boolean' ;
 Tristate : 'tristate' ;
-Def_bool : 'def_bool' ;
+Def_bool : 'def_bool' | 'def_boolean' ;
 Def_tristate : 'def_tristate' ;
+Option : 'option' ;
+Optional : 'optional' ;
 Modules : 'modules' ;
 Transitional : 'transitional' ;
 Visible : 'visible' ;
@@ -123,7 +130,9 @@ STRING :
 ;
 
 Help :
-	[\t ]* 'help' NL { m_hlpIndentFirst = m_hlpIndentLast = 0; }
+	// old kernels support "--- help ---"
+	[\t ]* ('help' | '---' [\t ]* 'help' [\t ]* '---') [\t ]* NL
+		{ m_hlpIndentFirst = m_hlpIndentLast = 0; }
 		-> mode(HELP_MODE)
 ;
 
@@ -135,7 +144,10 @@ fragment OneINT : [0-9] ;
 
 Triple : [ymn] ;
 
-ID : ([A-Za-z_] | OneINT)+ ;
+fragment OneID : [A-Za-z_] | OneINT ;
+ID : OneID+ ;
+// old kernels support bare sources
+SOURCE : (OneID | [./-])+ ;
 
 NL : '\r'? '\n' ;
 

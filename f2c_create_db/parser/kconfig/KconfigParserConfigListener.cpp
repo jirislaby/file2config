@@ -26,9 +26,9 @@ void KconfigParserConfigListener::exitConfig(KconfigParser::ConfigContext *ctx)
 	 * Like ARCH_MMAP_RND_BITS_MIN.
 	 */
 	for (const auto &l: ctx->config_line())
-		if (l->type)
+		if (l->config_type())
 			for (const auto &c: conv)
-				if (l->type->getType() == c.ptype) {
+				if (l->config_type()->getStart()->getType() == c.ptype) {
 					m_configCB(ctx->config_id()->getText(), c.ctype);
 					return;
 				}

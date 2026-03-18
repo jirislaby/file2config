@@ -332,11 +332,11 @@ void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit
 		    const SlGit::Commit &commit)
 {
 	SlKernCVS::CollectConfigs CC{repo,
-		[&sql](const std::string &arch, const std::string &flavor) -> int {
+		[&sql](const std::string &arch, const std::string &flavor) {
 			return sql.insertArch(arch) && sql.insertFlavor(flavor);
 		}, [&sql, &branch](const std::string &arch, const std::string &flavor,
 		      const std::string &config,
-		      const SlKernCVS::CollectConfigs::ConfigValue &value) -> int {
+		      const SlKernCVS::CollectConfigs::ConfigValue &value) {
 			return sql.insertConfig(config) && sql.insertCBMap(branch, arch, flavor,
 									     config,
 									     std::string(1, value));

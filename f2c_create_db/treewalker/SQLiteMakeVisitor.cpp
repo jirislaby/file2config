@@ -19,8 +19,9 @@ using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
 SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-				     const std::string &branch, const std::filesystem::path &base) :
-	sql(sql), supp(supp), branch(branch), base(base)
+				     const std::string &branch, const std::filesystem::path &base,
+				     const Kconfig::Config::Configs &configs) :
+	sql(sql), supp(supp), branch(branch), base(base), m_configs(configs)
 {
 }
 
@@ -60,6 +61,13 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 	if (F2C::verbose > 1)
 		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
 
+	if (!m_configs.contains(cond)) {
+		if (F2C::verbose > 0)
+			Clr(std::cerr, Clr::YELLOW) << relPath << " depends on \"" << cond <<
+						       "\", but that is not defined!";
+		return;
+	}
+
 	auto dirFile = sql.insertPath(relPath);
 	if (!dirFile || !sql.insertCFMap(branch, cond, std::move(dirFile->first),
 					 std::move(dirFile->second)))
@@ -68,6 +76,13 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 
 void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &child) const
 {
+	if (!m_configs.contains(parent) || !m_configs.contains(child)) {
+		if (F2C::verbose > 1)
+			Clr(std::cerr, Clr::YELLOW) << "Configs \"" << parent << "\" and \"" <<
+						       child << "\" referenced, but not defined!";
+		return;
+	}
+
 	if (!sql.insertConfDep(branch, parent, child))
 		RunEx("cannot insert ConfDep: ") << sql.lastError() << raise;
 }

@@ -298,20 +298,23 @@ SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
 std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &sql,
 						const SlKernCVS::SupportedConf &supp,
 						const std::string &branch,
-						const std::filesystem::path &root)
+						const std::filesystem::path &root,
+						const Kconfig::Config::Configs &configs)
 {
 	if (sql)
-		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, supp, branch, root);
+		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, supp, branch, root, configs);
 	else
 		return std::make_unique<TW::ConsoleMakeVisitor>();
 }
 
-void insertConfigSQL(const Kconfig::Parser &p, SQL::F2CSQLConn &sql)
+void insertConfigSQL(Kconfig::Config::Configs &configs, const Kconfig::Parser &p, SQL::F2CSQLConn &sql)
 {
-	p.walkConfigs([&sql](auto conf, auto type) {
-		if (!sql.insertConfig("CONFIG_" + conf, static_cast<unsigned>(type)))
+	p.walkConfigs([&configs, &sql](auto conf, auto type) {
+		auto realConf = "CONFIG_" + conf;
+		if (!sql.insertConfig(realConf, static_cast<unsigned>(type)))
 			RunEx("Cannot insert config '") << conf << "': " << sql.lastError() <<
 							   raise;
+		configs.emplace(std::move(realConf), type);
 	});
 }
 
@@ -322,19 +325,21 @@ void insertConfigConsole(const Kconfig::Parser &p)
 	});
 }
 
-void processF2C(std::optional<SQL::F2CSQLConn> &sql, const SlKernCVS::SupportedConf &supp,
-		const std::string &branch, const std::filesystem::path &root)
+void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+		const SlKernCVS::SupportedConf &supp, const std::string &branch,
+		const std::filesystem::path &root)
 {
 	Kconfig::Parser p;
 	const auto excludeDir = root / "scripts" / "kconfig" / "tests";
 	const auto excludePath = root / "scripts" / "Kconfig.include";
 
 	if (sql)
-		for (const auto &e: Kconfig::ConfTypeMeta::all)
-			if (!sql->insertConfigType(static_cast<unsigned>(e.first),
-						   std::string(e.second)))
-				RunEx("Cannot insert config type '") << e.second << "': " <<
+		for (const auto &e: Kconfig::ConfigRange{}) {
+			std::string name(Kconfig::Config::getName(e));
+			if (!sql->insertConfigType(static_cast<unsigned>(e), name))
+				RunEx("Cannot insert config type '") << name << "': " <<
 								       sql->lastError() << raise;
+		}
 
 	for (auto it = std::filesystem::recursive_directory_iterator(root);
 	     it != std::filesystem::end(it); ++it) {
@@ -355,12 +360,12 @@ void processF2C(std::optional<SQL::F2CSQLConn> &sql, const SlKernCVS::SupportedC
 			RunEx("Cannot parse: ") << path << raise;
 
 		if (sql)
-			insertConfigSQL(p, *sql);
+			insertConfigSQL(configs, p, *sql);
 		else
 			insertConfigConsole(p);
 	}
 
-	auto visitor = getMakeVisitor(sql, supp, branch, root);
+	auto visitor = getMakeVisitor(sql, supp, branch, root, configs);
 	TW::TreeWalker tw(root, *visitor);
 	tw.walk();
 }
@@ -384,7 +389,7 @@ void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &b
 }
 
 void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit::Repo &repo,
-		    const SlGit::Commit &commit)
+		    const SlGit::Commit &commit, const Kconfig::Config::Configs &configs)
 {
 	std::string error;
 
@@ -394,9 +399,16 @@ void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit
 			if (!ret)
 				error = sql.lastError();
 			return ret;
-		}, [&sql, &branch, &error](const std::string &arch, const std::string &flavor,
-					   const std::string &config,
-					   const SlKernCVS::CollectConfigs::ConfigValue &value) {
+		}, [&sql, &branch, &error, &configs](const std::string &arch,
+						     const std::string &flavor,
+						     const std::string &config,
+						     const SlKernCVS::CollectConfigs::ConfigValue &value) {
+			if (!configs.contains(config)) {
+				Clr(std::cerr, Clr::YELLOW) << "config \"" << config <<
+							       "\" is not defined (" << arch <<
+							       '/' << flavor << ')';
+				return true;
+			}
 			auto ret = sql.insertCBMap(branch, arch, flavor, config,
 						   std::string(1, value));
 			if (!ret)
@@ -492,11 +504,12 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 		auto supp = getSupported(commit);
 
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
-		processF2C(sql, supp, branch, root);
+		Kconfig::Config::Configs configs;
+		processF2C(configs, sql, supp, branch, root);
 
 		if (sql) {
 			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
-			processConfigs(*sql, branch, repo, commit);
+			processConfigs(*sql, branch, repo, commit, configs);
 
 			Clr(Clr::GREEN) << "== " << branchNote <<
 					       " -- Detecting authors of patches ==";

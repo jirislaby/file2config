@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SQLITEMAKEVISITOR_H
-#define SQLITEMAKEVISITOR_H
+#pragma once
 
 #include "MakeVisitor.h"
+#include "../parser/kconfig/Config.h"
 
 namespace SlKernCVS {
 class SupportedConf;
@@ -20,7 +20,8 @@ class SQLiteMakeVisitor : public MakeVisitor
 public:
 	SQLiteMakeVisitor() = delete;
 	SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-			  const std::string &branch, const std::filesystem::path &base);
+			  const std::string &branch, const std::filesystem::path &base,
+			  const Kconfig::Config::Configs &configs);
 
 	virtual ~SQLiteMakeVisitor() override;
 	virtual void ignored(const std::filesystem::path &objPath,
@@ -40,8 +41,7 @@ private:
 	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
 	const std::filesystem::path base;
+	const Kconfig::Config::Configs &m_configs;
 };
 
 }
-
-#endif // SQLITEMAKEVISITOR_H

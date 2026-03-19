@@ -52,8 +52,10 @@ bool Parser<ALexer, AParser>::parseSLL(const std::string &source)
 template<class ALexer, class AParser>
 bool Parser<ALexer, AParser>::parseLL(const std::string &source)
 {
+	m_lexer->removeErrorListeners();
 	m_parser->removeErrorListeners();
 	Parsers::ErrorListener EL(source);
+	m_lexer->addErrorListener(&EL);
 	m_parser->addErrorListener(&EL);
 
 	try {

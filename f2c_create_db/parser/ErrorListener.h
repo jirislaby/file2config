@@ -17,6 +17,14 @@ public:
 				 std::exception_ptr e) override;
 
 private:
+	void dumpHeader(std::string_view type, size_t line, size_t column,
+			std::string_view msg) const;
+	size_t dumpLine(antlr4::TokenSource &tokSrc, size_t line, size_t column) const;
+	void lexerError(antlr4::Lexer &lexer, size_t line, size_t column,
+			std::string_view msg) const;
+	void parserError(antlr4::Parser &parser, antlr4::Token &offendingSymbol,
+			 size_t line, size_t column, std::string_view msg) const;
+
 	const std::string &file;
 };
 

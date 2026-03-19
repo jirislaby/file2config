@@ -334,19 +334,27 @@ void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &b
 void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit::Repo &repo,
 		    const SlGit::Commit &commit)
 {
+	std::string error;
+
 	SlKernCVS::CollectConfigs CC{repo,
-		[&sql](const std::string &arch, const std::string &flavor) {
-			return sql.insertArch(arch) && sql.insertFlavor(flavor);
-		}, [&sql, &branch](const std::string &arch, const std::string &flavor,
-		      const std::string &config,
-		      const SlKernCVS::CollectConfigs::ConfigValue &value) {
-			return sql.insertConfig(config) && sql.insertCBMap(branch, arch, flavor,
-									     config,
-									     std::string(1, value));
+		[&sql, &error](const std::string &arch, const std::string &flavor) {
+			auto ret = sql.insertArch(arch) && sql.insertFlavor(flavor);
+			if (!ret)
+				error = sql.lastError();
+			return ret;
+		}, [&sql, &branch, &error](const std::string &arch, const std::string &flavor,
+					   const std::string &config,
+					   const SlKernCVS::CollectConfigs::ConfigValue &value) {
+			auto ret = sql.insertConfig(config) &&
+					sql.insertCBMap(branch, arch, flavor, config,
+							std::string(1, value));
+			if (!ret)
+				error = sql.lastError();
+			return ret;
 	}};
 
 	if (!CC.collectConfigs(commit))
-		RunEx("Cannot collect configs").raise();
+		RunEx("Cannot collect configs: ") << error << raise;
 }
 
 void processIgnore(SQL::F2CSQLConn &sql, const std::string &branch,

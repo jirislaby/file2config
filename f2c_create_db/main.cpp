@@ -39,6 +39,7 @@ struct Opts {
 	std::filesystem::path dest;
 	bool hasDest;
 	bool force;
+	bool nofetch;
 	bool quiet;
 	unsigned verbose;
 
@@ -66,6 +67,8 @@ Opts getOpts(int argc, char **argv)
 			cxxopts::value(opts.dest)->default_value("$SCRATCH_AREA/fill-db"))
 		("f,force", "force branch creation (delete old data)",
 			cxxopts::value(opts.force)->default_value("false"))
+		("no-fetch", "work offline, no updates of repos",
+			cxxopts::value(opts.nofetch)->default_value("false"))
 		("q,quiet", "quiet mode", cxxopts::value(F2C::quiet)->default_value("false"))
 		("v,verbose", "verbose mode")
 	;
@@ -604,14 +607,16 @@ void handleEx(int argc, char **argv)
 
 	branches.insert(branches.end(), opts.appendBranches.begin(), opts.appendBranches.end());
 
-	Clr(Clr::GREEN) << "== Fetching branches ==";
+	if (!opts.nofetch) {
+		Clr(Clr::GREEN) << "== Fetching branches ==";
 
-	auto remote = repo.remoteLookup("origin");
-	if (!remote)
-		RunEx("No origin").raise();
-	if (!remote->fetchBranches(branches, 1, false))
-		RunEx("Fetch failed: ") << repo.lastError() << " (" << repo.lastClass() << ')' <<
-					   raise;
+		auto remote = repo.remoteLookup("origin");
+		if (!remote)
+			RunEx("No origin").raise();
+		if (!remote->fetchBranches(branches, 1, false))
+			RunEx("Fetch failed: ") << repo.lastError() <<
+						   " (" << repo.lastClass() << ')' << raise;
+	}
 
 	auto sql = getSQL(opts);
 

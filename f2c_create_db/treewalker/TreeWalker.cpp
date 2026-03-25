@@ -174,13 +174,13 @@ bool TreeWalker::isBuiltIn(const std::string &cond)
 	return cond.empty() || cond == "y" || cond == "m" || cond == "objs";
 }
 
-std::string TreeWalker::getCond(const CondStack &s)
+std::optional<std::string> TreeWalker::getCond(const CondStack &s)
 {
-	for (auto I = s.rbegin(); I != s.rend(); ++I)
-		if (!isBuiltIn(*I))
-			return *I;
+	for (const auto &e: s | std::views::reverse)
+		if (!isBuiltIn(e))
+			return e;
 
-	return "y";
+	return std::nullopt;
 }
 
 std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
@@ -203,9 +203,10 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";
 
-	auto cond = getCond(s);
-	if (isBuiltIn(cond))
+	auto condOpt = getCond(s);
+	if (!condOpt)
 		return;
+	auto cond = std::move(*condOpt);
 
 	if (!visitedPaths.insert(objPath).second) {
 		makeVisitor.ignored(objPath, cond);

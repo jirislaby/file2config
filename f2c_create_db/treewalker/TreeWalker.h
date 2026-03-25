@@ -54,7 +54,7 @@ private:
 			  const std::filesystem::path &module);
 
 	static bool isBuiltIn(const std::string &cond);
-	static std::string getCond(const CondStack &s);
+	static std::optional<std::string> getCond(const CondStack &s);
 	std::optional<std::string> getTristateConf(const CondStack &s);
 
 	MP::Parser parser;

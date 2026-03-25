@@ -35,7 +35,8 @@ public:
 			 const std::string &file);
 	bool insertConfDep(const std::string &branch, const std::string &parent,
 			   const std::string &child);
-	bool insertModule(const std::string &dir, const std::string &module);
+	bool insertModule(const std::string &dir, const std::string &module,
+			  const std::optional<std::string> &moduleConf);
 	bool insertMDMap(const std::string &branch, const std::string &module_dir,
 			 const std::string &module, int supported);
 	bool insertMFMap(const std::string &branch, const std::string &module_dir,

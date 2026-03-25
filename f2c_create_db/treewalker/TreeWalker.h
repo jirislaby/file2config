@@ -6,11 +6,13 @@
 #include <any>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "../parser/make/Parser.h"
+#include "../parser/kconfig/Config.h"
 
 namespace MP {
 enum EntryType : unsigned int;
@@ -26,7 +28,8 @@ public:
 	using CondStack = std::vector<std::string>;
 
 	TreeWalker() = delete;
-	TreeWalker(const std::filesystem::path &start, const MakeVisitor &makeVisitor);
+	TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
+		   const MakeVisitor &makeVisitor);
 
 	void walk();
 
@@ -52,9 +55,12 @@ private:
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::string getCond(const CondStack &s);
+	std::optional<std::string> getTristateConf(const CondStack &s);
 
 	MP::Parser parser;
+	const Kconfig::Config::Configs &m_configs;
 	const MakeVisitor &makeVisitor;
+
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;

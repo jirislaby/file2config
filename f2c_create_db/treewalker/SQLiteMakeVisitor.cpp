@@ -88,7 +88,8 @@ void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &
 }
 
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
-			       const std::filesystem::path &module) const
+			       const std::filesystem::path &module,
+			       const std::optional<std::string> &moduleConf) const
 {
 	auto relPath = srcPath.lexically_relative(base);
 	auto relMod = module.lexically_relative(base);
@@ -97,14 +98,15 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 		return;
 
 	if (F2C::verbose > 1)
-		std::cout << "SQL MOD " << relMod.string() << " " << relPath.string() << "\n";
+		std::cout << "SQL MOD " << relMod.string() << ' ' << relPath.string() << ' ' <<
+			  (moduleConf ? *moduleConf : "NULL") << '\n';
 
 	auto dirMod = relMod.parent_path();
 	auto fileMod = relMod.filename();
 	auto supported = supp.supportState(relMod);
 	auto dirFile = sql.insertPath(relPath);
 	if (!dirFile || !sql.insertDir(dirMod) ||
-			!sql.insertModule(dirMod, fileMod) ||
+			!sql.insertModule(dirMod, fileMod, moduleConf) ||
 			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||
 			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
 					 std::move(dirFile->second)))

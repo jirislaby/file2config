@@ -25,8 +25,10 @@ public:
 	}
 	virtual void configDep(const std::string &, const std::string &) const override {}
 	virtual void module(const std::filesystem::path &srcPath,
-			    const std::filesystem::path &module) const override {
-		std::cout << "MOD " << module.string() << " " << srcPath.string() << "\n";
+			    const std::filesystem::path &module,
+			    const std::optional<std::string> &moduleConf) const override {
+		std::cout << "MOD " << module.string() << ' ' << srcPath.string() << ' ' <<
+			     (moduleConf ? *moduleConf : "NULL") << '\n';
 	}
 private:
 };

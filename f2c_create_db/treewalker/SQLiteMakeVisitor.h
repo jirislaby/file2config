@@ -33,7 +33,8 @@ public:
 	virtual void configDep(const std::string &parent, const std::string &child) const override;
 
 	virtual void module(const std::filesystem::path &srcPath,
-			    const std::filesystem::path &module) const override;
+			    const std::filesystem::path &module,
+			    const std::optional<std::string> &moduleConf) const override;
 private:
 	static bool skipPath(const std::filesystem::path &relPath);
 

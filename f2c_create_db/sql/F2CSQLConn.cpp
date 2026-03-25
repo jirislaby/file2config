@@ -72,6 +72,7 @@ bool F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"dir INTEGER NOT NULL REFERENCES dir(id)",
 			"module TEXT NOT NULL",
+			"config INTEGER REFERENCES config(id) ON DELETE CASCADE",
 			"UNIQUE(dir, module)"
 		}},
 		{ "module_details_map", {
@@ -149,6 +150,10 @@ bool F2CSQLConn::createDB()
 			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN config AS c_parent ON map.parent = c_parent.id "
 			"LEFT JOIN config AS c_child ON map.child = c_child.id;" },
+		{ "module_view", "SELECT module.id, dir.dir, module.module, config.config "
+			"FROM module "
+			"LEFT JOIN dir ON module.dir = dir.id "
+			"LEFT JOIN config ON module.config = config.id;" },
 		{ "module_details_map_view",
 			"SELECT map.id, branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
@@ -230,9 +235,10 @@ bool F2CSQLConn::prepDB()
 					"(SELECT id FROM branch WHERE branch = :branch), "
 					"(SELECT id FROM config WHERE config = :parent), "
 					"(SELECT id FROM config WHERE config = :child));" },
-		{ insModule,	"INSERT INTO module(dir, module) VALUES ("
+		{ insModule,	"INSERT INTO module(dir, module, config) VALUES ("
 					"(SELECT id FROM dir WHERE dir = :dir), "
-					":module);" },
+					":module,"
+					"(SELECT id FROM config WHERE config = :config));" },
 		{ insMDMap,	"INSERT INTO module_details_map(branch, module, supported) VALUES ("
 					"(SELECT id FROM branch WHERE branch = :branch), "
 					"(SELECT id FROM module WHERE module = :module AND "
@@ -365,11 +371,16 @@ bool F2CSQLConn::insertConfDep(const std::string &branch, const std::string &par
 		      });
 }
 
-bool F2CSQLConn::insertModule(const std::string &dir, const std::string &module)
+bool F2CSQLConn::insertModule(const std::string &dir, const std::string &module,
+			      const std::optional<std::string> &moduleConf)
 {
+	BindVal mc = std::monostate{};
+	if (moduleConf)
+		mc = *moduleConf;
 	return insert(insModule, {
 			      { ":dir", dir },
-			      { ":module", module }
+			      { ":module", module },
+			      { ":config", mc },
 		      });
 }
 

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <sl/helpers/Exception.h>
+#include <sl/helpers/String.h>
 #include <sl/helpers/Views.h>
 
 #include "../parser/make/EntryVisitor.h"
@@ -63,8 +64,9 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 		toWalk.push_back(std::make_pair(s, s390Boot));
 }
 
-TreeWalker::TreeWalker(const std::filesystem::path &start, const MakeVisitor &makeVisitor) :
-	makeVisitor(makeVisitor), start(start)
+TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
+		       const MakeVisitor &makeVisitor) :
+	m_configs(configs), makeVisitor(makeVisitor), start(start)
 {
 	CondStack s;
 	s.push_back("y");
@@ -181,6 +183,20 @@ std::string TreeWalker::getCond(const CondStack &s)
 	return "y";
 }
 
+std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
+{
+	for (const auto &e: s | std::views::reverse) {
+		auto confIt = m_configs.find(e);
+		if (confIt == m_configs.end())
+			continue;
+		if (confIt->second == Kconfig::ConfType::Tristate ||
+				confIt->second == Kconfig::ConfType::DefTristate)
+			return e;
+	}
+
+	return std::nullopt;
+}
+
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath,
 			      const std::filesystem::path &module)
 {
@@ -208,7 +224,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 				if (parent != child)
 					makeVisitor.configDep(parent, child);
 
-			makeVisitor.module(srcPath, module);
+			makeVisitor.module(srcPath, module, getTristateConf(s));
 			return;
 		}
 	}

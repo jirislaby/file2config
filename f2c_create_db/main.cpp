@@ -366,7 +366,7 @@ void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn
 	}
 
 	auto visitor = getMakeVisitor(sql, supp, branch, root, configs);
-	TW::TreeWalker tw(root, *visitor);
+	TW::TreeWalker tw(root, configs, *visitor);
 	tw.walk();
 }
 

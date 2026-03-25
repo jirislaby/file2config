@@ -4,6 +4,7 @@
 #define MAKEVISITOR_H
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace TW {
@@ -17,7 +18,8 @@ public:
 	virtual void config(const std::filesystem::path &srcPath, const std::string &cond) const = 0;
 	virtual void configDep(const std::string &parent, const std::string &child) const = 0;
 	virtual void module(const std::filesystem::path &srcPath,
-			    const std::filesystem::path &module) const = 0;
+			    const std::filesystem::path &module,
+			    const std::optional<std::string> &moduleConf) const = 0;
 private:
 };
 

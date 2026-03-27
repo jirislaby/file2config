@@ -218,13 +218,6 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
 			makeVisitor.config(srcPath, cond);
-
-			for (const auto &[parent, child]: s |
-			     std::views::filter([](const auto &c){ return !isBuiltIn(c); }) |
-			     SlHelpers::Views::pairwise)
-				if (parent != child)
-					makeVisitor.configDep(parent, child);
-
 			makeVisitor.module(srcPath, module, getTristateConf(s));
 			return;
 		}

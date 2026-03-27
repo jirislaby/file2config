@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef CONSOLEMAKEVISITOR_H
-#define CONSOLEMAKEVISITOR_H
+#pragma once
 
 #include <iostream>
 
@@ -23,7 +22,6 @@ public:
 			    const std::string &cond) const override {
 		std::cout << "XXX " << cond << " " << srcPath.string() << "\n";
 	}
-	virtual void configDep(const std::string &, const std::string &) const override {}
 	virtual void module(const std::filesystem::path &srcPath,
 			    const std::filesystem::path &module,
 			    const std::optional<std::string> &moduleConf) const override {
@@ -34,5 +32,3 @@ private:
 };
 
 }
-
-#endif // CONSOLEMAKEVISITOR_H

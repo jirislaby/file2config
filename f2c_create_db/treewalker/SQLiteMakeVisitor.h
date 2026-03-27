@@ -30,8 +30,6 @@ public:
 	virtual void config(const std::filesystem::path &srcPath,
 			    const std::string &cond) const override;
 
-	virtual void configDep(const std::string &parent, const std::string &child) const override;
-
 	virtual void module(const std::filesystem::path &srcPath,
 			    const std::filesystem::path &module,
 			    const std::optional<std::string> &moduleConf) const override;

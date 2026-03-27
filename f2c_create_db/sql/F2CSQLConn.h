@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef F2CSQLCONN_H
-#define F2CSQLCONN_H
+#pragma once
 
 #include <optional>
 #include <sl/sqlite/SQLConn.h>
@@ -33,8 +32,6 @@ public:
 		insertPath(const std::filesystem::path &path);
 	bool insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
 			 const std::string &file);
-	bool insertConfDep(const std::string &branch, const std::string &parent,
-			   const std::string &child);
 	bool insertModule(const std::string &dir, const std::string &module,
 			  const std::optional<std::string> &moduleConf);
 	bool insertMDMap(const std::string &branch, const std::string &module_dir,
@@ -60,7 +57,6 @@ private:
 	SlSqlite::SQLStmtHolder insDir;
 	SlSqlite::SQLStmtHolder insFile;
 	SlSqlite::SQLStmtHolder insCFMap;
-	SlSqlite::SQLStmtHolder insConfDep;
 	SlSqlite::SQLStmtHolder insModule;
 	SlSqlite::SQLStmtHolder insMDMap;
 	SlSqlite::SQLStmtHolder insMFMap;
@@ -73,5 +69,3 @@ private:
 };
 
 }
-
-#endif // F2CSQLCONN_H

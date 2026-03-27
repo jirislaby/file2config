@@ -74,19 +74,6 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		RunEx("cannot insert CFMap: ") << sql.lastError() << raise;
 }
 
-void SQLiteMakeVisitor::configDep(const std::string &parent, const std::string &child) const
-{
-	if (!m_configs.contains(parent) || !m_configs.contains(child)) {
-		if (F2C::verbose > 1)
-			Clr(std::cerr, Clr::YELLOW) << "Configs \"" << parent << "\" and \"" <<
-						       child << "\" referenced, but not defined!";
-		return;
-	}
-
-	if (!sql.insertConfDep(branch, parent, child))
-		RunEx("cannot insert ConfDep: ") << sql.lastError() << raise;
-}
-
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module,
 			       const std::optional<std::string> &moduleConf) const

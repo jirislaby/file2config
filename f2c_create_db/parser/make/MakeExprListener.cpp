@@ -11,20 +11,9 @@ using namespace MP;
 
 bool MakeExprListener::isSubdirRule(const std::string &lhs)
 {
-	static const std::string subdir { "subdir-" };
-	static const std::string subdirAsFlags { "asflags-" };
-	static const std::string subdirCCFlags { "ccflags-" };
-
-	if (lhs.compare(0, subdir.length(), subdir))
-		return false;
-
-	if (!lhs.compare(subdir.length(), subdirAsFlags.length(), subdirAsFlags))
-		return false;
-
-	if (!lhs.compare(subdir.length(), subdirCCFlags.length(), subdirCCFlags))
-		return false;
-
-	return true;
+	return lhs.starts_with("subdir-") &&
+			!lhs.starts_with("subdir-asflags-") &&
+			!lhs.starts_with("subdir-ccflags-");
 }
 
 std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
@@ -73,10 +62,9 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 		if (F2C::verbose > 2)
 			std::cout << "\t\t" << __func__ << ": " << wordText << "\n";
 
-		const auto wordTextLen = wordText.length();
 		if (wordText.back() == '/' || isSubdirRule(lhs)) {
 			entryVisitor.entry(interesting, cond, EntryType::Directory, wordText);
-		} else if (wordTextLen > 2 && !wordText.compare(wordTextLen - 2, 2, ".o")) {
+		} else if (wordText.ends_with(".o")) {
 			entryVisitor.entry(interesting, cond, EntryType::Object, wordText);
 		}
 	}
@@ -98,16 +86,13 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 	 */
 	auto cond = ctx->l->cond;
 	if (cond.empty()) {
-		auto lTextLen = lText.length();
-		for (const auto &s: { "-y", "-m", "-objs" }) {
-			auto sLen = strlen(s);
-			if (lTextLen > sLen && !lText.compare(lTextLen - sLen, sLen, s)) {
-				cond = s + 1;
+		static constexpr std::string_view suffixes[] = { "-y", "-m", "-objs" };
+
+		for (const auto &s: suffixes)
+			if (lText.ends_with(s)) {
+				cond = s.substr(1);
 				break;
 			}
-		}
-		if (0 && !cond.empty())
-			std::cout << __func__ << ": empty cond: " << ctx->getText() << '\n';
 	}
 	if (F2C::verbose > 2) {
 		std::cout << "\tL='" << lText << "' COND='" << cond << "'\n";
@@ -125,9 +110,7 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 	if (!interesting.has_value())
 		return;
 
-	if (ctx->r && ctx->r->words()) {
-		for (const auto &word: ctx->r->words()->w) {
+	if (ctx->r && ctx->r->words())
+		for (const auto &word: ctx->r->words()->w)
 			evaluateWord(interesting, lText, cond, word);
-		}
-	}
 }

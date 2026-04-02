@@ -5,17 +5,17 @@
 
 #include <string>
 
-#include "MakeBaseListener.h"
+#include "MakeParserBaseListener.h"
 
 namespace MP {
 
 class EntryVisitor;
 
-class MakeExprListener : public MakeBaseListener {
+class MakeExprListener : public MakeParserBaseListener {
 public:
 	MakeExprListener() = delete;
 	MakeExprListener(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor)
-		: MakeBaseListener(), archs(archs), entryVisitor(entryVisitor) {}
+		: MakeParserBaseListener(), archs(archs), entryVisitor(entryVisitor) {}
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
 private:

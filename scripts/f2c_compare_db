@@ -107,7 +107,7 @@ def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict)
     changes = [ f'{k} ({changedBranches[k]})' for k in changedBranches ]
     print(f'Changed branches: {", ".join(changes)}')
 
-def getSHANote(sha : str, note: str, noteToAdd : str) -> tuple[str, str]:
+def getSHANote(sha : str | None, note: str, noteToAdd : str) -> tuple[str, str]:
     if sha is None:
         note += ' <' + noteToAdd + '>'
         return note, '0' * 12

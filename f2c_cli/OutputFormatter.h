@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <string_view>
 
 #include <nlohmann/json.hpp>
 
@@ -21,6 +22,9 @@ public:
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,
 			       unsigned similarity) = 0;
+	virtual void addModule(const std::filesystem::path &path, int supported,
+			       std::string_view config) = 0;
+	virtual void addModuleFile(const std::filesystem::path &file) = 0;
 
 	virtual void print() const = 0;
 protected:
@@ -58,6 +62,19 @@ public:
 		};
 	}
 
+	virtual void addModule(const std::filesystem::path &path, int supported,
+			       std::string_view config) override {
+		m_json.back()["module"] = {
+			{ "path", path },
+			{ "supported", supported },
+			{ "config", config },
+		};
+	}
+
+	virtual void addModuleFile(const std::filesystem::path &file) override {
+		m_json.back()["module"]["files"].emplace_back(file);
+	}
+
 	virtual void print() const override {
 		std::cout << std::setw(2) << m_json << '\n';
 	}
@@ -83,6 +100,14 @@ public:
 			       unsigned similarity) override {
 		m_renames << similarity << ' ' << oldPath.string() << ' ' << newPath.string()
 			  << '\n';
+	}
+
+	virtual void addModule(const std::filesystem::path &path, int supported,
+                                 std::string_view config) override {
+		m_configs << path.string() << ' ' << supported << ' ' << config << '\n';
+	}
+	virtual void addModuleFile(const std::filesystem::path &file) override {
+		m_configs << '\t' << file.string() << '\n';
 	}
 
 	virtual void print() const override {

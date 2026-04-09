@@ -12,6 +12,8 @@
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
+#include <string>
+#include <variant>
 
 #include "OutputFormatter.h"
 
@@ -65,6 +67,22 @@ public:
 					"map.newfile IS (SELECT id FROM file "
 						"WHERE file = :file AND dir = (SELECT id "
 						"FROM dir WHERE dir = :dir));" },
+			{ selModuleDetails,
+				"SELECT mdir.dir, mdmap.supported, config.config, fdir.dir, "
+					"file.file "
+					"FROM module_details_map AS mdmap "
+					"INNER JOIN module ON mdmap.module = module.id "
+					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
+					"LEFT JOIN config ON module.config = config.id     "
+					"LEFT JOIN module_file_map AS mfmap ON "
+						"mdmap.module = mfmap.module AND "
+						"mdmap.branch = mfmap.branch "
+					"LEFT JOIN file ON mfmap.file = file.id "
+					"LEFT JOIN dir AS fdir ON file.dir = fdir.id "
+					"WHERE mdmap.branch = "
+						"(SELECT id FROM branch WHERE branch = :branch) "
+						"AND module.module = :module "
+					"ORDER BY fdir.dir, file.file;" },
 			});
 	}
 
@@ -89,6 +107,7 @@ public:
 			      { ":file", file },
 			      });
 	}
+
 	auto selectRename(const std::string &branch, const std::string &dir,
 			  const std::string &file) const {
 		return select(selRename, {
@@ -97,11 +116,19 @@ public:
 			      { ":file", file },
 			      });
 	}
+
+	auto selectModuleDetails(const std::string &branch, const std::string &module) const {
+		return select(selModuleDetails, {
+			      { ":branch", branch },
+			      { ":module", module },
+			      });
+	}
 private:
 	SlSqlite::SQLStmtHolder selBranch;
 	SlSqlite::SQLStmtHolder selConfig;
 	SlSqlite::SQLStmtHolder selModule;
 	SlSqlite::SQLStmtHolder selRename;
+	SlSqlite::SQLStmtHolder selModuleDetails;
 };
 
 struct Opts {
@@ -113,6 +140,7 @@ struct Opts {
 
 	bool configs;
 	bool renames;
+	bool modules;
 
 	std::string branch;
 	std::vector<std::filesystem::path> files;
@@ -153,6 +181,8 @@ Opts getOpts(int argc, char **argv)
 	options.add_options("Action")
 		("configs", "Find configs (and modules) of the specified files (default if no action specified)",
 			cxxopts::value(opts.configs)->default_value("false"))
+		("modules", "Find modules specified by files",
+			cxxopts::value(opts.modules)->default_value("false"))
 		("renames", "Find renames of the specified files",
 			cxxopts::value(opts.renames)->default_value("false"))
 	;
@@ -185,7 +215,8 @@ Opts getOpts(int argc, char **argv)
 			RunEx("Branch not specified!").raise();
 
 		// Action
-		if (cxxopts.contains("configs") + cxxopts.contains("renames") == 0)
+		if (cxxopts.contains("configs") + cxxopts.contains("modules") +
+		    cxxopts.contains("renames") == 0)
 			opts.configs = true;
 
 		return opts;
@@ -271,7 +302,7 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 		opts.formatter->addConfig(dir / file, std::get<std::string>(conf[0]), mod);
 }
 
-void selectQuery(const Opts &opts, const F2CSQLConn &sql,
+void selectRenameConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 		 const std::filesystem::path &path) noexcept
 {
 	auto dir = path.parent_path();
@@ -281,11 +312,41 @@ void selectQuery(const Opts &opts, const F2CSQLConn &sql,
 		selectConfigQuery(opts, sql, dir, file);
 }
 
+void selectModuleQuery(const Opts &opts, const F2CSQLConn &sql,
+		       const std::filesystem::path &module) noexcept
+{
+	const auto res = sql.selectModuleDetails(opts.branch, module);
+	if (!res || res->size() == 0)
+		return;
+
+	auto &row0 = res->at(0);
+	std::filesystem::path modDir = std::get<std::string>(std::move(row0[0]));
+	auto supported = std::get<int>(std::move(row0[1]));
+	std::string config { "n/a" };
+	if (std::holds_alternative<std::string>(row0[2]))
+		config = std::get<std::string>(std::move(row0[2]));
+	opts.formatter->addModule(modDir / module, supported, config);
+
+	for (const auto &row: *res) {
+		std::filesystem::path file { std::get<std::string>(std::move(row[3])) };
+		file /= std::get<std::string>(std::move(row[4]));
+		opts.formatter->addModuleFile(file);
+	}
+}
+
+void handleOne(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &path) noexcept
+{
+	if (opts.configs || opts.renames)
+		selectRenameConfigQuery(opts, sql, path);
+	else if (opts.modules)
+		selectModuleQuery(opts, sql, path);
+}
+
 void handleFiles(const Opts &opts, const F2CSQLConn &sql) noexcept
 {
 	handleCmdlineFiles(opts.files, [&sql, &opts](const std::filesystem::path &file) {
 		opts.formatter->newObj("file", file.string());
-		selectQuery(opts, sql, file);
+		handleOne(opts, sql, file);
 	});
 }
 
@@ -308,7 +369,7 @@ void handleSHA(const Opts &opts, const F2CSQLConn &sql, const SlGit::Repo &repo,
 	SlGit::Diff::ForEachCB cb = {
 		.file = [&sql, &opts](const git_diff_delta &delta, float) {
 			std::filesystem::path f(delta.new_file.path);
-			selectQuery(opts, sql, f);
+			handleOne(opts, sql, f);
 			return 0;
 		},
 	};

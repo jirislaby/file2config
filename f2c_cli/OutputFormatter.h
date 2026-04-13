@@ -17,13 +17,15 @@ public:
 	virtual ~OutputFormatter() = default;
 
 	virtual void newObj(const std::string &/*type*/, const std::string &/*value*/) {}
-	virtual void addConfig(const std::filesystem::path &path, const std::string &config,
+	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
+			       const std::string &config,
 			       const std::filesystem::path &module) = 0;
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,
+			       const std::string &branch,
 			       unsigned similarity) = 0;
-	virtual void addModule(const std::filesystem::path &path, int supported,
-			       std::string_view config) = 0;
+	virtual void addModule(const std::filesystem::path &path, const std::string &branch,
+			       int supported, std::string_view config) = 0;
 	virtual void addModuleFile(const std::filesystem::path &file) = 0;
 
 	virtual void print() const = 0;
@@ -43,36 +45,42 @@ public:
 		}}}));
 	}
 
-	virtual void addConfig(const std::filesystem::path &path, const std::string &config,
+	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
+			       const std::string &config,
 			       const std::filesystem::path &module) override {
 		m_json.back()["configs"].push_back({
+			{ "branch", branch },
 			{ "path", path.string() },
 			{ "config", config },
-			{ "module", module }
+			{ "module", module.filename() },
+			{ "module_path", module },
 		});
 	}
 
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,
+			       const std::string &branch,
 			       unsigned similarity) override {
-		m_json.back()["rename"] = {
+		m_json.back()["renames"].push_back({
+			{ "branch", branch },
 			{ "similarity", similarity },
 			{ "from", oldPath.string() },
 			{ "to", newPath.string() },
-		};
+		});
 	}
 
-	virtual void addModule(const std::filesystem::path &path, int supported,
-			       std::string_view config) override {
-		m_json.back()["module"] = {
+	virtual void addModule(const std::filesystem::path &path, const std::string &branch,
+			       int supported, std::string_view config) override {
+		m_json.back()["modules"].push_back({
+			{ "branch", branch },
 			{ "path", path },
 			{ "supported", supported },
 			{ "config", config },
-		};
+		});
 	}
 
 	virtual void addModuleFile(const std::filesystem::path &file) override {
-		m_json.back()["module"]["files"].emplace_back(file);
+		m_json.back()["modules"].back()["files"].emplace_back(file);
 	}
 
 	virtual void print() const override {
@@ -85,10 +93,14 @@ private:
 class OutputFormatterSimple : public OutputFormatter {
 public:
 	OutputFormatterSimple() = delete;
-	OutputFormatterSimple(bool modules) : m_modules(modules) {}
+	OutputFormatterSimple(bool modules, bool multipleBranches)
+		: m_modules(modules), m_multipleBranches(multipleBranches) {}
 
-	virtual void addConfig(const std::filesystem::path &path, const std::string &config,
+	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
+			       const std::string &config,
 			       const std::filesystem::path &module) override {
+		if (m_multipleBranches)
+			m_configs << branch << ' ';
 		m_configs << path.string() << ' ' << config;
 		if (m_modules)
 			  m_configs << ' ' << module.string();
@@ -97,13 +109,18 @@ public:
 
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,
+			       const std::string &branch,
 			       unsigned similarity) override {
+		if (m_multipleBranches)
+			m_renames << branch << ' ';
 		m_renames << similarity << ' ' << oldPath.string() << ' ' << newPath.string()
 			  << '\n';
 	}
 
-	virtual void addModule(const std::filesystem::path &path, int supported,
-                                 std::string_view config) override {
+	virtual void addModule(const std::filesystem::path &path, const std::string &branch,
+			       int supported, std::string_view config) override {
+		if (m_multipleBranches)
+			m_configs << branch << ' ';
 		m_configs << path.string() << ' ' << supported << ' ' << config << '\n';
 	}
 	virtual void addModuleFile(const std::filesystem::path &file) override {
@@ -117,6 +134,7 @@ private:
 	std::ostringstream m_configs;
 	std::ostringstream m_renames;
 	bool m_modules;
+	bool m_multipleBranches;
 };
 
 }

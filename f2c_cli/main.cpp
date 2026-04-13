@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <cstdlib>
 #include <cxxopts.hpp>
 #include <chrono>
 #include <iostream>
@@ -31,60 +32,85 @@ public:
 
 	virtual bool prepDB() override {
 		static const std::string branchCTE {
-			"branch_cte AS (SELECT id, version FROM branch "
-				"WHERE branch = :branch)"
+			"branch_cte AS (SELECT id, branch, version FROM branch "
+				"WHERE :branch = '' OR branch = :branch)"
 		};
-		static const std::string fileCTE {
-			"file_cte AS (SELECT file.id "
-				"FROM file "
+		static const std::string fileRenamedCTE {
+			"file_renamed_cte AS (SELECT branch_cte.id AS branch_id, "
+				"COALESCE(map.oldfile, file.id) AS file_id "
+				"FROM branch_cte "
+				"CROSS JOIN file "
 				"JOIN dir ON file.dir = dir.id "
+				"LEFT JOIN rename_file_version_map AS map ON "
+					"file.id = map.newfile AND "
+					"branch_cte.version = map.version "
 				"WHERE dir.dir = :dir AND file.file = :file)"
 		};
 		return prepareStatements({
 			{ selBranch, "SELECT 1 FROM branch WHERE branch = :branch;" },
 			{ selConfig,
-				"WITH " + branchCTE + ", " + fileCTE + " " +
-				"SELECT config.config "
+				"WITH " + branchCTE + ", " + fileRenamedCTE + ", " +
+				"module_cte AS (SELECT branch_cte.id AS branch, "
+					"dir.dir AS module_dir, "
+					"module.module, mfmap.file AS file_id "
 					"FROM branch_cte "
-					"JOIN conf_file_map AS cfmap ON "
-						"branch_cte.id = cfmap.branch AND "
-						"cfmap.file = (SELECT id FROM file_cte) "
-					"LEFT JOIN config ON cfmap.config = config.id;" },
-			{ selModule, "WITH " + branchCTE + ", " + fileCTE + " "
-				"SELECT module_dir.dir, module.module "
-					"FROM branch_cte "
+					"JOIN file_renamed_cte ON "
+						"branch_cte.id = file_renamed_cte.branch_id "
 					"JOIN module_file_map AS mfmap ON "
 						"branch_cte.id = mfmap.branch AND "
-							"mfmap.file = (SELECT id FROM file_cte) "
+						"mfmap.file = file_renamed_cte.file_id "
 					"LEFT JOIN module ON mfmap.module = module.id "
-					"LEFT JOIN dir AS module_dir ON "
-						"module.dir = module_dir.id;" },
+					"LEFT JOIN dir ON module.dir = dir.id) "
+				"SELECT branch_cte.branch, config.config, module_cte.module_dir, "
+					"module_cte.module, dir.dir, file.file "
+					"FROM branch_cte "
+					"JOIN file_renamed_cte ON "
+						"branch_cte.id = file_renamed_cte.branch_id "
+					"LEFT JOIN file ON file_renamed_cte.file_id = file.id "
+					"LEFT JOIN dir ON file.dir = dir.id "
+					"JOIN conf_file_map AS cfmap ON "
+						"branch_cte.id = cfmap.branch AND "
+						"cfmap.file = file_renamed_cte.file_id "
+					"LEFT JOIN module_cte ON "
+						"branch_cte.id = module_cte.branch AND "
+						"cfmap.file = module_cte.file_id "
+					"LEFT JOIN config ON cfmap.config = config.id "
+					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selRename,
-				"WITH " + branchCTE + ", " + fileCTE + " "
-				"SELECT map.similarity, olddir.dir, oldfile.file "
-					"FROM rename_file_version_map AS map "
+				"WITH " + branchCTE + ", " +
+				"file_cte AS (SELECT file.id "
+					"FROM file "
+					"JOIN dir ON file.dir = dir.id "
+					"WHERE dir.dir = :dir AND file.file = :file) "
+				"SELECT branch_cte.branch, map.similarity, olddir.dir, "
+					"oldfile.file "
+					"FROM branch_cte "
+					"JOIN rename_file_version_map AS map ON "
+						"branch_cte.version = map.version "
 					"LEFT JOIN file AS oldfile ON map.oldfile = oldfile.id "
 					"LEFT JOIN dir AS olddir ON oldfile.dir = olddir.id "
-					"WHERE map.version IS (SELECT version "
-						"FROM branch_cte) AND "
-						"map.newfile = (SELECT id FROM file_cte);" },
+					"WHERE map.newfile = (SELECT id FROM file_cte)"
+					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selModuleDetails,
 				"WITH " + branchCTE + " " +
-				"SELECT mdir.dir, mdmap.supported, config.config, fdir.dir, "
-					"file.file "
+				"SELECT branch_cte.id, module.id, branch_cte.branch, mdir.dir, "
+					"mdmap.supported, config.config "
 					"FROM branch_cte "
 					"JOIN module_details_map AS mdmap ON "
 						"branch_cte.id = mdmap.branch "
 					"INNER JOIN module ON mdmap.module = module.id "
 					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
-					"LEFT JOIN config ON module.config = config.id     "
-					"LEFT JOIN module_file_map AS mfmap ON "
-						"mdmap.module = mfmap.module AND "
-						"mdmap.branch = mfmap.branch "
-					"LEFT JOIN file ON mfmap.file = file.id "
-					"LEFT JOIN dir AS fdir ON file.dir = fdir.id "
+					"LEFT JOIN config ON module.config = config.id "
 					"WHERE module.module = :module "
-					"ORDER BY fdir.dir, file.file;" },
+					"ORDER BY branch_cte.version, branch_cte.branch;" },
+			{ selModuleFiles,
+				"SELECT dir.dir, file.file "
+					"FROM module_file_map AS mfmap "
+					"LEFT JOIN file ON mfmap.file = file.id "
+					"LEFT JOIN dir ON file.dir = dir.id "
+					"WHERE mfmap.branch = :branch_id AND "
+						"mfmap.module = :module_id "
+					"ORDER BY dir.dir, file.file;" },
 			});
 	}
 
@@ -95,15 +121,6 @@ public:
 	auto selectConfig(const std::string &branch, const std::string &dir,
 			  const std::string &file) const {
 		return select(selConfig, {
-			      { ":branch", branch },
-			      { ":dir", dir },
-			      { ":file", file },
-			      });
-	}
-
-	auto selectModule(const std::string &branch, const std::string &dir,
-			  const std::string &file) const {
-		return select(selModule, {
 			      { ":branch", branch },
 			      { ":dir", dir },
 			      { ":file", file },
@@ -125,12 +142,20 @@ public:
 			      { ":module", module },
 			      });
 	}
+
+	auto selectModuleFiles(const int branchID, const int moduleID) const {
+		return select(selModuleFiles, {
+			      { ":branch_id", branchID },
+			      { ":module_id", moduleID },
+			      });
+	}
 private:
 	SlSqlite::SQLStmtHolder selBranch;
 	SlSqlite::SQLStmtHolder selConfig;
 	SlSqlite::SQLStmtHolder selModule;
 	SlSqlite::SQLStmtHolder selRename;
 	SlSqlite::SQLStmtHolder selModuleDetails;
+	SlSqlite::SQLStmtHolder selModuleFiles;
 };
 
 struct Opts {
@@ -212,10 +237,6 @@ Opts getOpts(int argc, char **argv)
 				opts.kernelTree = *path;
 		opts.hasSqlite = cxxopts.contains("sqlite");
 
-		// General query
-		if (!cxxopts.contains("branch"))
-			RunEx("Branch not specified!").raise();
-
 		// Action
 		if (cxxopts.contains("configs") + cxxopts.contains("modules") +
 		    cxxopts.contains("renames") == 0)
@@ -231,6 +252,8 @@ Opts getOpts(int argc, char **argv)
 
 void checkBranch(const F2CSQLConn &sql, const std::string &branch)
 {
+	if (branch.empty())
+		return;
 	const auto sel = sql.selectBranch(branch);
 	if (!sel || !sel->size() || std::get<int>(sel->at(0)[0]) != 1 )
 		RunEx("Branch '") << branch << "' not found in the DB!" << raise;
@@ -263,45 +286,46 @@ void setFormatter(Opts &opts)
 	if (opts.json)
 		opts.formatter = std::make_unique<OutputFormatterJSON>();
 	else
-		opts.formatter = std::make_unique<OutputFormatterSimple>(opts.module);
+		opts.formatter = std::make_unique<OutputFormatterSimple>(opts.module,
+									 opts.branch.empty());
 }
 
-void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, std::filesystem::path &dir,
-			std::filesystem::path &file) noexcept
+void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
+			const std::filesystem::path &file) noexcept
 {
 	auto res = sql.selectRename(opts.branch, dir, file);
-	if (!res || res->size() == 0)
+	if (!res)
 		return;
 
-	auto &row = res->at(0);
-	std::filesystem::path oldDir(std::get<std::string>(std::move(row[1])));
-	std::filesystem::path oldFile(std::get<std::string>(std::move(row[2])));
+	for (auto &row: *res) {
+		auto branch = std::get<std::string>(std::move(row[0]));
+		std::filesystem::path oldDir(std::get<std::string>(std::move(row[2])));
+		std::filesystem::path oldFile(std::get<std::string>(std::move(row[3])));
 
-	if (opts.renames)
-		opts.formatter->addRename(oldDir / oldFile, dir / file, std::get<int>(row[0]));
-
-	dir = oldDir;
-	file = oldFile;
+		opts.formatter->addRename(oldDir / oldFile, dir / file, branch,
+					  std::get<int>(row[1]));
+	}
 }
 
 void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
 		       const std::filesystem::path &file) noexcept
 {
-	const auto res = sql.selectConfig(opts.branch, dir, file);
-	if (!res || res->size() == 0)
+	auto res = sql.selectConfig(opts.branch, dir, file);
+	if (!res)
 		return;
 
-	std::filesystem::path mod;
-	if (opts.module || opts.json) {
-		const auto modRes = sql.selectModule(opts.branch, dir, file);
-		if (modRes && res->size() != 0) {
-			mod = std::get<std::string>(std::move(modRes->at(0)[0]));
-			mod /= std::get<std::string>(std::move(modRes->at(0)[1]));
+	for (auto &conf: *res) {
+		auto branch = std::get<std::string>(std::move(conf[0]));
+		auto config = std::get<std::string>(std::move(conf[1]));
+		std::filesystem::path mod;
+		if (opts.module || opts.json) {
+			mod = std::get<std::string>(std::move(conf[2]));
+			mod /= std::get<std::string>(std::move(conf[3]));
 		}
+		std::filesystem::path oldFile = std::get<std::string>(std::move(conf[4]));
+		oldFile /= std::get<std::string>(std::move(conf[5]));
+		opts.formatter->addConfig(oldFile, branch, config, mod);
 	}
-
-	for (const auto &conf: *res)
-		opts.formatter->addConfig(dir / file, std::get<std::string>(conf[0]), mod);
 }
 
 void selectRenameConfigQuery(const Opts &opts, const F2CSQLConn &sql,
@@ -309,7 +333,8 @@ void selectRenameConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 {
 	auto dir = path.parent_path();
 	auto file = path.filename();
-	selectRenamesQuery(opts, sql, dir, file);
+	if (opts.renames)
+		selectRenamesQuery(opts, sql, dir, file);
 	if (opts.configs)
 		selectConfigQuery(opts, sql, dir, file);
 }
@@ -317,22 +342,30 @@ void selectRenameConfigQuery(const Opts &opts, const F2CSQLConn &sql,
 void selectModuleQuery(const Opts &opts, const F2CSQLConn &sql,
 		       const std::filesystem::path &module) noexcept
 {
-	const auto res = sql.selectModuleDetails(opts.branch, module);
-	if (!res || res->size() == 0)
+	auto res = sql.selectModuleDetails(opts.branch, module);
+	if (!res)
 		return;
 
-	auto &row0 = res->at(0);
-	std::filesystem::path modDir = std::get<std::string>(std::move(row0[0]));
-	auto supported = std::get<int>(std::move(row0[1]));
-	std::string config { "n/a" };
-	if (std::holds_alternative<std::string>(row0[2]))
-		config = std::get<std::string>(std::move(row0[2]));
-	opts.formatter->addModule(modDir / module, supported, config);
+	for (auto &row: *res) {
+		auto branchID = std::get<int>(row[0]);
+		auto moduleID = std::get<int>(row[1]);
+		auto branch = std::get<std::string>(std::move(row[2]));
+		std::filesystem::path modDir = std::get<std::string>(std::move(row[3]));
+		auto supported = std::get<int>(row[4]);
+		std::string config { "n/a" };
+		if (std::holds_alternative<std::string>(row[5]))
+			config = std::get<std::string>(std::move(row[5]));
+		opts.formatter->addModule(modDir / module, branch, supported, config);
 
-	for (const auto &row: *res) {
-		std::filesystem::path file { std::get<std::string>(std::move(row[3])) };
-		file /= std::get<std::string>(std::move(row[4]));
-		opts.formatter->addModuleFile(file);
+		auto res2 = sql.selectModuleFiles(branchID, moduleID);
+		if (!res2)
+			continue;
+
+		for (auto &row2: *res2) {
+			std::filesystem::path file { std::get<std::string>(std::move(row2[0])) };
+			file /= std::get<std::string>(std::move(row2[1]));
+			opts.formatter->addModuleFile(file);
+		}
 	}
 }
 

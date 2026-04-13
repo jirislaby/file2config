@@ -30,47 +30,51 @@ public:
 	F2CSQLConn() {}
 
 	virtual bool prepDB() override {
+		static const std::string branchCTE {
+			"branch_cte AS (SELECT id, version FROM branch "
+				"WHERE branch = :branch)"
+		};
+		static const std::string fileCTE {
+			"file_cte AS (SELECT file.id "
+				"FROM file "
+				"JOIN dir ON file.dir = dir.id "
+				"WHERE dir.dir = :dir AND file.file = :file)"
+		};
 		return prepareStatements({
 			{ selBranch, "SELECT 1 FROM branch WHERE branch = :branch;" },
 			{ selConfig,
+				"WITH " + branchCTE + ", " + fileCTE + " " +
 				"SELECT config.config "
-					"FROM conf_file_map AS cfmap "
-					"LEFT JOIN config ON cfmap.config = config.id "
-					"WHERE branch = (SELECT id "
-						"FROM branch "
-						"WHERE branch = :branch) AND "
-					"cfmap.file = (SELECT file.id "
-						"FROM file "
-						"LEFT JOIN dir ON file.dir = dir.id "
-						"WHERE dir.dir = :dir AND file.file = :file);" },
-			{ selModule,
+					"FROM branch_cte "
+					"JOIN conf_file_map AS cfmap ON "
+						"branch_cte.id = cfmap.branch AND "
+						"cfmap.file = (SELECT id FROM file_cte) "
+					"LEFT JOIN config ON cfmap.config = config.id;" },
+			{ selModule, "WITH " + branchCTE + ", " + fileCTE + " "
 				"SELECT module_dir.dir, module.module "
-					"FROM module_file_map AS mfmap "
+					"FROM branch_cte "
+					"JOIN module_file_map AS mfmap ON "
+						"branch_cte.id = mfmap.branch AND "
+							"mfmap.file = (SELECT id FROM file_cte) "
 					"LEFT JOIN module ON mfmap.module = module.id "
 					"LEFT JOIN dir AS module_dir ON "
-					"	module.dir = module_dir.id "
-					"WHERE mfmap.branch = (SELECT id "
-					"	FROM branch "
-					"	WHERE branch = :branch) AND "
-					"mfmap.file IN (SELECT file.id "
-					"	FROM file "
-					"	LEFT JOIN dir ON file.dir = dir.id "
-					"	WHERE dir.dir = :dir AND file.file = :file);" },
+						"module.dir = module_dir.id;" },
 			{ selRename,
+				"WITH " + branchCTE + ", " + fileCTE + " "
 				"SELECT map.similarity, olddir.dir, oldfile.file "
 					"FROM rename_file_version_map AS map "
 					"LEFT JOIN file AS oldfile ON map.oldfile = oldfile.id "
 					"LEFT JOIN dir AS olddir ON oldfile.dir = olddir.id "
 					"WHERE map.version IS (SELECT version "
-						"FROM branch "
-						"WHERE branch = :branch) AND "
-					"map.newfile IS (SELECT id FROM file "
-						"WHERE file = :file AND dir = (SELECT id "
-						"FROM dir WHERE dir = :dir));" },
+						"FROM branch_cte) AND "
+						"map.newfile = (SELECT id FROM file_cte);" },
 			{ selModuleDetails,
+				"WITH " + branchCTE + " " +
 				"SELECT mdir.dir, mdmap.supported, config.config, fdir.dir, "
 					"file.file "
-					"FROM module_details_map AS mdmap "
+					"FROM branch_cte "
+					"JOIN module_details_map AS mdmap ON "
+						"branch_cte.id = mdmap.branch "
 					"INNER JOIN module ON mdmap.module = module.id "
 					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
 					"LEFT JOIN config ON module.config = config.id     "
@@ -79,9 +83,7 @@ public:
 						"mdmap.branch = mfmap.branch "
 					"LEFT JOIN file ON mfmap.file = file.id "
 					"LEFT JOIN dir AS fdir ON file.dir = fdir.id "
-					"WHERE mdmap.branch = "
-						"(SELECT id FROM branch WHERE branch = :branch) "
-						"AND module.module = :module "
+					"WHERE module.module = :module "
 					"ORDER BY fdir.dir, file.file;" },
 			});
 	}

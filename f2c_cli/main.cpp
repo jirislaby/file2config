@@ -32,8 +32,10 @@ public:
 
 	virtual bool prepDB() override {
 		static const std::string branchCTE {
-			"branch_cte AS (SELECT id, branch, version FROM branch "
-				"WHERE :branch = '' OR branch = :branch)"
+			"branch_cte AS ("
+				"SELECT id, branch, version FROM branch WHERE :branch = '' "
+				"UNION ALL "
+				"SELECT id, branch, version FROM branch WHERE branch = :branch)"
 		};
 		static const std::string fileRenamedCTE {
 			"file_renamed_cte AS (SELECT branch_cte.id AS branch_id, "

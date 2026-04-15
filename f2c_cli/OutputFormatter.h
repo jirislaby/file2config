@@ -20,6 +20,9 @@ public:
 	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
 			       const std::string &config,
 			       const std::filesystem::path &module) = 0;
+	virtual void addConfigDetails(const bool forModules, const std::string &arch,
+				      const std::string &flavor,
+				      const std::string &value) = 0;
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,
 			       const std::string &branch,
@@ -55,6 +58,12 @@ public:
 			{ "module", module.filename() },
 			{ "module_path", module },
 		});
+	}
+	virtual void addConfigDetails(const bool forModules, const std::string &arch,
+				      const std::string &flavor,
+				      const std::string &value) override {
+		auto &last = m_json.back()[forModules ? "modules" : "configs"].back();
+		last["config_values"][arch][flavor] = value;
 	}
 
 	virtual void addRename(const std::filesystem::path &oldPath,
@@ -106,6 +115,10 @@ public:
 			  m_configs << ' ' << module.string();
 		m_configs << '\n';
 	}
+
+	virtual void addConfigDetails(const bool /*forModules*/, const std::string &/*arch*/,
+				      const std::string &/*flavor*/,
+				      const std::string &/*value*/) override { }
 
 	virtual void addRename(const std::filesystem::path &oldPath,
 			       const std::filesystem::path &newPath,

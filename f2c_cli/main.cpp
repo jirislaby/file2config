@@ -62,7 +62,8 @@ public:
 					"LEFT JOIN module ON mfmap.module = module.id "
 					"LEFT JOIN dir ON module.dir = dir.id) "
 				"SELECT branch_cte.branch, config.config, module_cte.module_dir, "
-					"module_cte.module, dir.dir, file.file "
+					"module_cte.module, dir.dir, file.file, branch_cte.id, "
+					"config.id "
 					"FROM branch_cte "
 					"JOIN file_renamed_cte ON "
 						"branch_cte.id = file_renamed_cte.branch_id "
@@ -76,6 +77,13 @@ public:
 						"cfmap.file = module_cte.file_id "
 					"LEFT JOIN config ON cfmap.config = config.id "
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
+			{ selConfigDetails,
+				"SELECT arch.arch, flavor.flavor, map.value "
+					"FROM conf_branch_map AS map "
+					"LEFT JOIN arch ON map.arch = arch.id "
+					"LEFT JOIN flavor ON map.flavor = flavor.id "
+					"WHERE map.branch = :branch_id AND map.config = :config_id "
+					"ORDER BY arch.arch, flavor.flavor;" },
 			{ selRename,
 				"WITH " + branchCTE + ", " +
 				"file_cte AS (SELECT file.id "
@@ -93,8 +101,8 @@ public:
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selModuleDetails,
 				"WITH " + branchCTE + " " +
-				"SELECT branch_cte.id, module.id, branch_cte.branch, mdir.dir, "
-					"mdmap.supported, config.config "
+				"SELECT branch_cte.id, module.id, config.id, branch_cte.branch, "
+					"mdir.dir, mdmap.supported, config.config "
 					"FROM branch_cte "
 					"JOIN module_details_map AS mdmap ON "
 						"branch_cte.id = mdmap.branch "
@@ -127,6 +135,13 @@ public:
 			      });
 	}
 
+	auto selectConfigDetails(const int branchID, const int configID) const {
+		return select(selConfigDetails, {
+			      { ":branch_id", branchID },
+			      { ":config_id", configID },
+			      });
+	}
+
 	auto selectRename(const std::string &branch, const std::string &dir,
 			  const std::string &file) const {
 		return select(selRename, {
@@ -152,6 +167,7 @@ public:
 private:
 	SlSqlite::SQLStmtHolder selBranch;
 	SlSqlite::SQLStmtHolder selConfig;
+	SlSqlite::SQLStmtHolder selConfigDetails;
 	SlSqlite::SQLStmtHolder selModule;
 	SlSqlite::SQLStmtHolder selRename;
 	SlSqlite::SQLStmtHolder selModuleDetails;
@@ -307,6 +323,22 @@ void selectRenamesQuery(const Opts &opts, const F2CSQLConn &sql, const std::file
 	}
 }
 
+void addConfigDetails(const Opts &opts, const F2CSQLConn &sql, const bool forModules,
+		      const int branchID, const int configID) noexcept
+{
+	auto res = sql.selectConfigDetails(branchID, configID);
+	if (!res)
+		return;
+
+	for (auto &row: *res) {
+		auto arch = std::get<std::string>(std::move(row[0]));
+		auto flavor = std::get<std::string>(std::move(row[1]));
+		auto value = std::get<std::string>(std::move(row[2]));
+
+		opts.formatter->addConfigDetails(forModules, arch, flavor, value);
+	}
+}
+
 void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::filesystem::path &dir,
 		       const std::filesystem::path &file) noexcept
 {
@@ -325,6 +357,10 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 		std::filesystem::path oldFile = std::get<std::string>(std::move(conf[4]));
 		oldFile /= std::get<std::string>(std::move(conf[5]));
 		opts.formatter->addConfig(oldFile, branch, config, mod);
+
+		auto branchID = std::get<int>(conf[6]);
+		auto configID = std::get<int>(conf[7]);
+		addConfigDetails(opts, sql, false, branchID, configID);
 	}
 }
 
@@ -349,13 +385,16 @@ void selectModuleQuery(const Opts &opts, const F2CSQLConn &sql,
 	for (auto &row: *res) {
 		auto branchID = std::get<int>(row[0]);
 		auto moduleID = std::get<int>(row[1]);
-		auto branch = std::get<std::string>(std::move(row[2]));
-		std::filesystem::path modDir = std::get<std::string>(std::move(row[3]));
-		auto supported = std::get<int>(row[4]);
+		auto configID = std::get<int>(row[2]);
+		auto branch = std::get<std::string>(std::move(row[3]));
+		std::filesystem::path modDir = std::get<std::string>(std::move(row[4]));
+		auto supported = std::get<int>(row[5]);
 		std::string config { "n/a" };
-		if (std::holds_alternative<std::string>(row[5]))
-			config = std::get<std::string>(std::move(row[5]));
+		if (std::holds_alternative<std::string>(row[6]))
+			config = std::get<std::string>(std::move(row[6]));
 		opts.formatter->addModule(modDir / module, branch, supported, config);
+
+		addConfigDetails(opts, sql, true, branchID, configID);
 
 		auto res2 = sql.selectModuleFiles(branchID, moduleID);
 		if (!res2)

@@ -112,6 +112,9 @@ bool F2CSQLConn::createDB()
 
 	static const Indices create_indexes {
 		{ "conf_file_map_file_index", "conf_file_map(file)" },
+		{ "conf_file_map_branch_file_index", "conf_file_map(branch, file)" },
+		{ "module_file_map_file_index", "module_file_map(file)" },
+		{ "module_file_map_branch_file_index", "module_file_map(branch, file)" },
 	};
 
 	static const Views create_views {

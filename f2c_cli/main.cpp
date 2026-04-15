@@ -51,33 +51,25 @@ public:
 		return prepareStatements({
 			{ selBranch, "SELECT 1 FROM branch WHERE branch = :branch;" },
 			{ selConfig,
-				"WITH " + branchCTE + ", " + fileRenamedCTE + ", " +
-				"module_cte AS (SELECT branch_cte.id AS branch, "
-					"dir.dir AS module_dir, "
-					"module.module, mfmap.file AS file_id "
-					"FROM branch_cte "
-					"JOIN file_renamed_cte ON "
-						"branch_cte.id = file_renamed_cte.branch_id "
-					"JOIN module_file_map AS mfmap ON "
-						"branch_cte.id = mfmap.branch AND "
-						"mfmap.file = file_renamed_cte.file_id "
-					"LEFT JOIN module ON mfmap.module = module.id "
-					"LEFT JOIN dir ON module.dir = dir.id) "
-				"SELECT branch_cte.branch, config.config, module_cte.module_dir, "
-					"module_cte.module, dir.dir, file.file, branch_cte.id, "
+				"WITH " + branchCTE + ", " + fileRenamedCTE + " " +
+				"SELECT branch_cte.branch, config.config, mdir.dir, "
+					"module.module, dir.dir, file.file, branch_cte.id, "
 					"config.id "
 					"FROM branch_cte "
 					"JOIN file_renamed_cte ON "
 						"branch_cte.id = file_renamed_cte.branch_id "
-					"LEFT JOIN file ON file_renamed_cte.file_id = file.id "
-					"LEFT JOIN dir ON file.dir = dir.id "
 					"JOIN conf_file_map AS cfmap ON "
 						"branch_cte.id = cfmap.branch AND "
 						"cfmap.file = file_renamed_cte.file_id "
-					"LEFT JOIN module_cte ON "
-						"branch_cte.id = module_cte.branch AND "
-						"cfmap.file = module_cte.file_id "
+					"LEFT JOIN file ON file_renamed_cte.file_id = file.id "
+					"LEFT JOIN dir ON file.dir = dir.id "
+					// placing 'config' before 'mfmap' makes it twice as faster
 					"LEFT JOIN config ON cfmap.config = config.id "
+					"LEFT JOIN module_file_map AS mfmap ON "
+						"branch_cte.id = mfmap.branch AND "
+						"file_renamed_cte.file_id = mfmap.file "
+					"LEFT JOIN module ON mfmap.module = module.id "
+					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selConfigDetails,
 				"SELECT arch.arch, flavor.flavor, map.value "

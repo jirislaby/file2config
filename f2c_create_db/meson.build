@@ -4,12 +4,6 @@ subdir('parser')
 subdir('sql')
 subdir('treewalker')
 
-cxxopts_lib = dependency('cxxopts')
-json_lib = dependency('nlohmann_json')
-slgit_lib = dependency('slgit++')
-slhelpers_lib = dependency('slhelpers++')
-slkerncvs_lib = dependency('slkerncvs++')
-
 # for qt-creator to pick up generated headers
 builddir = include_directories('.')
 
@@ -19,6 +13,6 @@ executable('f2c_create_db', [
     'Verbose.h',
   ],
   link_with: [ sqlite, treewalker ],
-  dependencies: [ cxxopts_lib, json_lib, slgit_lib, slhelpers_lib, slkerncvs_lib ],
+  dependencies: [ cxxopts_dep, json_dep, slgit_dep, slhelpers_dep, slkerncvs_dep ],
   install: true,
 )

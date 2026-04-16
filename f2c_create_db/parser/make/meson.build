@@ -29,7 +29,7 @@ make_parser_lib = static_library('make_parser', [
   ],
   # antlr headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual' ],
-  dependencies : antlr4_lib,
+  dependencies : antlr4_dep,
 )
 
 make_parser = declare_dependency(

@@ -49,7 +49,7 @@ kconfig_parser_lib = static_library('kconfig_parser', [
   ],
   # the generated headers are buggy
   cpp_args: [ '-Wno-overloaded-virtual', '-Wno-unused-parameter' ],
-  dependencies : antlr4_lib,
+  dependencies : antlr4_dep,
 )
 
 kconfig_parser = declare_dependency(

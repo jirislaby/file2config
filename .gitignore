@@ -1,2 +1,7 @@
 meson.build.user
 *.swp
+*conf_file_map.sqlite
+/.cache/
+/.clangd
+/build
+

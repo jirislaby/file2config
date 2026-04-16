@@ -83,7 +83,7 @@ void ErrorListener::parserError(antlr4::Parser &parser, antlr4::Token &offending
 	auto tokEnd = std::min(tokStart + surround * 2, tokens->size() - 1);
 	SlHelpers::String::join(std::cerr, tokens->get(tokStart, tokEnd),
 				[](auto &out, const auto &tok) {
-		out << '[' << tok->getType() << ",'";
+		out << '[' << static_cast<ssize_t>(tok->getType()) << ",'";
 		for (char c: tok->getText())
 			switch (c) {
 			case '\t':

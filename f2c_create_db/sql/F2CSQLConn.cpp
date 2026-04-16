@@ -111,10 +111,28 @@ bool F2CSQLConn::createDB()
 	};
 
 	static const Indices create_indexes {
+		{ "conf_branch_map_config_index", "conf_branch_map(config)" },
+		{ "conf_branch_map_branch_config_index", "conf_branch_map(branch, config)" },
 		{ "conf_file_map_file_index", "conf_file_map(file)" },
 		{ "conf_file_map_branch_file_index", "conf_file_map(branch, file)" },
+		{ "module_module_index", "module(module)" },
+		{ "module_details_map_module_index", "module_details_map(module)" },
 		{ "module_file_map_file_index", "module_file_map(file)" },
 		{ "module_file_map_branch_file_index", "module_file_map(branch, file)" },
+		{ "user_file_map_file_index", "user_file_map(file)" },
+
+		// these are auto-created:
+		// conf_branch_map: (branch, config, arch, flavor)
+		// conf_file_map: (branch, config, file)
+		// module: (dir, module)
+		// module_details_map: (branch, module)
+		// module_file_map: (branch, module, file)
+		// user: (email)
+		// user_file_map: (branch, user, file)
+		// ignored_file_branch_map: (branch, file)
+		// rename_file_version_map: (version, oldfile, newfile)
+		// rename_file_version_map: (version, oldfile)
+		// rename_file_version_map: (version, newfile)
 	};
 
 	static const Views create_views {

@@ -9,13 +9,6 @@
 
 using namespace MP;
 
-bool MakeExprListener::isSubdirRule(const std::string &lhs)
-{
-	return lhs.starts_with("subdir-") &&
-			!lhs.starts_with("subdir-asflags-") &&
-			!lhs.starts_with("subdir-ccflags-");
-}
-
 std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
 {
 	if (auto e = atom->eval())
@@ -33,9 +26,7 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 	return { atom->getText() };
 }
 
-void MakeExprListener::evaluateWord(const std::any &interesting, const std::string &lhs,
-				    const std::string &cond,
-				    const MakeParser::WordContext *word)
+std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordContext *word)
 {
 	std::vector<std::string> evaluated;
 
@@ -58,7 +49,21 @@ void MakeExprListener::evaluateWord(const std::any &interesting, const std::stri
 		}
 	}
 
-	for (const auto &wordText: evaluated) {
+	return evaluated;
+}
+
+bool MakeExprListener::isSubdirRule(const std::string &lhs)
+{
+	return lhs.starts_with("subdir-") &&
+			!lhs.starts_with("subdir-asflags-") &&
+			!lhs.starts_with("subdir-ccflags-");
+}
+
+void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
+					    const std::string &cond,
+					    const MakeParser::WordContext *word)
+{
+	for (const auto &wordText: evaluateWord(word)) {
 		if (F2C::verbose > 2)
 			std::cout << "\t\t" << __func__ << ": " << wordText << "\n";
 
@@ -112,5 +117,5 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 
 	if (ctx->r && ctx->r->words())
 		for (const auto &word: ctx->r->words()->w)
-			evaluateWord(interesting, lText, cond, word);
+			evaluateWordAndVisit(interesting, lText, cond, word);
 }

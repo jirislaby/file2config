@@ -22,9 +22,10 @@ private:
 	static bool isSubdirRule(const std::string &lhs);
 
 	std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
-	void evaluateWord(const std::any &interesting, const std::string &lhs,
-			  const std::string &cond,
-			  const MakeParser::WordContext *word);
+	std::vector<std::string> evaluateWord(const MakeParser::WordContext *word);
+	void evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
+				  const std::string &cond,
+				  const MakeParser::WordContext *word);
 
 	const std::vector<std::string> &archs;
 	const EntryVisitor &entryVisitor;

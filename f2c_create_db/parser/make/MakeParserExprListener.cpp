@@ -52,11 +52,9 @@ std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordCo
 	return evaluated;
 }
 
-bool MakeExprListener::isSubdirRule(const std::string &lhs)
+bool MakeExprListener::isCompilerFlagsRule(std::string_view lhs)
 {
-	return lhs.starts_with("subdir-") &&
-			!lhs.starts_with("subdir-asflags-") &&
-			!lhs.starts_with("subdir-ccflags-");
+	return lhs.starts_with("subdir-asflags-") || lhs.starts_with("subdir-ccflags-");
 }
 
 void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
@@ -65,9 +63,11 @@ void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const s
 {
 	for (const auto &wordText: evaluateWord(word)) {
 		if (F2C::verbose > 2)
-			std::cout << "\t\t" << __func__ << ": " << wordText << "\n";
+			std::cout << "\t\t" << __func__ << ": lhs=" << lhs << " rhs=" << wordText
+				<< "\n";
 
-		if (wordText.back() == '/' || isSubdirRule(lhs)) {
+		if (!isCompilerFlagsRule(lhs) &&
+		    (wordText.back() == '/' || lhs.starts_with("subdir-"))) {
 			entryVisitor.entry(interesting, cond, EntryType::Directory, wordText);
 		} else if (wordText.ends_with(".o")) {
 			entryVisitor.entry(interesting, cond, EntryType::Object, wordText);

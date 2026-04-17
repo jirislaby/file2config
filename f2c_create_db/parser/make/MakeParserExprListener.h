@@ -4,6 +4,7 @@
 #define MAKEEXPRLISTENER_H
 
 #include <string>
+#include <string_view>
 
 #include "MakeParserBaseListener.h"
 
@@ -19,7 +20,7 @@ public:
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
 private:
-	static bool isSubdirRule(const std::string &lhs);
+	static bool isCompilerFlagsRule(std::string_view lhs);
 
 	std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
 	std::vector<std::string> evaluateWord(const MakeParser::WordContext *word);

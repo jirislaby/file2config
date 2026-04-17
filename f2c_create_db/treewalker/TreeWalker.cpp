@@ -16,7 +16,7 @@ using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
 void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
-			    const std::function<void(const std::filesystem::path &entry)> &CB)
+			       const std::function<void(const std::filesystem::path &entry)> &CB)
 {
 	std::error_code ec;
 
@@ -103,6 +103,16 @@ void TreeWalker::addTargetEntry(const CondStack &s,
 	}
 }
 
+/**
+ * @brief Find sources for \p objPath
+ *
+ * @param s Condition stack
+ * @param objPath Object to find sources of
+ * @return true on success
+ *
+ * \p objPath (module) is composed of more sources, so the AST needs to be
+ * walked recursively to find all the sources.
+ */
 bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
 {
 	auto lookingFor = objPath.stem().string() + "-";
@@ -197,6 +207,16 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 	return std::nullopt;
 }
 
+/**
+ * @brief Handle "obj-X := file.o", see also addRegularEntry()
+ *
+ * @param s Condition stack
+ * @param objPath Object to find sources of
+ * @param module Name (path) of the .ko module for \p objPath
+ *
+ * First, check if this is a simple rule -- one source file per module. If so, it is the short path.
+ * If not, tryHandleTarget() needs to find all the sources for the module.
+ */
 void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath,
 			      const std::filesystem::path &module)
 {
@@ -229,6 +249,7 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		std::cerr << objPath << " source not found\n";
 }
 
+/// @brief Handle "obj-X := file.o" or "obj-X := dir/", where X is \p cond and file/dir is \p word
 void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
 				 const std::any &interesting,
 				 const std::string &cond,
@@ -256,6 +277,7 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 	}
 }
 
+/// @brief Handle one queued Kbuild file (the @p kbPath)
 void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
 {
 	if (F2C::verbose > 1)
@@ -304,6 +326,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 	parser.walkAST(archs, visitor);
 }
 
+/// @brief Find Kbuild or Makefile in @p path and add it to the queue
 void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
 			      const std::filesystem::path &path)
 {
@@ -326,6 +349,8 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 			     path << "\n";
 }
 
+/// @brief The top-level function to walk the source tree. The queue is preinitialized in
+/// the constructor.
 void TreeWalker::walk()
 {
 	while (!toWalk.empty()) {

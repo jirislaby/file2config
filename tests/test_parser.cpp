@@ -54,7 +54,7 @@ void testVisitor()
 		EntryCont &cont;
 	} visitor(cont);
 
-	parser.walkTree({}, visitor);
+	parser.walkAST({}, visitor);
 
 	std::cerr << "data:\n";
 	for (const auto &e : data)

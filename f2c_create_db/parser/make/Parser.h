@@ -16,7 +16,7 @@ class EntryVisitor;
 
 class Parser : public Parsers::Parser<MakeLexer, MakeParser> {
 public:
-	void walkTree(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
+	void walkAST(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
 protected:
 	virtual antlr4::ParserRuleContext *getTree();
 };

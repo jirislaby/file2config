@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <functional>
 #include <optional>
-#include <set>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -64,8 +64,8 @@ private:
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;
-	std::set<std::filesystem::path> visitedDirs;
-	std::set<std::filesystem::path> visitedPaths;
+	std::unordered_set<std::filesystem::path> visitedDirs;
+	std::unordered_set<std::filesystem::path> visitedPaths;
 };
 
 }

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <set>
 
 #include <sl/kerncvs/Branches.h>
 #include <sl/kerncvs/CollectConfigs.h>

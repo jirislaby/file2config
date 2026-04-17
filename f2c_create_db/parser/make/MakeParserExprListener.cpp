@@ -21,6 +21,10 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 						return archs;
 					if (id->BITS())
 						return { "32", "64" };
+					if (id->getText() == "src")
+						return { m_curDir };
+					if (id->getText() == "srctree")
+						return { m_rootDir };
 				}
 
 	return { atom->getText() };

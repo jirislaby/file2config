@@ -5,6 +5,7 @@
 #include <set>
 
 #include <sl/helpers/Color.h>
+#include <string_view>
 
 #include "kconfig/Parser.h"
 #include "make/EntryVisitor.h"
@@ -23,14 +24,20 @@ void testVisitor()
 	using Entry = std::pair<std::string, std::string>;
 	using EntryCont = std::set<Entry>;
 
-	static const std::pair<std::string, Entry> data[] = {
-		{ "y",			{ "y", "mod-y.o" } },
-		{ "$(CONFIG_ABC)",	{ "CONFIG_ABC", "mod-abc.o" } },
+	static const struct {
+		std::string_view cond;
+		std::string_view rhs;
+		Entry expected;
+	} data[] = {
+		{ "y",			"mod-y.o", { "y", "mod-y.o" } },
+		{ "$(CONFIG_ABC)",	"mod-abc.o", { "CONFIG_ABC", "mod-abc.o" } },
+		{ "y",			"$(src)/mod-src.o", { "y", "/src/mod-src.o" } },
+		{ "y",			"$(srctree)/mod-tree.o", { "y", "/srctree/mod-tree.o" } },
 	};
 
 	std::stringstream ss;
 	for (const auto &e : data) {
-		ss << "obj-" << e.first << " := " << e.second.second << "\n";
+		ss << "obj-" << e.cond << " := " << e.rhs << "\n";
 	}
 
 	assert(parser.parse(ss.view()));
@@ -54,18 +61,18 @@ void testVisitor()
 		EntryCont &cont;
 	} visitor(cont);
 
-	parser.walkAST({}, visitor);
+	parser.walkAST({}, visitor, "/srctree", "/src");
 
-	std::cerr << "data:\n";
+	Clr(std::cerr) << "data:";
 	for (const auto &e : data)
-		std::cerr << "\tcond=" << e.second.first << " mod=" << e.second.second << "\n";
+		Clr(std::cerr) << "\tcond=" << e.expected.first << " mod=" << e.expected.second;
 
-	std::cerr << "found:\n";
+	Clr(std::cerr) << "found:";
 	for (const auto &e : cont)
-		std::cerr << "\tcond=" << e.first << " mod=" << e.second << "\n";
+		Clr(std::cerr) << "\tcond=" << e.first << " mod=" << e.second;
 
 	for (const auto &e : data)
-		assert(cont.find(e.second) != cont.end());
+		assert(cont.find(e.expected) != cont.end());
 }
 
 void testMakefile(const std::filesystem::path &makefile)

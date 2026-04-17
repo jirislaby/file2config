@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,8 @@ class EntryVisitor;
 
 class Parser : public Parsers::Parser<MakeLexer, MakeParser> {
 public:
-	void walkAST(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor);
+	void walkAST(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor,
+		     const std::filesystem::path &rootDir, const std::filesystem::path &curDir);
 protected:
 	virtual antlr4::ParserRuleContext *getTree();
 };

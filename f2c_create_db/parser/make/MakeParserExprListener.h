@@ -3,6 +3,7 @@
 #ifndef MAKEEXPRLISTENER_H
 #define MAKEEXPRLISTENER_H
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -15,8 +16,10 @@ class EntryVisitor;
 class MakeExprListener : public MakeParserBaseListener {
 public:
 	MakeExprListener() = delete;
-	MakeExprListener(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor)
-		: MakeParserBaseListener(), archs(archs), entryVisitor(entryVisitor) {}
+	MakeExprListener(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor,
+			 const std::filesystem::path &rootDir, const std::filesystem::path &curDir)
+		: MakeParserBaseListener(), archs(archs), entryVisitor(entryVisitor),
+		m_rootDir(rootDir), m_curDir(curDir) {}
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
 private:
@@ -30,6 +33,8 @@ private:
 
 	const std::vector<std::string> &archs;
 	const EntryVisitor &entryVisitor;
+	const std::filesystem::path &m_rootDir;
+	const std::filesystem::path &m_curDir;
 };
 
 }

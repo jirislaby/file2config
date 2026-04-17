@@ -5,10 +5,11 @@
 
 using namespace MP;
 
-void Parser::walkAST(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor)
+void Parser::walkAST(const std::vector<std::string> &archs, const EntryVisitor &entryVisitor,
+		     const std::filesystem::path &rootDir, const std::filesystem::path &curDir)
 {
 	antlr4::tree::ParseTreeWalker walker;
-	MakeExprListener l{ archs, entryVisitor };
+	MakeExprListener l{ archs, entryVisitor, rootDir, curDir };
 	walker.walk(&l, m_tree);
 }
 

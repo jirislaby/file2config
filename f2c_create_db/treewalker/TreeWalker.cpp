@@ -169,7 +169,7 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 		bool &found;
 	} visitor(*this, s, objPath, lookingFor, found);
 
-	parser.walkAST(archs, visitor);
+	parser.walkAST(archs, visitor, start, objPath.parent_path());
 
 	if (F2C::verbose > 1) {
 		std::cout << __func__ << " DONE: obj=" << objPath << " found=" << found << '\n';
@@ -323,7 +323,7 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		const std::filesystem::path &kbPath;
 	} visitor(*this, s, kbPath);
 
-	parser.walkAST(archs, visitor);
+	parser.walkAST(archs, visitor, start, kbPath.parent_path());
 }
 
 /// @brief Find Kbuild or Makefile in @p path and add it to the queue

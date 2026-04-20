@@ -33,6 +33,7 @@ void testVisitor()
 		{ "$(CONFIG_ABC)",	"mod-abc.o", { "CONFIG_ABC", "mod-abc.o" } },
 		{ "y",			"$(src)/mod-src.o", { "y", "/src/mod-src.o" } },
 		{ "y",			"$(srctree)/mod-tree.o", { "y", "/srctree/mod-tree.o" } },
+		{ "y$(CONFIG_MMU_SUN3)","dma.o", { "CONFIG_MMU_SUN3", "dma.o" } },
 	};
 
 	std::stringstream ss;

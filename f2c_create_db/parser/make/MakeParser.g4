@@ -101,6 +101,8 @@ atom_lhs returns [std::string cond] :
 	| ( id
 	  | eval		{$cond = $eval.cond;}
 	  )+
+	// arch/m68k/kernel/Makefile_mm: obj-y$(CONFIG_MMU_SUN3)
+	| bare eval		{$cond = $eval.cond;}
 ;
 
 id returns [std::string cond] :

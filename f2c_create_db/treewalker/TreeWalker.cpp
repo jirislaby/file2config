@@ -36,6 +36,10 @@ void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 
 void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem::path &start)
 {
+	// skip these
+	m_visitedMakefiles.emplace(start/"scripts/Kbuild.include");
+	m_visitedMakefiles.emplace(start/"scripts/Makefile.gcc-plugins");
+
 	// start with top-level Makefile
 	appendToWalk(s, start/"Makefile");
 	// and it includes Kbuild
@@ -210,7 +214,8 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 	return std::nullopt;
 }
 
-void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath)
+void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
+				  std::filesystem::path cwd)
 {
 	if (!m_visitedMakefiles.insert(kbPath).second) {
 		if (F2C::verbose > 1)
@@ -218,7 +223,9 @@ void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath)
 				" already walked";
 		return;
 	}
-	m_toWalk.emplace_back(std::move(s), std::move(kbPath));
+	if (cwd.empty())
+		cwd = kbPath.parent_path();
+	m_toWalk.emplace_back(std::move(s), std::move(kbPath), std::move(cwd));
 }
 
 /**
@@ -331,12 +338,16 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 			TW.addRegularEntry(m_entry.cs, m_entry.kbPath, interesting, cond, type,
 					   word);
 		}
+
+		virtual void include(const std::filesystem::path &dest) const override {
+			TW.appendToWalk(m_entry.cs, dest, m_entry.cwd);
+		}
 	private:
 		TreeWalker &TW;
 		const ToWalkEntry &m_entry;
 	} visitor(*this, entry);
 
-	parser.walkAST(archs, visitor, start, entry.kbPath.parent_path());
+	parser.walkAST(archs, visitor, start, entry.cwd);
 }
 
 /// @brief Find Kbuild or Makefile in @p path and add it to the queue

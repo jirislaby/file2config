@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <filesystem>
 #include <iostream>
 #include <string>
+
+#include <sl/helpers/Color.h>
+#include <sl/helpers/String.h>
 
 #include "EntryVisitor.h"
 #include "MakeParserExprListener.h"
 #include "../../Verbose.h"
 
 using namespace MP;
+using Clr = SlHelpers::Color;
 
 std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
 {
@@ -25,6 +30,10 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 						return { m_curDir };
 					if (id->getText() == "srctree")
 						return { m_rootDir };
+					if (id->getText() == "FULL_AMD_PATH")
+						return { m_rootDir / "drivers/gpu/drm/amd" };
+					if (id->getText() == "FULL_AMD_DISPLAY_PATH")
+						return { m_rootDir / "drivers/gpu/drm/amd/display" };
 				}
 
 	return { atom->getText() };
@@ -33,9 +42,6 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordContext *word)
 {
 	std::vector<std::string> evaluated;
-
-	if (F2C::verbose > 1)
-		std::cout << __func__ << ": " << const_cast<MakeParser::WordContext *>(word)->getText() << '\n';
 
 	for (const auto &atom: word->children) {
 		std::vector<std::string> newRes;
@@ -51,6 +57,14 @@ std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordCo
 
 			evaluated = newRes;
 		}
+	}
+
+	if (F2C::verbose > 1) {
+		Clr() << __func__ << ": " <<
+			const_cast<MakeParser::WordContext *>(word)->getText() <<
+			" -> [" << Clr::NoNL;
+		SlHelpers::String::join(std::cout, evaluated);
+		Clr()<< ']';
 	}
 
 	return evaluated;
@@ -122,4 +136,29 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 	if (ctx->r && ctx->r->words())
 		for (const auto &word: ctx->r->words()->w)
 			evaluateWordAndVisit(interesting, lText, cond, word);
+}
+
+void MP::MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)
+{
+	auto inc = ctx->word();
+	for (const auto &e: evaluateWord(inc)) {
+		std::filesystem::path dest { e };
+		if (F2C::verbose > 1)
+			Clr(std::cerr) << __func__ << ": include: " << inc->getText() <<
+				" -> " << dest;
+		if (std::filesystem::exists(dest)) {
+			entryVisitor.include(dest);
+			continue;
+		}
+		// pre-6.3 trees used --include-dir=$(abs_srctree)
+		auto destIncludeDir = m_rootDir / dest;
+		if (std::filesystem::exists(destIncludeDir)) {
+			entryVisitor.include(destIncludeDir);
+			continue;
+		}
+
+		if (F2C::verbose > 0)
+			Clr(std::cerr, Clr::YELLOW) << "include " << dest <<
+				" does not exist, cwd=" << m_curDir;
+	}
 }

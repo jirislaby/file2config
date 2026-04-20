@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef ENTRYCALLBACK_H
-#define ENTRYCALLBACK_H
+#pragma once
 
 #include <any>
+#include <filesystem>
 #include <string>
 
 namespace MP {
@@ -19,8 +19,9 @@ public:
 
 	virtual void entry(const std::any &interesting, const std::string &cond,
 			   const enum EntryType &type, const std::string &word) const = 0;
+
+	virtual void include(const std::filesystem::path &/*dest*/) const {}
 };
 
 }
 
-#endif

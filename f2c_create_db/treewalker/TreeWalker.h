@@ -44,6 +44,7 @@ private:
 	struct ToWalkEntry {
 		CondStack cs;
 		std::filesystem::path kbPath;
+		std::filesystem::path cwd; // kbPath's dir except for make's "include"
 	};
 
 	static void forEachSubDir(const std::filesystem::path &dir,

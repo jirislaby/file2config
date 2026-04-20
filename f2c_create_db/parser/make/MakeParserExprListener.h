@@ -22,6 +22,8 @@ public:
 		m_rootDir(rootDir), m_curDir(curDir) {}
 
 	virtual void exitExpr(MakeParser::ExprContext *) override;
+	virtual void exitInclude(MakeParser::IncludeContext *ctx) override;
+
 private:
 	static bool isCompilerFlagsRule(std::string_view lhs);
 

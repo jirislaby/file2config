@@ -21,7 +21,7 @@ cmd :
 ;
 
 include :
-	INCLUDE ws+ inc=nonNL
+	INCLUDE ws+ word
 ;
 
 export :

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <utility>
 
+#include <sl/helpers/Color.h>
 #include <sl/helpers/Exception.h>
 #include <sl/helpers/String.h>
 #include <sl/helpers/Views.h>
@@ -13,6 +14,7 @@
 #include "../Verbose.h"
 
 using namespace TW;
+using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
@@ -210,6 +212,12 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 
 void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath)
 {
+	if (!m_visitedMakefiles.insert(kbPath).second) {
+		if (F2C::verbose > 1)
+			Clr(std::cerr, Clr::YELLOW) << __func__ << ": makefile " << kbPath <<
+				" already walked";
+		return;
+	}
 	m_toWalk.emplace_back(std::move(s), std::move(kbPath));
 }
 

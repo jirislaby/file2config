@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef TREEWALKER_H
-#define TREEWALKER_H
+#pragma once
 
 #include <any>
 #include <filesystem>
@@ -57,17 +56,18 @@ private:
 	static std::optional<std::string> getCond(const CondStack &s);
 	std::optional<std::string> getTristateConf(const CondStack &s);
 
+	void appendToWalk(CondStack s, std::filesystem::path kbPath);
+
 	MP::Parser parser;
 	const Kconfig::Config::Configs &m_configs;
 	const MakeVisitor &makeVisitor;
 
 	std::filesystem::path start;
 	std::vector<std::string> archs;
-	std::vector<std::pair<CondStack, std::filesystem::path>> toWalk;
+	std::vector<std::pair<CondStack, std::filesystem::path>> m_toWalk;
 	std::unordered_set<std::filesystem::path> visitedDirs;
 	std::unordered_set<std::filesystem::path> visitedPaths;
 };
 
 }
 
-#endif // TREEWALKER_H

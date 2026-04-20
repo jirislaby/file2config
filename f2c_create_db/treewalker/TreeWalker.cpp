@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
+#include <utility>
 
 #include <sl/helpers/Exception.h>
 #include <sl/helpers/String.h>
@@ -34,14 +35,14 @@ void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem::path &start)
 {
 	// start with top-level Makefile
-	toWalk.push_back(std::make_pair(s, start/"Makefile"));
+	appendToWalk(s, start/"Makefile");
 	// and it includes Kbuild
-	toWalk.push_back(std::make_pair(s, start/"Kbuild"));
+	appendToWalk(s, start/"Kbuild");
 
 	forEachSubDir(start/"arch", [this, &s](const std::filesystem::path &path) {
 		archs.push_back(path.stem());
 		// we do not handle 'include's, so do what top-level 'Makefile' does
-		toWalk.push_back(std::make_pair(s, path/"Makefile"));
+		appendToWalk(s, path/"Makefile");
 	});
 
 	forEachSubDir(start/"arch/arm", [this, &s](const std::filesystem::path &path) {
@@ -49,19 +50,19 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 		const auto stem = path.stem().string();
 		for (const auto &lf: lookingFor)
 			if (!stem.compare(0, lf.length(), lf)) {
-				const auto makefile = path/"Makefile";
+				auto makefile = path/"Makefile";
 				if (std::filesystem::exists(makefile))
-					toWalk.push_back(std::make_pair(s, makefile));
+					appendToWalk(s, std::move(makefile));
 			}
 	});
 
 	auto mipsPlat = start/"arch/mips/Kbuild.platforms";
 	if (std::filesystem::exists(mipsPlat))
-		toWalk.push_back(std::make_pair(s, mipsPlat));
+		appendToWalk(s, std::move(mipsPlat));
 
 	auto s390Boot = start/"arch/s390/boot/Makefile";
 	if (std::filesystem::exists(s390Boot))
-		toWalk.push_back(std::make_pair(s, s390Boot));
+		appendToWalk(s, std::move(s390Boot));
 }
 
 TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
@@ -78,7 +79,7 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config
 
 	if (F2C::verbose) {
 		std::cout << __func__ << ": start=";
-		for (const auto &e: toWalk)
+		for (const auto &e: m_toWalk)
 			std::cout << e.second << ",";
 		std::cout << "]\n";
 	}
@@ -205,6 +206,11 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 	}
 
 	return std::nullopt;
+}
+
+void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath)
+{
+	m_toWalk.emplace_back(std::move(s), std::move(kbPath));
 }
 
 /**
@@ -339,7 +345,7 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 
 	for (const auto &kb_file: { "Kbuild", "Makefile" }) {
 		if (std::filesystem::exists(path / kb_file)) {
-			toWalk.push_back(std::make_pair(s, path / kb_file));
+			appendToWalk(s, path / kb_file);
 			return;
 		}
 	}
@@ -353,9 +359,9 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 /// the constructor.
 void TreeWalker::walk()
 {
-	while (!toWalk.empty()) {
-		auto top = toWalk.back();
-		toWalk.pop_back();
+	while (!m_toWalk.empty()) {
+		auto top = m_toWalk.back();
+		m_toWalk.pop_back();
 		handleKbuildFile(top.first, top.second);
 	}
 }

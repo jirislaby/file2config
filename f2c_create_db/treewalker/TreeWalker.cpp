@@ -82,13 +82,6 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config
 		addDefaultKernelFiles(s, start);
 	else
 		addDirectory(start, s, start);
-
-	if (F2C::verbose) {
-		std::cout << __func__ << ": start=";
-		for (const auto &e: m_toWalk)
-			std::cout << e.kbPath << ",";
-		std::cout << "]\n";
-	}
 }
 
 void TreeWalker::addTargetEntry(const CondStack &s,
@@ -225,7 +218,7 @@ void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
 	}
 	if (cwd.empty())
 		cwd = kbPath.parent_path();
-	m_toWalk.emplace_back(std::move(s), std::move(kbPath), std::move(cwd));
+	m_toWalk.emplace(std::move(s), std::move(kbPath), std::move(cwd));
 }
 
 /**
@@ -377,9 +370,6 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 /// the constructor.
 void TreeWalker::walk()
 {
-	while (!m_toWalk.empty()) {
-		auto top = m_toWalk.back();
-		m_toWalk.pop_back();
-		handleKbuildFile(top);
-	}
+	for (; !m_toWalk.empty(); m_toWalk.pop())
+		handleKbuildFile(m_toWalk.front());
 }

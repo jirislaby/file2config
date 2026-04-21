@@ -35,8 +35,7 @@ public:
 
 	void addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
 			     const std::any &interesting, const std::string &cond,
-			     const MP::EntryType &type,
-			     const std::string &word);
+			     MP::EntryType type, const std::string &word);
 	void addTargetEntry(CondStack s,
 			    const std::filesystem::path &objPath, const std::string &cond,
 			    const std::string &entry);

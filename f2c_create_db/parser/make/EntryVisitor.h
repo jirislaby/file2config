@@ -18,7 +18,7 @@ public:
 	virtual const std::any isInteresting(const std::string &lhs) const = 0;
 
 	virtual void entry(const std::any &interesting, const std::string &cond,
-			   const enum EntryType &type, const std::string &word) const = 0;
+			   EntryType type, const std::string &word) const = 0;
 
 	virtual void include(const std::filesystem::path &/*dest*/) const {}
 };

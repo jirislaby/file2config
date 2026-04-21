@@ -54,7 +54,7 @@ void testVisitor()
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   const enum MP::EntryType &type, const std::string &word) const {
+				   MP::EntryType type, const std::string &word) const {
 			assert(type == MP::EntryType::Object);
 			cont.insert(std::make_pair(cond, word));
 		}

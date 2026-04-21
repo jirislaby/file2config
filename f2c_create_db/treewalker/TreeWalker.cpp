@@ -146,7 +146,7 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   const enum MP::EntryType &type, const std::string &word) const override {
+				   MP::EntryType type, const std::string &word) const override {
 			if (type == MP::EntryType::Object) {
 				TW.addTargetEntry(s, objPath, cond, word);
 				found = true;
@@ -257,7 +257,7 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
 				 const std::any &interesting,
 				 const std::string &cond,
-				 const enum MP::EntryType &type,
+				 MP::EntryType type,
 				 const std::string &word)
 {
 	if (type == MP::EntryType::Directory) {
@@ -314,8 +314,7 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 		}
 
 		virtual void entry(const std::any &interesting, const std::string &cond,
-				   const enum MP::EntryType &type,
-				   const std::string &word) const override {
+				   MP::EntryType type, const std::string &word) const override {
 			TW.addRegularEntry(m_entry.cs, m_entry.kbPath, interesting, cond, type,
 					   word);
 		}

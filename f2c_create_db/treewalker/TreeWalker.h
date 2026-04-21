@@ -33,14 +33,13 @@ public:
 
 	void walk();
 
-	void addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
+	void addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
 			     const std::any &interesting, const std::string &cond,
 			     const MP::EntryType &type,
 			     const std::string &word);
-	void addTargetEntry(const CondStack &s,
+	void addTargetEntry(CondStack s,
 			    const std::filesystem::path &objPath, const std::string &cond,
-			    const MP::EntryType &type,
-			    const std::string &entry, bool &found);
+			    const std::string &entry);
 private:
 	struct ToWalkEntry {
 		CondStack cs;
@@ -50,13 +49,13 @@ private:
 
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
-	void addDefaultKernelFiles(const CondStack &s, const std::filesystem::path &start);
+	void addDefaultKernelFiles(CondStack s, const std::filesystem::path &start);
 
-	bool tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath);
+	bool tryHandleTarget(CondStack s, const std::filesystem::path &objPath);
 	void handleKbuildFile(const ToWalkEntry &e);
-	void addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
+	void addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			  const std::filesystem::path &path);
-	void handleObject(const CondStack &s, const std::filesystem::path &objPath,
+	void handleObject(CondStack s, const std::filesystem::path &objPath,
 			  const std::filesystem::path &module);
 
 	static bool isBuiltIn(const std::string &cond);

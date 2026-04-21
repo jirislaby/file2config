@@ -34,7 +34,7 @@ void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 		}
 }
 
-void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem::path &start)
+void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path &start)
 {
 	// skip these
 	m_visitedMakefiles.emplace(start/"scripts/Kbuild.include");
@@ -62,39 +62,33 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 
 	auto s390Boot = start/"arch/s390/boot/Makefile";
 	if (std::filesystem::exists(s390Boot))
-		appendToWalk(s, std::move(s390Boot));
+		appendToWalk(std::move(s), std::move(s390Boot));
 }
 
 TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
 		       const MakeVisitor &makeVisitor) :
 	m_configs(configs), makeVisitor(makeVisitor), start(start)
 {
-	CondStack s;
-	s.push_back("y");
+	CondStack s { "y" };
 
 	if (std::filesystem::exists(start/"Documentation"))
-		addDefaultKernelFiles(s, start);
+		addDefaultKernelFiles(std::move(s), start);
 	else
-		addDirectory(start, s, start);
+		addDirectory(start, std::move(s), start);
 }
 
-void TreeWalker::addTargetEntry(const CondStack &s,
+void TreeWalker::addTargetEntry(CondStack s,
 				const std::filesystem::path &objPath,
 				const std::string &cond,
-				const MP::EntryType &type,
-				const std::string &entry, bool &found)
+				const std::string &entry)
 {
 	if (F2C::verbose > 1)
-		std::cout << __func__ << ": cond=" << cond << " t=" << type << " e=" << entry << '\n';
+		std::cout << __func__ << ": cond=" << cond << " e=" << entry << '\n';
 
-	if (type == MP::EntryType::Object) {
-		auto newS(s);
-		newS.push_back(cond);
-		auto module = objPath;
-		module.replace_extension();
-		handleObject(newS, objPath.parent_path() / entry, module);
-		found = true;
-	}
+	s.push_back(cond);
+	auto module = objPath;
+	module.replace_extension();
+	handleObject(std::move(s), objPath.parent_path() / entry, module);
 }
 
 /**
@@ -107,7 +101,7 @@ void TreeWalker::addTargetEntry(const CondStack &s,
  * \p objPath (module) is composed of more sources, so the AST needs to be
  * walked recursively to find all the sources.
  */
-bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath)
+bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPath)
 {
 	auto lookingFor = objPath.stem().string() + "-";
 
@@ -153,7 +147,10 @@ bool TreeWalker::tryHandleTarget(const CondStack &s, const std::filesystem::path
 
 		virtual void entry(const std::any &, const std::string &cond,
 				   const enum MP::EntryType &type, const std::string &word) const override {
-			TW.addTargetEntry(s, objPath, cond, type, word, found);
+			if (type == MP::EntryType::Object) {
+				TW.addTargetEntry(s, objPath, cond, word);
+				found = true;
+			}
 		}
 	private:
 		TreeWalker &TW;
@@ -225,7 +222,7 @@ void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
  * First, check if this is a simple rule -- one source file per module. If so, it is the short path.
  * If not, tryHandleTarget() needs to find all the sources for the module.
  */
-void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &objPath,
+void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 			      const std::filesystem::path &module)
 {
 	if (F2C::verbose > 1)
@@ -251,14 +248,13 @@ void TreeWalker::handleObject(const CondStack &s, const std::filesystem::path &o
 		}
 	}
 
-	auto newS(s);
-	newS.push_back(cond);
-	if (!tryHandleTarget(newS, objPath) && F2C::verbose)
+	s.push_back(cond);
+	if (!tryHandleTarget(std::move(s), objPath) && F2C::verbose)
 		std::cerr << objPath << " source not found\n";
 }
 
 /// @brief Handle "obj-X := file.o" or "obj-X := dir/", where X is \p cond and file/dir is \p word
-void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path &kbPath,
+void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
 				 const std::any &interesting,
 				 const std::string &cond,
 				 const enum MP::EntryType &type,
@@ -272,16 +268,14 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 		if (F2C::verbose > 1)
 			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<
 				     dir << "\n";
-		auto newS(s);
-		newS.push_back(cond);
-		addDirectory(kbPath, newS, dir);
+		s.push_back(cond);
+		addDirectory(kbPath, std::move(s), dir);
 	} else if (type == MP::EntryType::Object) {
-		auto newS(s);
-		newS.push_back(cond);
+		s.push_back(cond);
 		auto obj = kbPath.parent_path() / word;
 		auto module = obj;
 		module.replace_extension();
-		handleObject(newS, obj, module);
+		handleObject(std::move(s), obj, module);
 	}
 }
 
@@ -338,7 +332,7 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 }
 
 /// @brief Find Kbuild or Makefile in @p path and add it to the queue
-void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
+void TreeWalker::addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			      const std::filesystem::path &path)
 {
 	if (F2C::verbose > 1) {
@@ -350,7 +344,7 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, const CondSta
 
 	for (const auto &kb_file: { "Kbuild", "Makefile" }) {
 		if (std::filesystem::exists(path / kb_file)) {
-			appendToWalk(s, path / kb_file);
+			appendToWalk(std::move(s), path / kb_file);
 			return;
 		}
 	}

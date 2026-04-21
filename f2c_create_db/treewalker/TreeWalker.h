@@ -34,10 +34,9 @@ public:
 	void walk();
 
 	void addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
-			     const std::any &interesting, const std::string &cond,
+			     const std::any &interesting, std::string cond,
 			     MP::EntryType type, const std::string &word);
-	void addTargetEntry(CondStack s,
-			    const std::filesystem::path &objPath, const std::string &cond,
+	void addTargetEntry(CondStack s, const std::filesystem::path &objPath, std::string cond,
 			    const std::string &entry);
 private:
 	struct ToWalkEntry {

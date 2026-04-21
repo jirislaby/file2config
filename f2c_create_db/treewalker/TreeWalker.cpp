@@ -46,7 +46,7 @@ void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path 
 	appendToWalk(s, start/"Kbuild");
 
 	forEachSubDir(start/"arch", [this](const std::filesystem::path &path) {
-		archs.push_back(path.stem());
+		archs.emplace_back(path.stem());
 	});
 
 	forEachSubDir(start/"arch/arm", [this, &s](const std::filesystem::path &path) {
@@ -79,13 +79,13 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config
 
 void TreeWalker::addTargetEntry(CondStack s,
 				const std::filesystem::path &objPath,
-				const std::string &cond,
+				std::string cond,
 				const std::string &entry)
 {
 	if (F2C::verbose > 1)
 		std::cout << __func__ << ": cond=" << cond << " e=" << entry << '\n';
 
-	s.push_back(cond);
+	s.emplace_back(std::move(cond));
 	auto module = objPath;
 	module.replace_extension();
 	handleObject(std::move(s), objPath.parent_path() / entry, module);
@@ -248,7 +248,7 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 		}
 	}
 
-	s.push_back(cond);
+	s.emplace_back(std::move(cond));
 	if (!tryHandleTarget(std::move(s), objPath) && F2C::verbose)
 		std::cerr << objPath << " source not found\n";
 }
@@ -256,7 +256,7 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 /// @brief Handle "obj-X := file.o" or "obj-X := dir/", where X is \p cond and file/dir is \p word
 void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPath,
 				 const std::any &interesting,
-				 const std::string &cond,
+				 std::string cond,
 				 MP::EntryType type,
 				 const std::string &word)
 {
@@ -268,10 +268,10 @@ void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPat
 		if (F2C::verbose > 1)
 			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<
 				     dir << "\n";
-		s.push_back(cond);
+		s.emplace_back(std::move(cond));
 		addDirectory(kbPath, std::move(s), dir);
 	} else if (type == MP::EntryType::Object) {
-		s.push_back(cond);
+		s.emplace_back(std::move(cond));
 		auto obj = kbPath.parent_path() / word;
 		auto module = obj;
 		module.replace_extension();

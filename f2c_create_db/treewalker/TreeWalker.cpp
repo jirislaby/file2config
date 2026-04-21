@@ -82,7 +82,7 @@ TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config
 	if (F2C::verbose) {
 		std::cout << __func__ << ": start=";
 		for (const auto &e: m_toWalk)
-			std::cout << e.second << ",";
+			std::cout << e.kbPath << ",";
 		std::cout << "]\n";
 	}
 }
@@ -291,20 +291,19 @@ void TreeWalker::addRegularEntry(const CondStack &s, const std::filesystem::path
 	}
 }
 
-/// @brief Handle one queued Kbuild file (the @p kbPath)
-void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath)
+/// @brief Handle one queued Kbuild file
+void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 {
 	if (F2C::verbose > 1)
-		std::cout << __func__ << ": " << kbPath << "\n";
+		std::cout << __func__ << ": " << entry.kbPath << "\n";
 
-	if (!parser.parse(kbPath))
-		RunEx("cannot parse ") << kbPath << raise;
+	if (!parser.parse(entry.kbPath))
+		RunEx("cannot parse ") << entry.kbPath << raise;
 
 	class RegularVisitor : public MP::EntryVisitor {
 	public:
-		RegularVisitor(TreeWalker &TW, const CondStack &s,
-			       const std::filesystem::path &kbPath)
-			: TW(TW), s(s), kbPath(kbPath) {}
+		RegularVisitor(TreeWalker &TW, const ToWalkEntry &entry)
+			: TW(TW), m_entry(entry) {}
 
 		virtual const std::any isInteresting(const std::string &lhs) const override {
 			 static const std::pair<std::string, bool> lookingFor[] = {
@@ -329,15 +328,15 @@ void TreeWalker::handleKbuildFile(const CondStack &s, const std::filesystem::pat
 		virtual void entry(const std::any &interesting, const std::string &cond,
 				   const enum MP::EntryType &type,
 				   const std::string &word) const override {
-			TW.addRegularEntry(s, kbPath, interesting, cond, type, word);
+			TW.addRegularEntry(m_entry.cs, m_entry.kbPath, interesting, cond, type,
+					   word);
 		}
 	private:
 		TreeWalker &TW;
-		const CondStack &s;
-		const std::filesystem::path &kbPath;
-	} visitor(*this, s, kbPath);
+		const ToWalkEntry &m_entry;
+	} visitor(*this, entry);
 
-	parser.walkAST(archs, visitor, start, kbPath.parent_path());
+	parser.walkAST(archs, visitor, start, entry.kbPath.parent_path());
 }
 
 /// @brief Find Kbuild or Makefile in @p path and add it to the queue
@@ -370,6 +369,6 @@ void TreeWalker::walk()
 	while (!m_toWalk.empty()) {
 		auto top = m_toWalk.back();
 		m_toWalk.pop_back();
-		handleKbuildFile(top.first, top.second);
+		handleKbuildFile(top);
 	}
 }

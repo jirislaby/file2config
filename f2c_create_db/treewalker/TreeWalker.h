@@ -41,12 +41,17 @@ public:
 			    const MP::EntryType &type,
 			    const std::string &entry, bool &found);
 private:
+	struct ToWalkEntry {
+		CondStack cs;
+		std::filesystem::path kbPath;
+	};
+
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
 	void addDefaultKernelFiles(const CondStack &s, const std::filesystem::path &start);
 
 	bool tryHandleTarget(const CondStack &s, const std::filesystem::path &objPath);
-	void handleKbuildFile(const CondStack &s, const std::filesystem::path &kbPath);
+	void handleKbuildFile(const ToWalkEntry &e);
 	void addDirectory(const std::filesystem::path &kbPath, const CondStack &s,
 			  const std::filesystem::path &path);
 	void handleObject(const CondStack &s, const std::filesystem::path &objPath,
@@ -56,7 +61,8 @@ private:
 	static std::optional<std::string> getCond(const CondStack &s);
 	std::optional<std::string> getTristateConf(const CondStack &s);
 
-	void appendToWalk(CondStack s, std::filesystem::path kbPath);
+	void appendToWalk(CondStack s, std::filesystem::path kbPath,
+			  std::filesystem::path cwd = {});
 
 	MP::Parser parser;
 	const Kconfig::Config::Configs &m_configs;
@@ -64,7 +70,7 @@ private:
 
 	std::filesystem::path start;
 	std::vector<std::string> archs;
-	std::vector<std::pair<CondStack, std::filesystem::path>> m_toWalk;
+	std::vector<ToWalkEntry> m_toWalk;
 	std::unordered_set<std::filesystem::path> m_visitedMakefiles;
 	std::unordered_set<std::filesystem::path> visitedDirs;
 	std::unordered_set<std::filesystem::path> visitedPaths;

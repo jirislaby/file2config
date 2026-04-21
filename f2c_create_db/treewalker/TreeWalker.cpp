@@ -45,10 +45,8 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 	// and it includes Kbuild
 	appendToWalk(s, start/"Kbuild");
 
-	forEachSubDir(start/"arch", [this, &s](const std::filesystem::path &path) {
+	forEachSubDir(start/"arch", [this](const std::filesystem::path &path) {
 		archs.push_back(path.stem());
-		// we do not handle 'include's, so do what top-level 'Makefile' does
-		appendToWalk(s, path/"Makefile");
 	});
 
 	forEachSubDir(start/"arch/arm", [this, &s](const std::filesystem::path &path) {
@@ -61,10 +59,6 @@ void TreeWalker::addDefaultKernelFiles(const CondStack &s, const std::filesystem
 					appendToWalk(s, std::move(makefile));
 			}
 	});
-
-	auto mipsPlat = start/"arch/mips/Kbuild.platforms";
-	if (std::filesystem::exists(mipsPlat))
-		appendToWalk(s, std::move(mipsPlat));
 
 	auto s390Boot = start/"arch/s390/boot/Makefile";
 	if (std::filesystem::exists(s390Boot))

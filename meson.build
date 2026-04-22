@@ -22,11 +22,26 @@ slkerncvs_dep = dependency('slkerncvs++')
 slsqlite_dep = dependency('slsqlite++')
 
 antlr4 = find_program('antlr4')
+antlr4_cmd = [ antlr4, '-Xexact-output-dir', '-o', '@OUTDIR@', '-Dlanguage=Cpp',
+  '-message-format', 'gnu', '@INPUT@' ]
 antlr4_noinc_dep = dependency('antlr4-runtime', modules: ['antlr4_shared'])
 antlr4_dep = declare_dependency(
   dependencies: antlr4_noinc_dep,
   include_directories: antlr4_noinc_dep.get_variable(cmake : 'ANTLR4_INCLUDE_DIR'),
 )
+antlr4_out_files = [
+  '@BASENAME@.cpp',
+  '@BASENAME@.h',
+  '@BASENAME@.interp',
+  '@BASENAME@.tokens',
+]
+antlr4_listener_out_files = [
+  '@BASENAME@BaseListener.cpp',
+  '@BASENAME@BaseListener.h',
+  '@BASENAME@Listener.cpp',
+  '@BASENAME@Listener.h',
+]
+antlr4_warnings = [ '-Wno-overloaded-virtual', '-Wno-unused-parameter' ]
 
 subdir('f2c_cli')
 subdir('f2c_create_db')

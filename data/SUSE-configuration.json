@@ -14,5 +14,8 @@
 		],
 		"SLE15-SP7" : [
 		]
-	}
+	},
+	"append_branches" : [
+		"SLE12-SP2-LTSS"
+	]
 }

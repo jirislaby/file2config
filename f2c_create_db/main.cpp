@@ -684,7 +684,15 @@ void handleEx(int argc, char **argv)
 		branches = *branchesOpt;
 	}
 
+	// from command line
 	branches.insert(branches.end(), opts.appendBranches.begin(), opts.appendBranches.end());
+
+	// from configuration
+	if (configuration && configuration->contains("append_branches")) {
+		const auto confBranches = (*configuration)["append_branches"].get_ref<const Json::array_t &>();
+
+		branches.insert(branches.end(), confBranches.begin(), confBranches.end());
+	}
 
 	if (!opts.nofetch) {
 		Clr(Clr::GREEN) << "== Fetching branches ==";

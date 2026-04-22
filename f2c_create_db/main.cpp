@@ -48,8 +48,8 @@ struct Opts {
 	bool authorsDumpRefs;
 	bool authorsReportUnhandled;
 
-	std::filesystem::path ignoredFilesJSON;
-	bool hasIgnoredFiles;
+	std::filesystem::path configurationJSON;
+	bool hasConfiguration;
 
 	std::filesystem::path sqlite;
 	bool hasSqlite;
@@ -81,8 +81,8 @@ Opts getOpts(int argc, char **argv)
 			cxxopts::value(opts.authorsReportUnhandled)->default_value("false"))
 	;
 	options.add_options("files")
-		("ignored-files", "path to JSON containing files to be added to ignore table",
-			cxxopts::value(opts.ignoredFilesJSON))
+		("configuration", "path to JSON containing configuration to be used",
+			cxxopts::value(opts.configurationJSON))
 	;
 	options.add_options("sqlite")
 		("s,sqlite", "create db",
@@ -99,7 +99,7 @@ Opts getOpts(int argc, char **argv)
 		Clr::forceColor(cxxopts.contains("force-color"));
 		Clr::forceColorValue(cxxopts.contains("force-color"));
 		opts.hasDest = cxxopts.contains("dest");
-		opts.hasIgnoredFiles = cxxopts.contains("ignored-files");
+		opts.hasConfiguration = cxxopts.contains("configuration");
 		opts.hasSqlite = cxxopts.contains("sqlite");
 		return opts;
 	} catch (const cxxopts::exceptions::parsing &e) {
@@ -188,20 +188,20 @@ std::optional<SQL::F2CSQLConn> getSQL(const Opts &opts)
 	return sql;
 }
 
-std::optional<Json> loadIgnoredFiles(const Opts &opts)
+std::optional<Json> loadConfiguration(const Opts &opts)
 {
-	if (!opts.hasIgnoredFiles)
+	if (!opts.hasConfiguration)
 		return std::nullopt;
 
-	std::ifstream ifs{opts.ignoredFilesJSON};
+	std::ifstream ifs{opts.configurationJSON};
 	if (!ifs)
-		RunEx("Cannot open JSON: ") << opts.ignoredFilesJSON << raise;
+		RunEx("Cannot open JSON: ") << opts.configurationJSON << raise;
 
 	Json json;
 	try {
 		json = json.parse(ifs);
 	} catch (const Json::exception &e) {
-		RunEx("Cannot parse JSON from ") << opts.ignoredFilesJSON << ": " << e.what() <<
+		RunEx("Cannot parse JSON from ") << opts.configurationJSON << ": " << e.what() <<
 						    raise;
 	}
 
@@ -439,11 +439,15 @@ void processIgnore(SQL::F2CSQLConn &sql, const std::string &branch,
 void processIgnores(SQL::F2CSQLConn &sql, const std::string &branch, const Json &json,
 		    const std::filesystem::path &root)
 {
-	const auto allIt = json.find("all");
-	const auto all = (allIt != json.end()) ? &allIt->get_ref<const Json::array_t &>() : nullptr;
+	if (!json.contains("ignored_files"))
+		return;
+	const auto ignoredFiles = json["ignored_files"];
+	const auto allIt = ignoredFiles.find("all");
+	const auto all = (allIt != ignoredFiles.end()) ?
+		&allIt->get_ref<const Json::array_t &>() : nullptr;
 
-	const auto forBranchIt = json.find(branch);
-	const auto forBranch = (forBranchIt != json.end()) ?
+	const auto forBranchIt = ignoredFiles.find(branch);
+	const auto forBranch = (forBranchIt != ignoredFiles.end()) ?
 				&forBranchIt->get_ref<const Json::array_t &>() : nullptr;
 
 	for (const auto &e: std::filesystem::recursive_directory_iterator(root)) {
@@ -485,7 +489,7 @@ BranchProps getBranchProps(const SlGit::Commit &commit)
 void processBranch(const Opts &opts, const std::string &branchNote,
 		   std::optional<SQL::F2CSQLConn> &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		   const std::filesystem::path &root, const std::optional<Json> &ignoredFiles,
+		   const std::filesystem::path &root, const std::optional<Json> &configuration,
 		   BranchesProps &branchesProps)
 {
 	if (sql) {
@@ -516,10 +520,10 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 					       " -- Detecting authors of patches ==";
 			processAuthors(opts, *sql, branch, repo, commit);
 
-			if (ignoredFiles) {
+			if (configuration) {
 				Clr(Clr::GREEN) << "== " << branchNote <<
 						       " -- Collecting ignored files ==";
-				processIgnores(*sql, branch, *ignoredFiles, root);
+				processIgnores(*sql, branch, *configuration, root);
 			}
 		}
 	}
@@ -655,6 +659,8 @@ void handleEx(int argc, char **argv)
 {
 	const auto opts = getOpts(argc, argv);
 
+	auto configuration = loadConfiguration(opts);
+
 	const auto lpath = SlHelpers::Env::get<std::filesystem::path>("LINUX_GIT");
 	if (!lpath)
 		RunEx("LINUX_GIT not set").raise();
@@ -693,8 +699,6 @@ void handleEx(int argc, char **argv)
 
 	auto sql = getSQL(opts);
 
-	auto ignoredFiles = loadIgnoredFiles(opts);
-
 	auto branchNo = 0U;
 	auto branchCnt = branches.size();
 
@@ -712,7 +716,7 @@ void handleEx(int argc, char **argv)
 
 		expandBranch(branchNote, scratchArea, expandedTree);
 		processBranch(opts, branchNote, sql, branch, repo, branchCommit, expandedTree,
-			      ignoredFiles, branchesProps);
+			      configuration, branchesProps);
 	}
 
 	if (sql) {

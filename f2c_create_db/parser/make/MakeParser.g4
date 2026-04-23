@@ -60,7 +60,7 @@ rule_cmd :
 
 expr :
 	  l=atom_lhs ws*
-		op=( EQ | ASSIGN ) ws*
+		op=( EQ | ASSIGN | APPEND ) ws*
 		(r=atom_rhs ws*)?
 ;
 

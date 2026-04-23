@@ -89,7 +89,8 @@ BITS : 'BITS' ;
 SRCARCH : 'SRCARCH' ;
 ID : [-+_/.A-Za-z0-9]+ ;
 
-ASSIGN : ':=' | '+=' | '?=' ;
+ASSIGN : ':=' | '?=' ;
+APPEND : '+=' ;
 
 EQ : '=' ;
 LPAREN : '(' ;

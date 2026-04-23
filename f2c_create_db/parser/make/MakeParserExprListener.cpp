@@ -26,13 +26,14 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 						return archs;
 					if (id->BITS())
 						return { "32", "64" };
-					if (id->getText() == "src")
+					auto text = id->getText();
+					if (text == "src")
 						return { m_curDir };
-					if (id->getText() == "srctree")
+					if (text == "srctree")
 						return { m_rootDir };
-					if (id->getText() == "FULL_AMD_PATH")
+					if (text == "FULL_AMD_PATH")
 						return { m_rootDir / "drivers/gpu/drm/amd" };
-					if (id->getText() == "FULL_AMD_DISPLAY_PATH")
+					if (text == "FULL_AMD_DISPLAY_PATH")
 						return { m_rootDir / "drivers/gpu/drm/amd/display" };
 				}
 

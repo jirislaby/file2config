@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
+#include <string_view>
 #include <utility>
 
 #include <sl/helpers/Color.h>
@@ -50,10 +51,10 @@ void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path 
 	});
 
 	forEachSubDir(start/"arch/arm", [this, &s](const std::filesystem::path &path) {
-		static const std::string lookingFor[] { "mach-", "plat-" };
+		static constexpr const std::string_view lookingFor[] { "mach-", "plat-" };
 		const auto stem = path.stem().string();
 		for (const auto &lf: lookingFor)
-			if (!stem.compare(0, lf.length(), lf)) {
+			if (stem.starts_with(lf)) {
 				auto makefile = path/"Makefile";
 				if (std::filesystem::exists(makefile))
 					appendToWalk(s, std::move(makefile));
@@ -117,12 +118,13 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 
 	class TargetVisitor : public MP::EntryVisitor {
 	public:
-		TargetVisitor(TreeWalker &TW, const CondStack &s, const std::filesystem::path &objPath,
-			 const std::string &lookingFor, bool &found)
+		TargetVisitor(TreeWalker &TW, const CondStack &s,
+			      const std::filesystem::path &objPath,
+			      std::string_view lookingFor, bool &found)
 			: TW(TW), s(s), objPath(objPath), lookingFor(lookingFor), found(found) {}
 
 		virtual const std::any isInteresting(const std::string &lhs) const override {
-			if (lhs.compare(0, lookingFor.length(), lookingFor))
+			if (!lhs.starts_with(lookingFor))
 				return std::any();
 			if (F2C::verbose > 1)
 				std::cout << "\tSAME PREFIX: " << lookingFor << " == " << lhs << '\n';
@@ -156,7 +158,7 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 		TreeWalker &TW;
 		const CondStack &s;
 		const std::filesystem::path &objPath;
-		const std::string &lookingFor;
+		std::string_view lookingFor;
 		bool &found;
 	} visitor(*this, s, objPath, lookingFor, found);
 
@@ -294,7 +296,7 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 			: TW(TW), m_entry(entry) {}
 
 		virtual const std::any isInteresting(const std::string &lhs) const override {
-			 static const std::pair<std::string, bool> lookingFor[] = {
+			 static constexpr const std::pair<std::string_view, bool> lookingFor[] = {
 				 { "lib-", false },
 				 { "obj-", false },
 				 { "subdir-", false },
@@ -307,7 +309,7 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 			 };
 
 			 for (const auto &LF: lookingFor)
-				 if (!lhs.compare(0, LF.first.length(), LF.first))
+				 if (lhs.starts_with(LF.first))
 					 return LF.second;
 
 			 return std::any();

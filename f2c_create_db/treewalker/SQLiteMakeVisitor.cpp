@@ -53,7 +53,7 @@ bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const
 {
-	auto relPath = srcPath.lexically_relative(base);
+	auto relPath = srcPath.lexically_relative(base).lexically_normal();
 
 	if (skipPath(relPath))
 		return;
@@ -78,8 +78,8 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module,
 			       const std::optional<std::string> &moduleConf) const
 {
-	auto relPath = srcPath.lexically_relative(base);
-	auto relMod = module.lexically_relative(base);
+	auto relPath = srcPath.lexically_relative(base).lexically_normal();
+	auto relMod = module.lexically_relative(base).lexically_normal();
 
 	if (skipPath(relPath))
 		return;

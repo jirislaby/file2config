@@ -19,6 +19,22 @@ using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
+std::vector<std::string> TreeWalker::getVariable(const std::string &id) const
+{
+	if (auto r = m_vars.equal_range(id); r.first != r.second) {
+		std::vector<std::string> res;
+		res.reserve(std::distance(r.first, r.second));
+
+		std::transform(r.first, r.second, std::back_inserter(res),
+			       [](const auto &pair) {
+				       return pair.second;
+			       });
+		return res;
+	}
+
+	return {};
+}
+
 void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 			       const std::function<void(const std::filesystem::path &entry)> &CB)
 {
@@ -153,6 +169,10 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 				TW.addTargetEntry(s, objPath, cond, word);
 				found = true;
 			}
+		}
+
+		virtual std::vector<std::string> getVariable(const std::string &id) const override {
+			return TW.getVariable(id);
 		}
 	private:
 		TreeWalker &TW;
@@ -323,6 +343,17 @@ void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
 
 		virtual void include(const std::filesystem::path &dest) const override {
 			TW.appendToWalk(m_entry.cs, dest, m_entry.cwd);
+		}
+
+		virtual std::vector<std::string> getVariable(const std::string &id) const override {
+			return TW.getVariable(id);
+		}
+
+		virtual void setVariable(const std::string &id, bool reset,
+				      const std::string &val) const override {
+			if (reset)
+				TW.m_vars.erase(id);
+			TW.m_vars.emplace(id, val);
 		}
 	private:
 		TreeWalker &TW;

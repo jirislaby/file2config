@@ -5,6 +5,7 @@
 #include <any>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace MP {
 
@@ -21,6 +22,10 @@ public:
 			   EntryType type, const std::string &word) const = 0;
 
 	virtual void include(const std::filesystem::path &/*dest*/) const {}
+
+	virtual std::vector<std::string> getVariable(const std::string &id) const = 0;
+	virtual void setVariable(const std::string &/*id*/, bool /*reset*/,
+				 const std::string &/*val*/) const {}
 };
 
 }

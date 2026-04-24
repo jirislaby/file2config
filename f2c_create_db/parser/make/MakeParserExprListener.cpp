@@ -8,6 +8,7 @@
 #include <sl/helpers/String.h>
 
 #include "EntryVisitor.h"
+#include "MakeLexer.h"
 #include "MakeParserExprListener.h"
 #include "../../Verbose.h"
 
@@ -31,10 +32,9 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 						return { m_curDir };
 					if (text == "srctree")
 						return { m_rootDir };
-					if (text == "FULL_AMD_PATH")
-						return { m_rootDir / "drivers/gpu/drm/amd" };
-					if (text == "FULL_AMD_DISPLAY_PATH")
-						return { m_rootDir / "drivers/gpu/drm/amd/display" };
+
+					if (auto res = entryVisitor.getVariable(text); !res.empty())
+						return res;
 				}
 
 	return { atom->getText() };
@@ -75,13 +75,19 @@ bool MakeExprListener::isCompilerFlagsRule(std::string_view lhs)
 }
 
 void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
-					    const std::string &cond,
-					    MakeParser::WordContext *word)
+					    bool simpleAssign, const std::string &cond,
+					    MakeParser::WordContext *word,
+					    bool &resetVar)
 {
 	for (const auto &wordText: evaluateWord(word)) {
 		if (F2C::verbose > 2)
 			std::cout << "\t\t" << __func__ << ": lhs=" << lhs << " rhs=" << wordText
 				<< "\n";
+
+		if (simpleAssign)
+			entryVisitor.setVariable(lhs, resetVar, wordText);
+
+		resetVar = false;
 
 		if (!interesting.has_value())
 			continue;
@@ -132,10 +138,15 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 		std::cout << "\tR='" << R.substr(0, 100) << "'\n";
 	}
 
+	if (ctx->r && ctx->r->words()) {
+		auto opType = ctx->op->getType();
+		auto resetVar = opType == MakeLexer::EQ || opType == MakeLexer::ASSIGN;
+		auto simpleAssign = ctx->l->children.size() == 1;
 
-	if (ctx->r && ctx->r->words())
 		for (const auto &word: ctx->r->words()->w)
-			evaluateWordAndVisit(interesting, lText, cond, word);
+			evaluateWordAndVisit(interesting, lText, simpleAssign, cond, word,
+					     resetVar);
+	}
 }
 
 void MP::MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)

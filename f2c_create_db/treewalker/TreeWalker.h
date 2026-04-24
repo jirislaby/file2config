@@ -45,6 +45,8 @@ private:
 		std::filesystem::path cwd; // kbPath's dir except for make's "include"
 	};
 
+	std::vector<std::string> getVariable(const std::string &id) const;
+
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
 	void addDefaultKernelFiles(CondStack s, const std::filesystem::path &start);
@@ -64,6 +66,7 @@ private:
 			  std::filesystem::path cwd = {});
 
 	MP::Parser parser;
+	std::unordered_multimap<std::string, std::string> m_vars;
 	const Kconfig::Config::Configs &m_configs;
 	const MakeVisitor &makeVisitor;
 

@@ -30,8 +30,9 @@ private:
 	std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
 	std::vector<std::string> evaluateWord(MakeParser::WordContext *word);
 	void evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
-				  const std::string &cond,
-				  MakeParser::WordContext *word);
+				  bool simpleAssign, const std::string &cond,
+				  MakeParser::WordContext *word,
+				  bool &resetVar);
 
 	const std::vector<std::string> &archs;
 	const EntryVisitor &entryVisitor;

@@ -31,12 +31,15 @@ void testVisitor()
 	} data[] = {
 		{ "y",			"mod-y.o", { "y", "mod-y.o" } },
 		{ "$(CONFIG_ABC)",	"mod-abc.o", { "CONFIG_ABC", "mod-abc.o" } },
+		{ "y",			"$(VAR).o", { "y", "mod-var.o" } },
 		{ "y",			"$(src)/mod-src.o", { "y", "/src/mod-src.o" } },
 		{ "y",			"$(srctree)/mod-tree.o", { "y", "/srctree/mod-tree.o" } },
 		{ "y$(CONFIG_MMU_SUN3)","dma.o", { "CONFIG_MMU_SUN3", "dma.o" } },
 	};
 
 	std::stringstream ss;
+	ss <<	"VAR := mod-var\n"
+		"VAR2 += content\n";
 	for (const auto &e : data) {
 		ss << "obj-" << e.cond << " := " << e.rhs << "\n";
 	}
@@ -48,18 +51,41 @@ void testVisitor()
 	class TestVisitor : public MP::EntryVisitor {
 	public:
 		TestVisitor(EntryCont &cont) : cont(cont) {}
+		~TestVisitor() {
+			assert(m_set == 2);
+		}
 
-		virtual const std::any isInteresting(const std::string &) const {
+		virtual const std::any isInteresting(const std::string &) const override {
 			return true;
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   MP::EntryType type, const std::string &word) const {
+				   MP::EntryType type, const std::string &word) const override {
 			assert(type == MP::EntryType::Object);
 			cont.insert(std::make_pair(cond, word));
 		}
 
+		virtual std::vector<std::string> getVariable(const std::string &id) const override {
+			if (id == "VAR")
+				return { "mod-var" };
+			return {};
+		}
+
+		virtual void setVariable(const std::string &id, bool reset,
+					 const std::string &val) const override {
+			if (id == "VAR") {
+				const_cast<TestVisitor *>(this)->m_set++;
+				assert(reset);
+				assert(val == "mod-var");
+			} else if (id == "VAR2") {
+				const_cast<TestVisitor *>(this)->m_set++;
+				assert(!reset);
+				assert(val == "content");
+			}
+		}
+
 		EntryCont &cont;
+		unsigned m_set = 0;
 	} visitor(cont);
 
 	parser.walkAST({}, visitor, "/srctree", "/src");

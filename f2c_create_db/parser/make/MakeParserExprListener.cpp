@@ -40,7 +40,7 @@ std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext 
 	return { atom->getText() };
 }
 
-std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordContext *word)
+std::vector<std::string> MakeExprListener::evaluateWord(MakeParser::WordContext *word)
 {
 	std::vector<std::string> evaluated;
 
@@ -61,9 +61,7 @@ std::vector<std::string> MakeExprListener::evaluateWord(const MakeParser::WordCo
 	}
 
 	if (F2C::verbose > 1) {
-		Clr() << __func__ << ": " <<
-			const_cast<MakeParser::WordContext *>(word)->getText() <<
-			" -> [" << Clr::NoNL;
+		Clr() << __func__ << ": " << word->getText() << " -> [" << Clr::NoNL;
 		SlHelpers::String::join(std::cout, evaluated);
 		Clr()<< ']';
 	}
@@ -78,7 +76,7 @@ bool MakeExprListener::isCompilerFlagsRule(std::string_view lhs)
 
 void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const std::string &lhs,
 					    const std::string &cond,
-					    const MakeParser::WordContext *word)
+					    MakeParser::WordContext *word)
 {
 	for (const auto &wordText: evaluateWord(word)) {
 		if (F2C::verbose > 2)

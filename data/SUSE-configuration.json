@@ -16,6 +16,9 @@
 		]
 	},
 	"append_branches" : [
+		"ptf/14531/SLE11-SP4-RT-LTSS",
+		"ptf/45380/SLE12-SP3-LTSS",
+		"SLE11-SP3-LTSS",
 		"SLE12-SP2-LTSS"
 	]
 }

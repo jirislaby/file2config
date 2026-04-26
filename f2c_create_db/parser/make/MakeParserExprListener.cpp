@@ -83,6 +83,9 @@ void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const s
 			std::cout << "\t\t" << __func__ << ": lhs=" << lhs << " rhs=" << wordText
 				<< "\n";
 
+		if (!interesting.has_value())
+			continue;
+
 		if (!isCompilerFlagsRule(lhs) &&
 		    (wordText.back() == '/' || lhs.starts_with("subdir-"))) {
 			entryVisitor.entry(interesting, cond, EntryType::Directory, wordText);
@@ -129,8 +132,6 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 		std::cout << "\tR='" << R.substr(0, 100) << "'\n";
 	}
 
-	if (!interesting.has_value())
-		return;
 
 	if (ctx->r && ctx->r->words())
 		for (const auto &word: ctx->r->words()->w)

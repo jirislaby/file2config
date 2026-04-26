@@ -41,7 +41,8 @@ struct Opts {
 	std::filesystem::path dest;
 	bool hasDest;
 	bool force;
-	bool nofetch;
+	bool noFetch;
+	bool noRenames;
 	bool quiet;
 	unsigned verbose;
 
@@ -70,7 +71,9 @@ Opts getOpts(int argc, char **argv)
 		("f,force", "force branch creation (delete old data)",
 			cxxopts::value(opts.force)->default_value("false"))
 		("no-fetch", "work offline, no updates of repos",
-			cxxopts::value(opts.nofetch)->default_value("false"))
+			cxxopts::value(opts.noFetch)->default_value("false"))
+		("no-renames", "do not detect and store file renames",
+			cxxopts::value(opts.noRenames)->default_value("false"))
 		("q,quiet", "quiet mode", cxxopts::value(F2C::quiet)->default_value("false"))
 		("v,verbose", "verbose mode")
 	;
@@ -694,7 +697,7 @@ void handleEx(int argc, char **argv)
 		branches.insert(branches.end(), confBranches.begin(), confBranches.end());
 	}
 
-	if (!opts.nofetch) {
+	if (!opts.noFetch) {
 		Clr(Clr::GREEN) << "== Fetching branches ==";
 
 		auto remote = repo.remoteLookup("origin");
@@ -727,7 +730,7 @@ void handleEx(int argc, char **argv)
 			      configuration, branchesProps);
 	}
 
-	if (sql) {
+	if (!opts.noRenames && sql) {
 		Clr(Clr::GREEN) << "== Collecting renames ==";
 		processRenames(sql, *lrepo, branchesProps);
 

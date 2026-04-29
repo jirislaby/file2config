@@ -299,7 +299,7 @@ void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPat
 }
 
 /// @brief Handle one queued Kbuild file
-void TreeWalker::handleKbuildFile(const ToWalkEntry &entry)
+void TreeWalker::handleKbuildFile(ToWalkEntry &&entry)
 {
 	if (F2C::verbose > 1)
 		std::cout << __func__ << ": " << entry.kbPath << "\n";
@@ -388,5 +388,5 @@ void TreeWalker::addDirectory(const std::filesystem::path &kbPath, CondStack s,
 void TreeWalker::walk()
 {
 	for (; !m_toWalk.empty(); m_toWalk.pop())
-		handleKbuildFile(m_toWalk.front());
+		handleKbuildFile(std::move(m_toWalk.front()));
 }

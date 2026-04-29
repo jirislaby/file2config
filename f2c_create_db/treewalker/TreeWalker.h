@@ -52,7 +52,7 @@ private:
 	void addDefaultKernelFiles(CondStack s, const std::filesystem::path &start);
 
 	bool tryHandleTarget(CondStack s, const std::filesystem::path &objPath);
-	void handleKbuildFile(const ToWalkEntry &e);
+	void handleKbuildFile(ToWalkEntry &&e);
 	void addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			  const std::filesystem::path &path);
 	void handleObject(CondStack s, const std::filesystem::path &objPath,

@@ -149,7 +149,7 @@ void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 	}
 }
 
-void MP::MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)
+void MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)
 {
 	auto inc = ctx->word();
 	for (const auto &e: evaluateWord(inc)) {

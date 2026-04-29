@@ -65,16 +65,28 @@ expr :
 ;
 
 conditional_or_macro :
-	  conditional_or_macro_ws ifeq_expr ws* NL
-		(cmd NL)*
-	  (conditional_or_macro_ws ELSE (ws+ ifeq_expr)? ws* NL
-		(cmd NL)*
+	  conditional_or_macro_ws conditional_ifeq_expr ws* NL
+		conditional_body
+	  (conditional_or_macro_ws ELSE conditional_ifeq_expr_cond ws* NL
+		conditional_body
 	  )*
 	  conditional_or_macro_ws ENDIF ws*
 	| conditional_or_macro_ws DEFINE ws+ atom (EQ | ws)* NL
 		(nonNL? NL)*?
 	  conditional_or_macro_ws ENDEF ws*
 	| conditional_or_macro_ws UNDEFINE ws+ atom
+;
+
+conditional_ifeq_expr :
+	ifeq_expr
+;
+
+conditional_ifeq_expr_cond :
+	(ws+ ifeq_expr)?
+;
+
+conditional_body:
+	(cmd NL)*
 ;
 
 conditional_or_macro_ws:

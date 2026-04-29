@@ -4,7 +4,6 @@
 
 #include <filesystem>
 #include <memory>
-#include <string>
 
 namespace antlr4 {
 class ANTLRInputStream;
@@ -25,9 +24,9 @@ public:
 	void reset();
 
 protected:
-	bool parseSLL(const std::string &source);
-	bool parseLL(const std::string &source);
-	bool parse(const std::string &source, antlr4::ANTLRInputStream &is, bool trySLL);
+	bool parseSLL();
+	bool parseLL();
+	bool parse(antlr4::ANTLRInputStream &is, bool trySLL);
 
 	virtual antlr4::ParserRuleContext *getTree() = 0;
 

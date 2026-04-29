@@ -21,8 +21,8 @@ void ErrorListener::syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *o
 		parserError(*parser, *offendingSymbol, line, column, msg);
 }
 
-void ErrorListener::dumpHeader(std::string_view type, size_t line, size_t column,
-			       std::string_view msg) const
+void ErrorListener::dumpHeader(std::string_view type, std::string_view file, size_t line,
+			       size_t column, std::string_view msg)
 {
 	Clr(std::cerr, Clr::RED) << type << " error: " << file << ':' << line << ':' << column <<
 				    ' ' << msg;
@@ -53,7 +53,7 @@ size_t ErrorListener::dumpLine(antlr4::TokenSource &tokSrc, size_t line, size_t 
 void ErrorListener::lexerError(antlr4::Lexer &lexer, size_t line, size_t column,
 			       std::string_view msg) const
 {
-	dumpHeader("lexer", line, column, msg);
+	dumpHeader("lexer", lexer.getInputStream()->getSourceName(), line, column, msg);
 	auto wsColumn = dumpLine(lexer, line, column);
 	Clr(std::cerr) << std::string(wsColumn, ' ') << '^';
 }
@@ -61,10 +61,11 @@ void ErrorListener::lexerError(antlr4::Lexer &lexer, size_t line, size_t column,
 void ErrorListener::parserError(antlr4::Parser &parser, antlr4::Token &offendingSymbol, size_t line,
 				size_t column, std::string_view msg) const
 {
-	dumpHeader("parser", line, column, msg);
+	auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(parser.getInputStream());
+
+	dumpHeader("parser", tokens->getSourceName(), line, column, msg);
 	Clr(std::cerr) << "token: " << offendingSymbol.toString();
 
-	auto tokens = dynamic_cast<antlr4::CommonTokenStream *>(parser.getInputStream());
 	auto wsColumn = dumpLine(*tokens->getTokenSource(), line, column);
 
 	auto start = offendingSymbol.getStartIndex();

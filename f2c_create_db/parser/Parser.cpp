@@ -25,7 +25,7 @@ template<class ALexer, class AParser>
 Parser<ALexer, AParser>::~Parser() {}
 
 template<class ALexer, class AParser>
-bool Parser<ALexer, AParser>::parseSLL(const std::string &source)
+bool Parser<ALexer, AParser>::parseSLL()
 {
 	auto origErrStrategy = m_parser->getErrorHandler();
 	m_parser->setErrorHandler(std::make_shared<antlr4::BailErrorStrategy>());
@@ -40,7 +40,8 @@ bool Parser<ALexer, AParser>::parseSLL(const std::string &source)
 	}
 
 	if (F2C::verbose)
-		Clr(std::cerr, Clr::YELLOW) << source << ": SLL not enough, trying LL";
+		Clr(std::cerr, Clr::YELLOW) << m_lexer->getSourceName() <<
+			": SLL not enough, trying LL";
 
 	interp->setPredictionMode(antlr4::atn::PredictionMode::LL);
 	m_parser->setErrorHandler(origErrStrategy);
@@ -48,43 +49,44 @@ bool Parser<ALexer, AParser>::parseSLL(const std::string &source)
 	m_tokens->reset();
 	m_parser->reset();
 
-	return parseLL(source);
+	return parseLL();
 }
 
 template<class ALexer, class AParser>
-bool Parser<ALexer, AParser>::parseLL(const std::string &source)
+bool Parser<ALexer, AParser>::parseLL()
 {
 	m_lexer->removeErrorListeners();
 	m_parser->removeErrorListeners();
-	Parsers::ErrorListener EL(source);
+	Parsers::ErrorListener EL;
 	m_lexer->addErrorListener(&EL);
 	m_parser->addErrorListener(&EL);
 
 	try {
 		m_tree = getTree();
 		if (auto errs = m_parser->getNumberOfSyntaxErrors()) {
-			Clr(std::cerr, Clr::RED) << source << ": LL failed to parse: " << errs << " errors";
+			Clr(std::cerr, Clr::RED) << m_lexer->getSourceName() <<
+				": LL failed to parse: " << errs << " errors";
 			return false;
 		}
 	} catch (antlr4::ParseCancellationException &e) {
-		Clr(std::cerr, Clr::RED) << source << ": LL failed to parse:\n" << e.what();
+		Clr(std::cerr, Clr::RED) << m_lexer->getSourceName() <<
+			": LL failed to parse:\n" << e.what();
 		return false;
 	}
 	return true;
 }
 
 template<class ALexer, class AParser>
-bool Parser<ALexer, AParser>::parse(const std::string &source, antlr4::ANTLRInputStream &is,
-				    bool trySLL)
+bool Parser<ALexer, AParser>::parse(antlr4::ANTLRInputStream &is, bool trySLL)
 {
 	m_lexer = std::make_unique<ALexer>(&is);
 	m_tokens = std::make_unique<antlr4::CommonTokenStream>(m_lexer.get());
 	m_parser = std::make_unique<AParser>(m_tokens.get());
 
 	if (trySLL)
-		return parseSLL(source);
+		return parseSLL();
 
-	return parseLL(source);
+	return parseLL();
 }
 
 template<class ALexer, class AParser>
@@ -92,7 +94,7 @@ bool Parser<ALexer, AParser>::parse(std::string_view str, bool trySLL)
 {
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(str);
 
-	return parse("string", *m_input.get(), trySLL);
+	return parse(*m_input.get(), trySLL);
 }
 
 template<class ALexer, class AParser>
@@ -107,8 +109,9 @@ bool Parser<ALexer, AParser>::parse(const std::filesystem::path &file, bool tryS
 	}
 
 	m_input = std::make_unique<antlr4::ANTLRInputStream>(ifs);
+	m_input->name = file.string();
 
-	return parse(file.string(), *m_input.get(), trySLL);
+	return parse(*m_input.get(), trySLL);
 }
 
 template<class ALexer, class AParser>

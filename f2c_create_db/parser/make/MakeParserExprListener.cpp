@@ -79,7 +79,7 @@ void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const s
 					    MakeParser::WordContext *word,
 					    bool &resetVar)
 {
-	for (const auto &wordText: evaluateWord(word)) {
+	for (auto &wordText: evaluateWord(word)) {
 		if (F2C::verbose > 2)
 			std::cout << "\t\t" << __func__ << ": lhs=" << lhs << " rhs=" << wordText
 				<< "\n";
@@ -94,9 +94,11 @@ void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const s
 
 		if (!isCompilerFlagsRule(lhs) &&
 		    (wordText.back() == '/' || lhs.starts_with("subdir-"))) {
-			entryVisitor.entry(interesting, cond, EntryType::Directory, wordText);
+			entryVisitor.entry(interesting, cond, EntryType::Directory,
+					   std::move(wordText));
 		} else if (wordText.ends_with(".o")) {
-			entryVisitor.entry(interesting, cond, EntryType::Object, wordText);
+			entryVisitor.entry(interesting, cond, EntryType::Object,
+					   std::move(wordText));
 		}
 	}
 }
@@ -158,13 +160,13 @@ void MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)
 			Clr(std::cerr) << __func__ << ": include: " << inc->getText() <<
 				" -> " << dest;
 		if (std::filesystem::exists(dest)) {
-			entryVisitor.include(dest);
+			entryVisitor.include(std::move(dest));
 			continue;
 		}
 		// pre-6.3 trees used --include-dir=$(abs_srctree)
 		auto destIncludeDir = m_rootDir / dest;
 		if (std::filesystem::exists(destIncludeDir)) {
-			entryVisitor.include(destIncludeDir);
+			entryVisitor.include(std::move(destIncludeDir));
 			continue;
 		}
 

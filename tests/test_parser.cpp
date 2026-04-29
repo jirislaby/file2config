@@ -60,9 +60,9 @@ void testVisitor()
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   MP::EntryType type, const std::string &word) const override {
+				   MP::EntryType type, std::string &&word) const override {
 			assert(type == MP::EntryType::Object);
-			cont.insert(std::make_pair(cond, word));
+			cont.emplace(cond, std::move(word));
 		}
 
 		virtual std::vector<std::string> getVariable(const std::string &id) const override {

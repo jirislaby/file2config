@@ -161,9 +161,9 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 		}
 
 		virtual void entry(const std::any &, const std::string &cond,
-				   MP::EntryType type, const std::string &word) const override {
+				   MP::EntryType type, std::string &&word) const override {
 			if (type == MP::EntryType::Object) {
-				TW.addTargetEntry(s, objPath, cond, word);
+				TW.addTargetEntry(s, objPath, cond, std::move(word));
 				found = true;
 			}
 		}
@@ -333,13 +333,13 @@ void TreeWalker::handleKbuildFile(ToWalkEntry &&entry)
 		}
 
 		virtual void entry(const std::any &interesting, const std::string &cond,
-				   MP::EntryType type, const std::string &word) const override {
+				   MP::EntryType type, std::string &&word) const override {
 			TW.addRegularEntry(m_entry.cs, m_entry.kbPath, interesting, cond, type,
-					   word);
+					   std::move(word));
 		}
 
-		virtual void include(const std::filesystem::path &dest) const override {
-			TW.appendToWalk(m_entry.cs, dest, m_entry.cwd);
+		virtual void include(std::filesystem::path &&dest) const override {
+			TW.appendToWalk(m_entry.cs, std::move(dest), m_entry.cwd);
 		}
 
 		virtual std::vector<std::string> getVariable(const std::string &id) const override {

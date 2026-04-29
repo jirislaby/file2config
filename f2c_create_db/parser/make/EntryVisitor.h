@@ -19,9 +19,9 @@ public:
 	virtual std::any isInteresting(const std::string &lhs) const = 0;
 
 	virtual void entry(const std::any &interesting, const std::string &cond,
-			   EntryType type, const std::string &word) const = 0;
+			   EntryType type, std::string &&word) const = 0;
 
-	virtual void include(const std::filesystem::path &/*dest*/) const {}
+	virtual void include(std::filesystem::path &&/*dest*/) const {}
 
 	virtual std::vector<std::string> getVariable(const std::string &id) const = 0;
 	virtual void setVariable(const std::string &/*id*/, bool /*reset*/,

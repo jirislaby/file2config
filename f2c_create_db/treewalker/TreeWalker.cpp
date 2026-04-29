@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <filesystem>
 #include <iostream>
 #include <string_view>
 #include <utility>
@@ -38,17 +39,13 @@ std::vector<std::string> TreeWalker::getVariable(const std::string &id) const
 void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 			       const std::function<void(const std::filesystem::path &entry)> &CB)
 {
-	std::error_code ec;
-
-	const auto iter = std::filesystem::directory_iterator{dir, ec};
-	if (ec) {
-		std::cerr << __func__ << ": " << dir << " not found!\n";
-		return;
+	try {
+		for (const auto &entry: std::filesystem::directory_iterator{dir})
+			if (entry.is_directory())
+				CB(entry.path());
+	} catch (const std::filesystem::filesystem_error &e) {
+		Clr(std::cerr, Clr::RED) << __func__ << ": " << e.what();
 	}
-	for (const auto &entry : iter)
-		if (entry.is_directory()) {
-			CB(entry.path());
-		}
 }
 
 void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path &start)

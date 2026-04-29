@@ -100,7 +100,7 @@ ifeq_expr :
 ;
 
 ifeq_cond :
-	  LPAREN ifeq_atom* COMMA ws* ifeq_atom* RPAREN
+	  LPAREN l+=ifeq_atom* COMMA ws* r+=ifeq_atom* RPAREN
 	| STRING ws+ STRING
 ;
 

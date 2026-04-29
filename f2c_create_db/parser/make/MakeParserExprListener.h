@@ -24,6 +24,11 @@ public:
 	virtual void exitExpr(MakeParser::ExprContext *) override;
 	virtual void exitInclude(MakeParser::IncludeContext *ctx) override;
 
+	void exitIfeq_exprCommon(MakeParser::Ifeq_exprContext *ctx);
+	virtual void exitConditional_ifeq_expr(MakeParser::Conditional_ifeq_exprContext *ctx) override;
+	virtual void exitConditional_ifeq_expr_cond(MakeParser::Conditional_ifeq_expr_condContext *ctx) override;
+	virtual void exitConditional_body(MakeParser::Conditional_bodyContext *ctx) override;
+
 private:
 	static bool isCompilerFlagsRule(std::string_view lhs);
 	static MakeParser::IdContext *getEvalId(MakeParser::AtomContext *atom);
@@ -34,6 +39,8 @@ private:
 				  bool simpleAssign, const std::string &cond,
 				  MakeParser::WordContext *word,
 				  bool &resetVar);
+
+	std::string handleIfeq(MakeParser::Ifeq_condContext *ieCond, bool neq);
 
 	const std::vector<std::string> &archs;
 	const EntryVisitor &entryVisitor;

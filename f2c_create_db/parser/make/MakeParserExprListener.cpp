@@ -183,3 +183,72 @@ void MakeExprListener::exitInclude(MakeParser::IncludeContext *ctx)
 				" does not exist, cwd=" << m_curDir;
 	}
 }
+
+std::string MakeExprListener::handleIfeq(MakeParser::Ifeq_condContext *ieCond, bool neq)
+{
+	if (!ieCond->LPAREN())
+		return "y";
+
+	const auto expectedRSize = neq ? 0U : 1U;
+	if (ieCond->l.size() != 1 || ieCond->r.size() != expectedRSize)
+		return "y";
+
+	if (auto lAtom = ieCond->l[0]->atom())
+		if (auto id = getEvalId(lAtom))
+			if (id->CONFIG()) {
+				// r was checked above to be empty, so we handle only:
+				// ifneq ($(CONFIG_FOO),)
+				if (neq)
+					return id->getText();
+
+				// ifeq ($(CONFIG_FOO),X) where X is y or m
+				if (auto rAtom = ieCond->r[0]->atom()) {
+					auto rAtomText = rAtom->getText();
+					if (rAtomText == "y" || rAtomText == "m")
+						return id->getText();
+				}
+			}
+
+	return "y";
+}
+
+void MakeExprListener::exitIfeq_exprCommon(MakeParser::Ifeq_exprContext *ctx)
+{
+	std::string cond{"y"};
+
+	if (ctx) {
+		if (ctx->IFNDEF()) {
+			// we have no way to note negatives in the DB
+		} else if (ctx->IFDEF()) {
+			if (auto conf = ctx->CONFIG())
+				cond = conf->getText();
+		} else if (ctx->IFNEQ()) {
+			cond = handleIfeq(ctx->ifeq_cond(), true);
+		} else if (ctx->IFEQ()) {
+			cond = handleIfeq(ctx->ifeq_cond(), false);
+		}
+		if (F2C::verbose > 2) {
+			auto start = ctx->getStart();
+			auto src = start->getInputStream()->getSourceName();
+			Clr(std::cerr) << __func__ << ": " << src << ':' << start->getLine() <<
+				": " << ctx->getText() << " -> " << cond;
+		}
+	}
+
+	entryVisitor.enterConditional(std::move(cond));
+}
+
+void MakeExprListener::exitConditional_ifeq_expr(MakeParser::Conditional_ifeq_exprContext *ctx)
+{
+	exitIfeq_exprCommon(ctx->ifeq_expr());
+}
+
+void MakeExprListener::exitConditional_ifeq_expr_cond(MakeParser::Conditional_ifeq_expr_condContext *ctx)
+{
+	exitIfeq_exprCommon(ctx->ifeq_expr());
+}
+
+void MakeExprListener::exitConditional_body(MakeParser::Conditional_bodyContext *ctx)
+{
+	entryVisitor.exitConditional();
+}

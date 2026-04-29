@@ -26,6 +26,9 @@ public:
 	virtual std::vector<std::string> getVariable(const std::string &id) const = 0;
 	virtual void setVariable(const std::string &/*id*/, bool /*reset*/,
 				 const std::string &/*val*/) const {}
+
+	virtual void enterConditional(std::string &&/*cond*/) const {}
+	virtual void exitConditional() const {}
 };
 
 }

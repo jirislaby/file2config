@@ -309,7 +309,7 @@ void TreeWalker::handleKbuildFile(ToWalkEntry &&entry)
 
 	class RegularVisitor : public MP::EntryVisitor {
 	public:
-		RegularVisitor(TreeWalker &TW, const ToWalkEntry &entry)
+		RegularVisitor(TreeWalker &TW, ToWalkEntry &entry)
 			: TW(TW), m_entry(entry) {}
 
 		virtual std::any isInteresting(const std::string &lhs) const override {
@@ -352,9 +352,17 @@ void TreeWalker::handleKbuildFile(ToWalkEntry &&entry)
 				TW.m_vars.erase(id);
 			TW.m_vars.emplace(id, val);
 		}
+
+		virtual void enterConditional(std::string &&cond) const override {
+			m_entry.cs.emplace_back(std::move(cond));
+		}
+
+		virtual void exitConditional() const override {
+			m_entry.cs.pop_back();
+		}
 	private:
 		TreeWalker &TW;
-		const ToWalkEntry &m_entry;
+		ToWalkEntry &m_entry;
 	} visitor(*this, entry);
 
 	parser.walkAST(archs, visitor, start, entry.cwd);

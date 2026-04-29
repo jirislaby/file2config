@@ -16,7 +16,7 @@ enum EntryType : unsigned int {
 
 class EntryVisitor {
 public:
-	virtual const std::any isInteresting(const std::string &lhs) const = 0;
+	virtual std::any isInteresting(const std::string &lhs) const = 0;
 
 	virtual void entry(const std::any &interesting, const std::string &cond,
 			   EntryType type, const std::string &word) const = 0;

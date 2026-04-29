@@ -104,7 +104,7 @@ void MakeExprListener::evaluateWordAndVisit(const std::any &interesting, const s
 void MakeExprListener::exitExpr(MakeParser::ExprContext *ctx)
 {
 	auto lText = ctx->l->getText();
-	std::any interesting = entryVisitor.isInteresting(lText);
+	auto interesting = entryVisitor.isInteresting(lText);
 
 	if (F2C::verbose > 2) {
 		std::cout << __func__ << ": interesting=" << interesting.has_value() << ": "

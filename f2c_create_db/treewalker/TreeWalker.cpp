@@ -136,7 +136,7 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 			      std::string_view lookingFor, bool &found)
 			: TW(TW), s(s), objPath(objPath), lookingFor(lookingFor), found(found) {}
 
-		virtual const std::any isInteresting(const std::string &lhs) const override {
+		virtual std::any isInteresting(const std::string &lhs) const override {
 			if (!lhs.starts_with(lookingFor))
 				return std::any();
 			if (F2C::verbose > 1)
@@ -312,7 +312,7 @@ void TreeWalker::handleKbuildFile(ToWalkEntry &&entry)
 		RegularVisitor(TreeWalker &TW, const ToWalkEntry &entry)
 			: TW(TW), m_entry(entry) {}
 
-		virtual const std::any isInteresting(const std::string &lhs) const override {
+		virtual std::any isInteresting(const std::string &lhs) const override {
 			 static constexpr const std::pair<std::string_view, bool> lookingFor[] = {
 				 { "lib-", false },
 				 { "obj-", false },

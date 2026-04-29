@@ -55,7 +55,7 @@ void testVisitor()
 			assert(m_set == 2);
 		}
 
-		virtual const std::any isInteresting(const std::string &) const override {
+		virtual std::any isInteresting(const std::string &) const override {
 			return true;
 		}
 

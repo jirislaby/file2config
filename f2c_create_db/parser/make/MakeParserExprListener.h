@@ -26,6 +26,7 @@ public:
 
 private:
 	static bool isCompilerFlagsRule(std::string_view lhs);
+	static MakeParser::IdContext *getEvalId(MakeParser::AtomContext *atom);
 
 	std::vector<std::string> evaluateAtom(MakeParser::AtomContext *atom);
 	std::vector<std::string> evaluateWord(MakeParser::WordContext *word);

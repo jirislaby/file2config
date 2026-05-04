@@ -15,27 +15,35 @@
 using namespace MP;
 using Clr = SlHelpers::Color;
 
-std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
+MakeParser::IdContext *MakeExprListener::getEvalId(MakeParser::AtomContext *atom)
 {
 	if (auto e = atom->eval())
 		if (auto ie = e->in_eval())
 			if (auto a = ie->a1)
-				if (auto id = a->id()) {
-					if (id->CSKYABI())
-						return { "abiv1", "abiv2" };
-					if (id->SRCARCH())
-						return archs;
-					if (id->BITS())
-						return { "32", "64" };
-					auto text = id->getText();
-					if (text == "src")
-						return { m_curDir };
-					if (text == "srctree")
-						return { m_rootDir };
+				if (auto id = a->id())
+					return id;
 
-					if (auto res = entryVisitor.getVariable(text); !res.empty())
-						return res;
-				}
+	return nullptr;
+}
+
+std::vector<std::string> MakeExprListener::evaluateAtom(MakeParser::AtomContext *atom)
+{
+	if (auto id = getEvalId(atom)) {
+		if (id->CSKYABI())
+			return { "abiv1", "abiv2" };
+		if (id->SRCARCH())
+			return archs;
+		if (id->BITS())
+			return { "32", "64" };
+		auto text = id->getText();
+		if (text == "src")
+			return { m_curDir };
+		if (text == "srctree")
+			return { m_rootDir };
+
+		if (auto res = entryVisitor.getVariable(text); !res.empty())
+			return res;
+	}
 
 	return { atom->getText() };
 }

@@ -5,6 +5,8 @@
 			"drivers/gpu/drm/tilcdc/*.h",
 			"drivers/iio/accel/*.h",
 			"drivers/net/ethernet/microchip/lan966x/*.h",
+			"drivers/usb/gadget/function/u_ether.h",
+			"drivers/usb/gadget/function/u_ncm.h",
 			"fs/f2fs/*.h",
 			"fs/hfsplus/*.h",
 			"fs/jfs/*.h",

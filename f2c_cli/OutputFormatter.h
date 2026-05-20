@@ -19,7 +19,7 @@ public:
 	virtual void newObj(const std::string &/*type*/, const std::string &/*value*/) {}
 	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
 			       const std::string &config,
-			       const std::filesystem::path &module) = 0;
+			       const std::filesystem::path &module, int modSupport) = 0;
 	virtual void addConfigDetails(const bool forModules, const std::string &arch,
 				      const std::string &flavor,
 				      const std::string &value) = 0;
@@ -50,13 +50,14 @@ public:
 
 	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
 			       const std::string &config,
-			       const std::filesystem::path &module) override {
+			       const std::filesystem::path &module, int modSupport) override {
 		m_json.back()["configs"].push_back({
 			{ "branch", branch },
 			{ "path", path.string() },
 			{ "config", config },
 			{ "module", module.filename() },
 			{ "module_path", module },
+			{ "module_supported", modSupport },
 		});
 	}
 	virtual void addConfigDetails(const bool forModules, const std::string &arch,
@@ -107,7 +108,7 @@ public:
 
 	virtual void addConfig(const std::filesystem::path &path, const std::string &branch,
 			       const std::string &config,
-			       const std::filesystem::path &module) override {
+			       const std::filesystem::path &module, int /*modSupport*/) override {
 		if (m_multipleBranches)
 			m_configs << branch << ' ';
 		m_configs << path.string() << ' ' << config;

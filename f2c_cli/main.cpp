@@ -54,7 +54,7 @@ public:
 				"WITH " + branchCTE + ", " + fileRenamedCTE + " " +
 				"SELECT branch_cte.branch, config.config, mdir.dir, "
 					"module.module, dir.dir, file.file, branch_cte.id, "
-					"config.id "
+					"config.id, mdmap.supported "
 					"FROM branch_cte "
 					"JOIN file_renamed_cte ON "
 						"branch_cte.id = file_renamed_cte.branch_id "
@@ -70,6 +70,9 @@ public:
 						"file_renamed_cte.file_id = mfmap.file "
 					"LEFT JOIN module ON mfmap.module = module.id "
 					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
+					"LEFT JOIN module_details_map AS mdmap ON "
+						"branch_cte.id = mdmap.branch AND "
+						"mdmap.module = module.id "
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selConfigDetails,
 				"SELECT arch.arch, flavor.flavor, map.value "
@@ -350,7 +353,8 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 		}
 		std::filesystem::path oldFile = std::get<std::string>(std::move(conf[4]));
 		oldFile /= std::get<std::string>(std::move(conf[5]));
-		opts.formatter->addConfig(oldFile, branch, config, mod);
+		auto modSupport = std::get<int>(conf[8]);
+		opts.formatter->addConfig(oldFile, branch, config, mod, modSupport);
 
 		auto branchID = std::get<int>(conf[6]);
 		auto configID = std::get<int>(conf[7]);

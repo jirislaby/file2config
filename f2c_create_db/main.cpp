@@ -24,6 +24,7 @@
 #include "BranchProps.h"
 #include "Ignores.h"
 #include "Renames.h"
+#include "StatusNotifier.h"
 #include "Verbose.h"
 
 using Clr = SlHelpers::Color;
@@ -240,15 +241,6 @@ std::optional<Json> loadConfiguration(const Opts &opts)
 	return json;
 }
 
-std::string getBranchNote(const std::string &branch, unsigned branchNo, unsigned branchCnt)
-{
-	auto percent = 100.0 * branchNo / branchCnt;
-	std::ostringstream ss;
-	ss << branch << " (" << branchNo << "/" << branchCnt << " -- " <<
-	      std::fixed << std::setprecision(2) << percent << " %)";
-	return ss.str();
-}
-
 bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
 {
 	if (force) {
@@ -261,10 +253,10 @@ bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
 	return sql.hasBranch(branch);
 }
 
-SlGit::Commit checkoutBranch(const std::string &branchNote, const std::string &branch,
+SlGit::Commit checkoutBranch(const StatusNotifier &notifier, const std::string &branch,
 			     const SlGit::Repo &repo)
 {
-	Clr(Clr::GREEN) << "== " << branchNote << " -- Checking Out ==";
+	notifier.notify("Checking out");
 	if (!repo.checkout("refs/remotes/origin/" + branch))
 		RunEx("Cannot check out '") << branch << "': " << repo.lastError() << raise;
 
@@ -281,7 +273,7 @@ std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea, s
 	return scratchArea / branch;
 }
 
-void expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,
+void expandBranch(const StatusNotifier &notifier, const std::filesystem::path &scratchArea,
 		  const std::filesystem::path &expandedTree)
 {
 	auto kernelSource = scratchArea / "kernel-source";
@@ -290,7 +282,7 @@ void expandBranch(const std::string &branchNote, const std::filesystem::path &sc
 	if (ec)
 		RunEx(__func__) << ": cannot chdir to " << kernelSource << raise;
 
-	Clr(Clr::GREEN) << "== " << branchNote << " -- Expanding ==";
+	notifier.notify("Expanding");
 
 	std::filesystem::path seqPatch{"./scripts/sequence-patch"};
 	// temporary for old branches
@@ -437,7 +429,7 @@ void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit
 		RunEx("Cannot collect configs: ") << error << raise;
 }
 
-void processBranch(const Opts &opts, const std::string &branchNote,
+void processBranch(const Opts &opts, const StatusNotifier &notifier,
 		   SQL::F2CSQLConn &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
 		   const std::filesystem::path &root, const std::optional<Json> &configuration,
@@ -454,28 +446,26 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 	branchesProps.emplace(branch, std::move(props));
 
 	if (!opts.sqliteCreateOnly) {
-		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
+		notifier.notify("Retrieving supported info");
 		auto supp = getSupported(commit);
 
-		Clr(Clr::GREEN) << "== " << branchNote << " -- Running file2config ==";
+		notifier.notify("Running file2config");
 		Kconfig::Config::Configs configs;
 		processF2C(configs, sql, supp, branch, root);
 
-		Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
+		notifier.notify("Collecting configs");
 		processConfigs(sql, branch, repo, commit, configs);
 
-		Clr(Clr::GREEN) << "== " << branchNote <<
-				       " -- Detecting authors of patches ==";
+		notifier.notify("Detecting authors of patches");
 		processAuthors(opts, sql, branch, repo, commit);
 
 		if (configuration) {
-			Clr(Clr::GREEN) << "== " << branchNote <<
-					       " -- Collecting ignored files ==";
+			notifier.notify("Collecting ignored files");
 			Ignores::process(sql, branch, *configuration, root);
 		}
 	}
 
-	Clr(Clr::GREEN) << "== " << branchNote << " -- Committing ==";
+	notifier.notify("Committing");
 	sql.end();
 }
 
@@ -509,18 +499,19 @@ void handleEx(int argc, char **argv)
 
 	BranchesProps branchesProps;
 	for (const auto &branch: branches) {
-		auto branchNote = getBranchNote(branch, ++branchNo, branchCnt);
-		Clr(Clr::GREEN) << "== " << branchNote << " -- Starting ==";
+		StatusNotifier notifier(branch, ++branchNo, branchCnt);
+
+		notifier.notify("Starting");
 		if (skipBranch(sql, branch, opts.force)) {
 			Clr(Clr::YELLOW) << "Already present, skipping, use -f to force re-creation";
 			continue;
 		}
 
-		auto branchCommit = checkoutBranch(branchNote, branch, repo);
+		auto branchCommit = checkoutBranch(notifier, branch, repo);
 		auto expandedTree = getExpandedDir(scratchArea, branch);
 
-		expandBranch(branchNote, scratchArea, expandedTree);
-		processBranch(opts, branchNote, sql, branch, repo, branchCommit, expandedTree,
+		expandBranch(notifier, scratchArea, expandedTree);
+		processBranch(opts, notifier, sql, branch, repo, branchCommit, expandedTree,
 			      configuration, branchesProps);
 	}
 

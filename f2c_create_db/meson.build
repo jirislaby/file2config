@@ -15,6 +15,7 @@ executable('f2c_create_db', [
     'Ignores.h',
     'Renames.cpp',
     'Renames.h',
+    'StatusNotifier.h',
     'Verbose.cpp',
     'Verbose.h',
   ],

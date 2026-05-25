@@ -211,8 +211,7 @@ std::optional<Json> loadConfiguration(const Opts &opts)
 	return json;
 }
 
-std::string getBranchNote(const std::string &branch, const unsigned &branchNo,
-			  const unsigned &branchCnt)
+std::string getBranchNote(const std::string &branch, unsigned branchNo, unsigned branchCnt)
 {
 	auto percent = 100.0 * branchNo / branchCnt;
 	std::ostringstream ss;

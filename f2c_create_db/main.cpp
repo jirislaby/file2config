@@ -9,7 +9,6 @@
 #include <sl/kerncvs/Branches.h>
 #include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/PatchesAuthors.h>
-#include <sl/kerncvs/RPMConfig.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
@@ -477,20 +476,6 @@ void processIgnores(SQL::F2CSQLConn &sql, const std::string &branch, const Json 
 	}
 }
 
-BranchProps getBranchProps(const SlGit::Commit &commit)
-{
-	auto rpmConf = SlKernCVS::RPMConfig::create(*commit.tree());
-	if (!rpmConf)
-		RunEx("Cannot obtain a config from ") << std::quoted(commit.idStr()) << ": " <<
-							 commit.repo().lastError() << raise;
-
-	auto srcVer = rpmConf->get("SRCVERSION");
-	if (!srcVer)
-		RunEx("No SRCVERSION in rpm/config.sh of ") << std::quoted(commit.idStr()) << raise;
-
-	return BranchProps(*srcVer);
-}
-
 void processBranch(const Opts &opts, const std::string &branchNote,
 		   SQL::F2CSQLConn &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
@@ -499,7 +484,7 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 {
 	sql.begin();
 	auto SHA = commit.idStr();
-	auto props = getBranchProps(commit);
+	BranchProps props{ commit };
 
 	if (!sql.insertBranch(branch, SHA, props.version))
 		RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<

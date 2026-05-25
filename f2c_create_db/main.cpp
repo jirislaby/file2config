@@ -249,12 +249,10 @@ SlGit::Commit checkoutBranch(const std::string &branchNote, const std::string &b
 	return std::move(*commit);
 }
 
-std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea,
-				     const std::string &branch)
+std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea, std::string branch)
 {
-	auto branchDir(branch);
-	std::replace(branchDir.begin(), branchDir.end(), '/', '_');
-	return scratchArea / branchDir;
+	std::replace(branch.begin(), branch.end(), '/', '_');
+	return scratchArea / branch;
 }
 
 void expandBranch(const std::string &branchNote, const std::filesystem::path &scratchArea,

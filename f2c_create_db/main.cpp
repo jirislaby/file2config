@@ -329,9 +329,8 @@ void insertConfigConsole(const Kconfig::Parser &p)
 	});
 }
 
-void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
-		const SlKernCVS::SupportedConf &supp, const std::string &branch,
-		const std::filesystem::path &root)
+void parseKconfigs(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+		   const std::filesystem::path &root)
 {
 	Kconfig::Parser p;
 	const auto excludeDir = root / "scripts" / "kconfig" / "tests";
@@ -368,10 +367,23 @@ void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn
 		else
 			insertConfigConsole(p);
 	}
+}
 
+void parseKbuilds(const Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+		  const SlKernCVS::SupportedConf &supp, const std::string &branch,
+		  const std::filesystem::path &root)
+{
 	auto visitor = getMakeVisitor(sql, supp, branch, root, configs);
 	TW::TreeWalker tw(root, configs, *visitor);
 	tw.walk();
+}
+
+void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+		const SlKernCVS::SupportedConf &supp, const std::string &branch,
+		const std::filesystem::path &root)
+{
+	parseKconfigs(configs, sql, root);
+	parseKbuilds(configs, sql, supp, branch, root);
 }
 
 void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &branch,

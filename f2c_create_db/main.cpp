@@ -23,7 +23,6 @@
 
 #include "parser/kconfig/Parser.h"
 #include "sql/F2CSQLConn.h"
-#include "treewalker/ConsoleMakeVisitor.h"
 #include "treewalker/SQLiteMakeVisitor.h"
 #include "treewalker/TreeWalker.h"
 #include "Verbose.h"
@@ -53,7 +52,6 @@ struct Opts {
 	bool hasConfiguration;
 
 	std::filesystem::path sqlite;
-	bool hasSqlite;
 	bool sqliteCreate;
 	bool sqliteCreateOnly;
 };
@@ -88,7 +86,7 @@ Opts getOpts(int argc, char **argv)
 			cxxopts::value(opts.configurationJSON))
 	;
 	options.add_options("sqlite")
-		("s,sqlite", "create db",
+		("s,sqlite", "db name",
 			cxxopts::value(opts.sqlite)->implicit_value("conf_file_map.sqlite"))
 		("S,sqlite-create", "create the db if not exists",
 			cxxopts::value(opts.sqliteCreate)->default_value("false"))
@@ -103,7 +101,6 @@ Opts getOpts(int argc, char **argv)
 		Clr::forceColorValue(cxxopts.contains("force-color"));
 		opts.hasDest = cxxopts.contains("dest");
 		opts.hasConfiguration = cxxopts.contains("configuration");
-		opts.hasSqlite = cxxopts.contains("sqlite");
 		return opts;
 	} catch (const cxxopts::exceptions::parsing &e) {
 		Clr(std::cerr, Clr::RED) << "arguments error: " << e.what();
@@ -169,11 +166,8 @@ SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 	return std::move(*repo);
 }
 
-std::optional<SQL::F2CSQLConn> getSQL(const Opts &opts)
+SQL::F2CSQLConn getSQL(const Opts &opts)
 {
-	if (!opts.hasSqlite)
-		return std::nullopt;
-
 	SQL::F2CSQLConn sql;
 	unsigned openFlags = 0;
 	if (opts.sqliteCreate)
@@ -220,19 +214,16 @@ std::string getBranchNote(const std::string &branch, unsigned branchNo, unsigned
 	return ss.str();
 }
 
-bool skipBranch(std::optional<SQL::F2CSQLConn> &sql, const std::string &branch, bool force)
+bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
 {
-	if (!sql)
-		return false;
-
 	if (force) {
-		if (!sql->deleteBranch(branch))
-			RunEx("Cannot delete branch '") << branch << "': " << sql->lastError() <<
+		if (!sql.deleteBranch(branch))
+			RunEx("Cannot delete branch '") << branch << "': " << sql.lastError() <<
 							  raise;
 		return false;
 	}
 
-	return sql->hasBranch(branch);
+	return sql.hasBranch(branch);
 }
 
 SlGit::Commit checkoutBranch(const std::string &branchNote, const std::string &branch,
@@ -296,19 +287,8 @@ SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
 	return SlKernCVS::SupportedConf { *suppConf };
 }
 
-std::unique_ptr<TW::MakeVisitor> getMakeVisitor(std::optional<SQL::F2CSQLConn> &sql,
-						const SlKernCVS::SupportedConf &supp,
-						const std::string &branch,
-						const std::filesystem::path &root,
-						const Kconfig::Config::Configs &configs)
-{
-	if (sql)
-		return std::make_unique<TW::SQLiteMakeVisitor>(*sql, supp, branch, root, configs);
-	else
-		return std::make_unique<TW::ConsoleMakeVisitor>();
-}
-
-void insertConfigSQL(Kconfig::Config::Configs &configs, const Kconfig::Parser &p, SQL::F2CSQLConn &sql)
+void insertConfigSQL(Kconfig::Config::Configs &configs, const Kconfig::Parser &p,
+		     SQL::F2CSQLConn &sql)
 {
 	p.walkConfigs([&configs, &sql](auto conf, auto type) {
 		auto realConf = "CONFIG_" + conf;
@@ -319,27 +299,19 @@ void insertConfigSQL(Kconfig::Config::Configs &configs, const Kconfig::Parser &p
 	});
 }
 
-void insertConfigConsole(const Kconfig::Parser &p)
-{
-	p.walkConfigs([](auto conf, auto type) {
-		Clr() << "CONF " << conf << ' ' << static_cast<unsigned>(type);
-	});
-}
-
-void parseKconfigs(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+void parseKconfigs(Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
 		   const std::filesystem::path &root)
 {
 	Kconfig::Parser p;
 	const auto excludeDir = root / "scripts" / "kconfig" / "tests";
 	const auto excludePath = root / "scripts" / "Kconfig.include";
 
-	if (sql)
-		for (const auto &e: Kconfig::ConfigRange{}) {
-			std::string name(Kconfig::Config::getName(e));
-			if (!sql->insertConfigType(static_cast<unsigned>(e), name))
-				RunEx("Cannot insert config type '") << name << "': " <<
-								       sql->lastError() << raise;
-		}
+	for (const auto &e: Kconfig::ConfigRange{}) {
+		std::string name(Kconfig::Config::getName(e));
+		if (!sql.insertConfigType(static_cast<unsigned>(e), name))
+			RunEx("Cannot insert config type '") << name << "': " <<
+							       sql.lastError() << raise;
+	}
 
 	for (auto it = std::filesystem::recursive_directory_iterator(root);
 	     it != std::filesystem::end(it); ++it) {
@@ -359,23 +331,20 @@ void parseKconfigs(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLC
 		if (!p.parse(path, false))
 			RunEx("Cannot parse: ") << path << raise;
 
-		if (sql)
-			insertConfigSQL(configs, p, *sql);
-		else
-			insertConfigConsole(p);
+		insertConfigSQL(configs, p, sql);
 	}
 }
 
-void parseKbuilds(const Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+void parseKbuilds(const Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
 		  const SlKernCVS::SupportedConf &supp, const std::string &branch,
 		  const std::filesystem::path &root)
 {
-	auto visitor = getMakeVisitor(sql, supp, branch, root, configs);
-	TW::TreeWalker tw(root, configs, *visitor);
+	TW::SQLiteMakeVisitor visitor(sql, supp, branch, root, configs);
+	TW::TreeWalker tw(root, configs, visitor);
 	tw.walk();
 }
 
-void processF2C(Kconfig::Config::Configs &configs, std::optional<SQL::F2CSQLConn> &sql,
+void processF2C(Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
 		const SlKernCVS::SupportedConf &supp, const std::string &branch,
 		const std::filesystem::path &root)
 {
@@ -496,22 +465,20 @@ BranchProps getBranchProps(const SlGit::Commit &commit)
 }
 
 void processBranch(const Opts &opts, const std::string &branchNote,
-		   std::optional<SQL::F2CSQLConn> &sql,
+		   SQL::F2CSQLConn &sql,
 		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
 		   const std::filesystem::path &root, const std::optional<Json> &configuration,
 		   BranchesProps &branchesProps)
 {
-	if (sql) {
-		sql->begin();
-		auto SHA = commit.idStr();
-		auto props = getBranchProps(commit);
+	sql.begin();
+	auto SHA = commit.idStr();
+	auto props = getBranchProps(commit);
 
-		if (!sql->insertBranch(branch, SHA, props.version))
-			RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<
-							raise;
+	if (!sql.insertBranch(branch, SHA, props.version))
+		RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<
+						raise;
 
-		branchesProps.emplace(branch, std::move(props));
-	}
+	branchesProps.emplace(branch, std::move(props));
 
 	if (!opts.sqliteCreateOnly) {
 		Clr(Clr::GREEN) << "== " << branchNote << " -- Retrieving supported info ==";
@@ -521,26 +488,22 @@ void processBranch(const Opts &opts, const std::string &branchNote,
 		Kconfig::Config::Configs configs;
 		processF2C(configs, sql, supp, branch, root);
 
-		if (sql) {
-			Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
-			processConfigs(*sql, branch, repo, commit, configs);
+		Clr(Clr::GREEN) << "== " << branchNote << " -- Collecting configs ==";
+		processConfigs(sql, branch, repo, commit, configs);
 
+		Clr(Clr::GREEN) << "== " << branchNote <<
+				       " -- Detecting authors of patches ==";
+		processAuthors(opts, sql, branch, repo, commit);
+
+		if (configuration) {
 			Clr(Clr::GREEN) << "== " << branchNote <<
-					       " -- Detecting authors of patches ==";
-			processAuthors(opts, *sql, branch, repo, commit);
-
-			if (configuration) {
-				Clr(Clr::GREEN) << "== " << branchNote <<
-						       " -- Collecting ignored files ==";
-				processIgnores(*sql, branch, *configuration, root);
-			}
+					       " -- Collecting ignored files ==";
+			processIgnores(sql, branch, *configuration, root);
 		}
 	}
 
-	if (sql) {
-		Clr(Clr::GREEN) << "== " << branchNote << " -- Committing ==";
-		sql->end();
-	}
+	Clr(Clr::GREEN) << "== " << branchNote << " -- Committing ==";
+	sql.end();
 }
 
 auto getUniqTags(const BranchesProps &branchesProps)
@@ -560,7 +523,7 @@ struct RenameInfo {
 using RenameMap = std::unordered_map<std::string, RenameInfo, SlHelpers::String::Hash,
 		SlHelpers::String::Eq>;
 
-void processRenamesBetween(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
+void processRenamesBetween(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
 			   const BranchProps &begin, std::string_view end, RenameMap &renames)
 {
 	auto begVersion = begin.version;
@@ -630,25 +593,25 @@ void processRenamesBetween(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Rep
 	if (auto e = p.exitStatus())
 		RunEx("git exited with ") << e << raise;
 
-	auto trans = sql->beginAuto();
+	auto trans = sql.beginAuto();
 	for (const auto &e: renames) {
-		auto oldP = sql->insertPath(e.first);
+		auto oldP = sql.insertPath(e.first);
 		if (!oldP)
 			RunEx("Cannot insert old path: ") << e.first << ": " <<
-						 sql->lastError() << raise;
-		auto newP = sql->insertPath(e.second.path);
+						 sql.lastError() << raise;
+		auto newP = sql.insertPath(e.second.path);
 		if (!newP)
 			RunEx("Cannot insert new path: ") << e.second.path << ": " <<
-						 sql->lastError() << raise;
-		if (!sql->insertRFVMap(begVersion, e.second.similarity, oldP->first, oldP->second,
+						 sql.lastError() << raise;
+		if (!sql.insertRFVMap(begVersion, e.second.similarity, oldP->first, oldP->second,
 				       newP->first, newP->second))
 			RunEx("Cannot insert rename file map: ") << e.first << " -> " <<
 								    e.second.path << ": " <<
-								    sql->lastError() << raise;
+								    sql.lastError() << raise;
 	}
 }
 
-void processRenames(std::optional<SQL::F2CSQLConn> &sql, const SlGit::Repo &lrepo,
+void processRenames(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
 		    const BranchesProps &branchesProps)
 {
 	auto uniqTags = getUniqTags(branchesProps);
@@ -736,12 +699,12 @@ void handleEx(int argc, char **argv)
 			      configuration, branchesProps);
 	}
 
-	if (!opts.noRenames && sql) {
+	if (!opts.noRenames) {
 		Clr(Clr::GREEN) << "== Collecting renames ==";
 		processRenames(sql, *lrepo, branchesProps);
 
-		if (!sql->exec("VACUUM;"))
-			RunEx("Cannot VACUUM the DB: ") << sql->lastError() << raise;
+		if (!sql.exec("VACUUM;"))
+			RunEx("Cannot VACUUM the DB: ") << sql.lastError() << raise;
 	}
 }
 

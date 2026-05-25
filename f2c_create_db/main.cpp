@@ -442,11 +442,8 @@ void processIgnore(SQL::F2CSQLConn &sql, const std::string &branch,
 	for (const auto &pattern: patterns)
 		if (!fnmatch(pattern.get_ref<const Json::string_t &>().c_str(),
 			     relPath.c_str(), FNM_PATHNAME)) {
-			const auto dir = relPath.parent_path();
-			const auto file = relPath.filename();
-
-			if (!sql.insertDir(dir) || !sql.insertFile(dir, file) ||
-					!sql.insertIFBMap(branch, dir, file))
+			const auto dirFile = sql.insertPath(relPath);
+			if (!dirFile || !sql.insertIFBMap(branch, dirFile->first, dirFile->second))
 				RunEx("Cannot insert ignore: ") << sql.lastError() << raise;
 		}
 }

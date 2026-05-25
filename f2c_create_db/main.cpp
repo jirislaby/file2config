@@ -5,9 +5,6 @@
 #include <nlohmann/json.hpp>
 
 #include <sl/kerncvs/Branches.h>
-#include <sl/kerncvs/CollectConfigs.h>
-#include <sl/kerncvs/PatchesAuthors.h>
-#include <sl/kerncvs/SupportedConf.h>
 #include <sl/git/Git.h>
 #include <sl/helpers/Color.h>
 #include <sl/helpers/Exception.h>
@@ -15,17 +12,12 @@
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
 
-#include "parser/kconfig/Parser.h"
 #include "sql/F2CSQLConn.h"
-#include "treewalker/SQLiteMakeVisitor.h"
-#include "treewalker/TreeWalker.h"
 
-#include "BranchProps.h"
-#include "Ignores.h"
+#include "BranchProcessor.h"
 #include "Opts.h"
 #include "Renames.h"
 #include "StatusNotifier.h"
-#include "Verbose.h"
 
 using Clr = SlHelpers::Color;
 using Json = nlohmann::ordered_json;
@@ -178,222 +170,6 @@ bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
 	return sql.hasBranch(branch);
 }
 
-SlGit::Commit checkoutBranch(const StatusNotifier &notifier, const std::string &branch,
-			     const SlGit::Repo &repo)
-{
-	notifier.notify("Checking out");
-	if (!repo.checkout("refs/remotes/origin/" + branch))
-		RunEx("Cannot check out '") << branch << "': " << repo.lastError() << raise;
-
-	auto commit = repo.commitRevparseSingle("HEAD");
-	if (!commit)
-		RunEx("Cannot find HEAD: ") << repo.lastError() << raise;
-
-	return std::move(*commit);
-}
-
-std::filesystem::path getExpandedDir(const std::filesystem::path &scratchArea, std::string branch)
-{
-	std::replace(branch.begin(), branch.end(), '/', '_');
-	return scratchArea / branch;
-}
-
-void expandBranch(const StatusNotifier &notifier, const std::filesystem::path &scratchArea,
-		  const std::filesystem::path &expandedTree)
-{
-	auto kernelSource = scratchArea / "kernel-source";
-	std::error_code ec;
-	SlHelpers::PushD push(kernelSource, ec);
-	if (ec)
-		RunEx(__func__) << ": cannot chdir to " << kernelSource << raise;
-
-	notifier.notify("Expanding");
-
-	std::filesystem::path seqPatch{"./scripts/sequence-patch"};
-	// temporary for old branches
-	if (!std::filesystem::exists(seqPatch)) {
-		Clr(Clr::YELLOW) << "Running old sequence-patch.sh as sequence-patch does not exist";
-		seqPatch = "./scripts/sequence-patch.sh";
-	}
-	const std::vector<std::string> args {
-		"--dir=" + scratchArea.string(),
-		"--patch-dir=" + expandedTree.string(),
-		"--rapid",
-	};
-	SlHelpers::Process P;
-	auto ret = P.run(seqPatch, args);
-	if (F2C::verbose > 1)
-		std::cout << "cmd=" << seqPatch << " stat=" << P.lastErrorNo() << '/' <<
-			     P.exitStatus() << '\n';
-	if (!ret || P.exitStatus())
-		RunEx(__func__) << ": cannot seq patch: " << P.lastError() <<
-				   " (" << P.exitStatus() << ')' << raise;
-}
-
-SlKernCVS::SupportedConf getSupported(const SlGit::Commit &commit)
-{
-	auto suppConf = commit.catFile("supported.conf");
-	if (!suppConf)
-		RunEx("Cannot obtain supported.conf: ") << commit.repo().lastError() << raise;
-
-	return SlKernCVS::SupportedConf { *suppConf };
-}
-
-void insertConfigSQL(Kconfig::Config::Configs &configs, const Kconfig::Parser &p,
-		     SQL::F2CSQLConn &sql)
-{
-	p.walkConfigs([&configs, &sql](auto conf, auto type) {
-		auto realConf = "CONFIG_" + conf;
-		if (!sql.insertConfig(realConf, static_cast<unsigned>(type)))
-			RunEx("Cannot insert config '") << conf << "': " << sql.lastError() <<
-							   raise;
-		configs.emplace(std::move(realConf), type);
-	});
-}
-
-void parseKconfigs(Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
-		   const std::filesystem::path &root)
-{
-	Kconfig::Parser p;
-	const auto excludeDir = root / "scripts" / "kconfig" / "tests";
-	const auto excludePath = root / "scripts" / "Kconfig.include";
-
-	for (const auto &e: Kconfig::ConfigRange{}) {
-		std::string name(Kconfig::Config::getName(e));
-		if (!sql.insertConfigType(static_cast<unsigned>(e), name))
-			RunEx("Cannot insert config type '") << name << "': " <<
-							       sql.lastError() << raise;
-	}
-
-	for (auto it = std::filesystem::recursive_directory_iterator(root);
-	     it != std::filesystem::end(it); ++it) {
-		const auto &path = it->path();
-		if (it->is_directory()) {
-			if (path == excludeDir)
-				it.disable_recursion_pending();
-			continue;
-		}
-		if (!it->is_regular_file())
-			continue;
-		if (path.stem() != "Kconfig" && path.stem() != "Kconfig-nommu")
-			continue;
-		if (path == excludePath)
-			continue;
-
-		if (!p.parse(path, false))
-			RunEx("Cannot parse: ") << path << raise;
-
-		insertConfigSQL(configs, p, sql);
-	}
-}
-
-void parseKbuilds(const Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
-		  const SlKernCVS::SupportedConf &supp, const std::string &branch,
-		  const std::filesystem::path &root)
-{
-	TW::SQLiteMakeVisitor visitor(sql, supp, branch, root, configs);
-	TW::TreeWalker tw(root, configs, visitor);
-	tw.walk();
-}
-
-void processF2C(Kconfig::Config::Configs &configs, SQL::F2CSQLConn &sql,
-		const SlKernCVS::SupportedConf &supp, const std::string &branch,
-		const std::filesystem::path &root)
-{
-	parseKconfigs(configs, sql, root);
-	parseKbuilds(configs, sql, supp, branch, root);
-}
-
-void processAuthors(const Opts &opts, SQL::F2CSQLConn &sql, const std::string &branch,
-		    const SlGit::Repo &repo, const SlGit::Commit &commit)
-{
-	SlKernCVS::PatchesAuthors PA{repo, opts.authorsDumpRefs, opts.authorsReportUnhandled};
-
-	auto ret = PA.processAuthors(commit, [&sql](const std::string &email) -> bool {
-		return sql.insertUser(email);
-	}, [&branch, &sql](const std::string &email, const std::filesystem::path &path,
-			unsigned count, unsigned realCount) -> bool {
-		auto fileDir = sql.insertPath(path);
-		return fileDir && sql.insertUFMap(branch, email, std::move(fileDir->first),
-						   std::move(fileDir->second),
-						   count, realCount);
-	});
-	if (!ret)
-		RunEx("Cannot process authors").raise();
-}
-
-void processConfigs(SQL::F2CSQLConn &sql, const std::string &branch, const SlGit::Repo &repo,
-		    const SlGit::Commit &commit, const Kconfig::Config::Configs &configs)
-{
-	std::string error;
-
-	SlKernCVS::CollectConfigs CC{repo,
-		[&sql, &error](const std::string &arch, const std::string &flavor) {
-			auto ret = sql.insertArch(arch) && sql.insertFlavor(flavor);
-			if (!ret)
-				error = sql.lastError();
-			return ret;
-		}, [&sql, &branch, &error, &configs](const std::string &arch,
-						     const std::string &flavor,
-						     const std::string &config,
-						     const SlKernCVS::CollectConfigs::ConfigValue &value) {
-			if (!configs.contains(config)) {
-				Clr(std::cerr, Clr::YELLOW) << "config \"" << config <<
-							       "\" is not defined (" << arch <<
-							       '/' << flavor << ')';
-				return true;
-			}
-			auto ret = sql.insertCBMap(branch, arch, flavor, config,
-						   std::string(1, value));
-			if (!ret)
-				error = sql.lastError();
-			return ret;
-	}};
-
-	if (!CC.collectConfigs(commit))
-		RunEx("Cannot collect configs: ") << error << raise;
-}
-
-void processBranch(const Opts &opts, const StatusNotifier &notifier,
-		   SQL::F2CSQLConn &sql,
-		   const std::string &branch, const SlGit::Repo &repo, SlGit::Commit &commit,
-		   const std::filesystem::path &root, const std::optional<Json> &configuration,
-		   BranchesProps &branchesProps)
-{
-	sql.begin();
-	auto SHA = commit.idStr();
-	BranchProps props{ commit };
-
-	if (!sql.insertBranch(branch, SHA, props.version))
-		RunEx("Cannot add branch '") << branch << "' with SHA '" << SHA << '\'' <<
-						raise;
-
-	branchesProps.emplace(branch, std::move(props));
-
-	if (!opts.sqliteCreateOnly) {
-		notifier.notify("Retrieving supported info");
-		auto supp = getSupported(commit);
-
-		notifier.notify("Running file2config");
-		Kconfig::Config::Configs configs;
-		processF2C(configs, sql, supp, branch, root);
-
-		notifier.notify("Collecting configs");
-		processConfigs(sql, branch, repo, commit, configs);
-
-		notifier.notify("Detecting authors of patches");
-		processAuthors(opts, sql, branch, repo, commit);
-
-		if (configuration) {
-			notifier.notify("Collecting ignored files");
-			Ignores::process(sql, branch, *configuration, root);
-		}
-	}
-
-	notifier.notify("Committing");
-	sql.end();
-}
-
 } // namespace
 
 void handleEx(int argc, char **argv)
@@ -432,12 +208,10 @@ void handleEx(int argc, char **argv)
 			continue;
 		}
 
-		auto branchCommit = checkoutBranch(notifier, branch, repo);
-		auto expandedTree = getExpandedDir(scratchArea, branch);
+		BranchProcessor bp{branch, notifier, scratchArea, branchesProps, repo, sql, opts,
+			configuration};
 
-		expandBranch(notifier, scratchArea, expandedTree);
-		processBranch(opts, notifier, sql, branch, repo, branchCommit, expandedTree,
-			      configuration, branchesProps);
+		bp.process();
 	}
 
 	if (!opts.noRenames) {

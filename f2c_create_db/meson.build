@@ -13,6 +13,8 @@ executable('f2c_create_db', [
     'BranchProps.h',
     'Ignores.cpp',
     'Ignores.h',
+    'Opts.cpp',
+    'Opts.h',
     'Renames.cpp',
     'Renames.h',
     'StatusNotifier.h',

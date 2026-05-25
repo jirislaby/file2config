@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string_view>
 #include <utility>
@@ -285,6 +286,56 @@ bool TreeWalker::moreSupported(const std::string &cond,
 	return true;
 }
 
+/**
+ * @brief Find #include "file" in a C source/header and return the paths to those files
+ *
+ * Only includes with double quotes are considered, and the path is resolved relative to the
+ * source file. If the included file does not exist, it is ignored.
+ *
+ * @param srcPath Path to the C source file
+ * @return Vector of paths to the included files
+ */
+std::vector<std::filesystem::path>
+TreeWalker::includesInCSource(const std::filesystem::path &srcPath)
+{
+	std::ifstream src(srcPath);
+	if (!src.is_open()) {
+		Clr(std::cerr, Clr::RED) << __func__ << ": cannot open " << srcPath <<
+			": " << std::strerror(errno);
+		return {};
+	}
+
+	std::vector<std::filesystem::path> includes;
+
+	for (std::string line; std::getline(src, line);) {
+		std::string_view include(line);
+		include = SlHelpers::String::trim(include);
+
+		if (!include.starts_with('#'))
+			continue;
+
+		include.remove_prefix(1);
+		include = SlHelpers::String::trim(include);
+
+		static const constexpr std::string_view includePrefix = "include ";
+		if (!include.starts_with(includePrefix))
+			continue;
+
+		include.remove_prefix(includePrefix.size());
+		include = SlHelpers::String::trim(include);
+		if (!include.starts_with('"') || !include.ends_with('"'))
+			continue;
+
+		include.remove_prefix(1);
+		include.remove_suffix(1);
+		auto includePath = srcPath.parent_path() / include;
+		if (std::filesystem::exists(includePath))
+			includes.emplace_back(std::move(includePath));
+	}
+
+	return includes;
+}
+
 bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 {
 	static const std::unordered_set<std::string_view> skipPaths {
@@ -302,9 +353,12 @@ void TreeWalker::handleCSource(const std::string &cond,
 			       SlKernCVS::ConfigValue enabled,
 			       const std::optional<std::string> &disabledConfig,
 			       const std::filesystem::path &relModule,
-			       SlKernCVS::SupportState supported)
+			       SlKernCVS::SupportState supported,
+			       PathSet &visitedSources)
 {
 	auto relSrcPath = startRelative(srcPath);
+	if (!visitedSources.emplace(relSrcPath).second)
+		return;
 
 	if (!relModule.empty())
 		m_makeVisitor.moduleFile(relSrcPath, relModule);
@@ -318,6 +372,9 @@ void TreeWalker::handleCSource(const std::string &cond,
 	if (moreSupported(cond, relSrcPath, enabled, supported))
 		m_makeVisitor.fileSupp(relSrcPath, enabled, disabledConfig, supported);
 
+	for (auto &includePath: includesInCSource(srcPath))
+		handleCSource(cond, std::move(includePath), enabled, disabledConfig, relModule,
+			      supported, visitedSources);
 }
 
 std::pair<SlKernCVS::ConfigValue, std::optional<std::string>>
@@ -379,10 +436,14 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 			else
 				relModule.clear();
 
-			if (srcPath.extension() == ".c")
+			if (srcPath.extension() == ".c") {
+				// #includes can be recursive...
+				PathSet visitedSources;
 				handleCSource(std::move(cond), std::move(srcPath),
 					      enabled, disabledConfig, std::move(relModule),
-					      supported);
+					      supported, visitedSources);
+			}
+
 			return;
 		}
 	}

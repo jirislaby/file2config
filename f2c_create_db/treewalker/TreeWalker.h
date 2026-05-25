@@ -68,6 +68,9 @@ private:
 					    SlKernCVS::ConfigValue enabledNew,
 					    SlKernCVS::SupportState supportedNew);
 
+	static std::vector<std::filesystem::path>
+		includesInCSource(const std::filesystem::path &srcPath);
+
 	static bool skipPath(const std::filesystem::path &relPath);
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
@@ -88,7 +91,8 @@ private:
 			   SlKernCVS::ConfigValue enabled,
 			   const std::optional<std::string> &disabledConfig,
 			   const std::filesystem::path &relModule,
-			   SlKernCVS::SupportState supported);
+			   SlKernCVS::SupportState supported,
+			   PathSet &visitedSources);
 	void handleObject(CondStack &&s, std::filesystem::path &&objPath,
 			  std::filesystem::path &&module);
 

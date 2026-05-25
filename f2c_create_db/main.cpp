@@ -187,6 +187,40 @@ SQL::F2CSQLConn getSQL(const Opts &opts)
 	return sql;
 }
 
+auto obtainBranches(const Opts &opts, const SlGit::Repo &repo,
+		    const std::optional<Json> &configuration)
+{
+	SlKernCVS::Branches::BranchesList branches { opts.branches };
+	if (branches.empty()) {
+		auto branchesOpt = SlKernCVS::Branches::getBuildBranches();
+		if (!branchesOpt)
+			RunEx("Cannot download branches.conf").raise();
+		branches = std::move(*branchesOpt);
+	}
+
+	// from command line
+	branches.insert(branches.end(), opts.appendBranches.begin(), opts.appendBranches.end());
+
+	// from configuration
+	if (configuration && configuration->contains("append_branches")) {
+		const auto confBranches = (*configuration)["append_branches"].get_ref<const Json::array_t &>();
+
+		branches.insert(branches.end(), confBranches.begin(), confBranches.end());
+	}
+
+	if (!opts.noFetch) {
+		Clr(Clr::GREEN) << "== Fetching branches ==";
+
+		auto remote = repo.remoteLookup("origin");
+		if (!remote)
+			RunEx("No origin").raise();
+		if (!remote->fetchBranches(branches, 1, false))
+			RunEx("Fetch failed: ") << repo.lastError() << raise;
+	}
+
+	return branches;
+}
+
 std::optional<Json> loadConfiguration(const Opts &opts)
 {
 	if (!opts.hasConfiguration)
@@ -521,36 +555,7 @@ void handleEx(int argc, char **argv)
 
 	auto scratchArea = prepareScratchArea(opts);
 	auto repo = prepareKsourceGit(scratchArea);
-
-	SlKernCVS::Branches::BranchesList branches { std::move(opts.branches) };
-	if (branches.empty()) {
-		auto branchesOpt = SlKernCVS::Branches::getBuildBranches();
-		if (!branchesOpt)
-			RunEx("Cannot download branches.conf").raise();
-		branches = *branchesOpt;
-	}
-
-	// from command line
-	branches.insert(branches.end(), opts.appendBranches.begin(), opts.appendBranches.end());
-
-	// from configuration
-	if (configuration && configuration->contains("append_branches")) {
-		const auto confBranches = (*configuration)["append_branches"].get_ref<const Json::array_t &>();
-
-		branches.insert(branches.end(), confBranches.begin(), confBranches.end());
-	}
-
-	if (!opts.noFetch) {
-		Clr(Clr::GREEN) << "== Fetching branches ==";
-
-		auto remote = repo.remoteLookup("origin");
-		if (!remote)
-			RunEx("No origin").raise();
-		if (!remote->fetchBranches(branches, 1, false))
-			RunEx("Fetch failed: ") << repo.lastError() <<
-						   " (" << repo.lastClass() << ')' << raise;
-	}
-
+	auto branches = obtainBranches(opts, repo, configuration);
 	auto sql = getSQL(opts);
 
 	auto branchNo = 0U;

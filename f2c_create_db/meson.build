@@ -9,6 +9,9 @@ builddir = include_directories('.')
 
 executable('f2c_create_db', [
     'main.cpp',
+    'BranchProps.h',
+    'Renames.cpp',
+    'Renames.h',
     'Verbose.cpp',
     'Verbose.h',
   ],

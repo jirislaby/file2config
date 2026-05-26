@@ -170,8 +170,6 @@ bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
 	return sql.hasBranch(branch);
 }
 
-} // namespace
-
 void handleEx(int argc, char **argv)
 {
 	const auto opts = Opts::getOpts(argc, argv);
@@ -222,6 +220,8 @@ void handleEx(int argc, char **argv)
 			RunEx("Cannot VACUUM the DB: ") << sql.lastError() << raise;
 	}
 }
+
+} // namespace
 
 int main(int argc, char **argv)
 {

@@ -143,7 +143,7 @@ void BranchProcessor::processAuthors(const SlGit::Commit &commit)
 
 	auto ret = PA.processAuthors(commit, [this](const std::string &email) -> bool {
 		return m_sql.insertUser(email);
-	}, [this](const std::string &email, const std::filesystem::path &path,
+	}, [this](const std::string &email, std::filesystem::path &&path,
 			unsigned count, unsigned realCount) -> bool {
 		auto fileDir = m_sql.insertPath(path);
 		return fileDir && m_sql.insertUFMap(m_branch, email, std::move(fileDir->first),
@@ -166,7 +166,7 @@ void BranchProcessor::processConfigs(const SlGit::Commit &commit)
 			return ret;
 		}, [this, &error](const std::string &arch,
 				  const std::string &flavor,
-				  const std::string &config,
+				  std::string &&config,
 				  const SlKernCVS::CollectConfigs::ConfigValue &value) {
 			if (!m_configs.contains(config)) {
 				Clr(std::cerr, Clr::YELLOW) << "config \"" << config <<

@@ -6,7 +6,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
-#include "sql/F2CSQLConn.h"
+#include "F2CSQLConn.h"
 
 namespace F2C {
 
@@ -16,10 +16,10 @@ private:
 public:
 	Ignores() = delete;
 
-	static void process(SQL::F2CSQLConn &sql, const std::string &branch, const Json &json,
+	static void process(F2CSQLConn &sql, const std::string &branch, const Json &json,
 			    const std::filesystem::path &root);
 private:
-	static void processOne(SQL::F2CSQLConn &sql, const std::string &branch,
+	static void processOne(F2CSQLConn &sql, const std::string &branch,
 			       const std::vector<Json> &patterns,
 			       const std::filesystem::path &relPath);
 };

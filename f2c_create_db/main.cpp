@@ -12,7 +12,7 @@
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
 
-#include "sql/F2CSQLConn.h"
+#include "F2CSQLConn.h"
 
 #include "BranchProcessor.h"
 #include "Opts.h"
@@ -85,9 +85,9 @@ SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 	return std::move(*repo);
 }
 
-SQL::F2CSQLConn getSQL(const Opts &opts)
+F2CSQLConn getSQL(const Opts &opts)
 {
-	SQL::F2CSQLConn sql;
+	F2CSQLConn sql;
 	unsigned openFlags = 0;
 	if (opts.sqliteCreate)
 		openFlags |= SlSqlite::CREATE;
@@ -158,7 +158,7 @@ std::optional<Json> loadConfiguration(const Opts &opts)
 	return json;
 }
 
-bool skipBranch(SQL::F2CSQLConn &sql, const std::string &branch, bool force)
+bool skipBranch(F2CSQLConn &sql, const std::string &branch, bool force)
 {
 	if (force) {
 		if (!sql.deleteBranch(branch))

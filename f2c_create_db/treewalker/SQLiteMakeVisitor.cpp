@@ -7,8 +7,8 @@
 #include <sl/helpers/Exception.h>
 #include <sl/kerncvs/SupportedConf.h>
 
+#include "../F2CSQLConn.h"
 #include "../Verbose.h"
-#include "../sql/F2CSQLConn.h"
 
 #include "SQLiteMakeVisitor.h"
 
@@ -18,7 +18,7 @@ using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
-SQLiteMakeVisitor::SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+SQLiteMakeVisitor::SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 				     const std::string &branch, const std::filesystem::path &base,
 				     const Kconfig::Config::Configs &configs) :
 	sql(sql), supp(supp), branch(branch), base(base), m_configs(configs)

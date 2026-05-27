@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 subdir('parser')
-subdir('sql')
 subdir('treewalker')
 
 # for qt-creator to pick up generated headers
@@ -13,6 +12,8 @@ executable('f2c_create_db', [
     'BranchProps.h',
     'BranchProcessor.cpp',
     'BranchProcessor.h',
+    'F2CSQLConn.cpp',
+    'F2CSQLConn.h',
     'Ignores.cpp',
     'Ignores.h',
     'Opts.cpp',
@@ -23,7 +24,7 @@ executable('f2c_create_db', [
     'Verbose.cpp',
     'Verbose.h',
   ],
-  link_with: [ sqlite, treewalker ],
-  dependencies: [ cxxopts_dep, json_dep, slgit_dep, slhelpers_dep, slkerncvs_dep ],
+  link_with: [ treewalker ],
+  dependencies: [ cxxopts_dep, json_dep, slgit_dep, slhelpers_dep, slkerncvs_dep, slsqlite_dep ],
   install: true,
 )

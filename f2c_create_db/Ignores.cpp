@@ -12,7 +12,7 @@ using SlHelpers::raise;
 
 using namespace F2C;
 
-void Ignores::processOne(SQL::F2CSQLConn &sql, const std::string &branch,
+void Ignores::processOne(F2CSQLConn &sql, const std::string &branch,
 			 const std::vector<Json> &patterns, const std::filesystem::path &relPath)
 {
 	for (const auto &pattern: patterns)
@@ -24,7 +24,7 @@ void Ignores::processOne(SQL::F2CSQLConn &sql, const std::string &branch,
 		}
 }
 
-void Ignores::process(SQL::F2CSQLConn &sql, const std::string &branch, const Json &json,
+void Ignores::process(F2CSQLConn &sql, const std::string &branch, const Json &json,
 		      const std::filesystem::path &root)
 {
 	if (!json.contains("ignored_files"))

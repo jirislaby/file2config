@@ -9,7 +9,7 @@ namespace SlKernCVS {
 class SupportedConf;
 }
 
-namespace SQL {
+namespace F2C {
 class F2CSQLConn;
 }
 
@@ -19,7 +19,7 @@ class SQLiteMakeVisitor : public MakeVisitor
 {
 public:
 	SQLiteMakeVisitor() = delete;
-	SQLiteMakeVisitor(SQL::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 			  const std::string &branch, const std::filesystem::path &base,
 			  const Kconfig::Config::Configs &configs);
 
@@ -36,7 +36,7 @@ public:
 private:
 	static bool skipPath(const std::filesystem::path &relPath);
 
-	SQL::F2CSQLConn &sql;
+	F2C::F2CSQLConn &sql;
 	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
 	const std::filesystem::path base;

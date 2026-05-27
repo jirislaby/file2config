@@ -14,7 +14,7 @@ using SlHelpers::raise;
 
 using namespace F2C;
 
-void Renames::processRenamesBetween(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
+void Renames::processRenamesBetween(F2CSQLConn &sql, const SlGit::Repo &lrepo,
 				    const BranchProps &begin, std::string_view end,
 				    RenameMap &renames)
 {
@@ -103,7 +103,7 @@ void Renames::processRenamesBetween(SQL::F2CSQLConn &sql, const SlGit::Repo &lre
 	}
 }
 
-void Renames::processRenames(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
+void Renames::processRenames(F2CSQLConn &sql, const SlGit::Repo &lrepo,
 			     const BranchesProps &branchesProps)
 {
 	auto uniqTags = getUniqTags(branchesProps);

@@ -4,9 +4,10 @@
 
 #include "F2CSQLConn.h"
 
-using namespace SQL;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
+
+using namespace F2C;
 
 bool F2CSQLConn::createDB()
 {

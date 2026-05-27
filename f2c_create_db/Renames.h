@@ -10,7 +10,7 @@
 #include <sl/git/Repo.h>
 #include <sl/helpers/String.h>
 
-#include "sql/F2CSQLConn.h"
+#include "F2CSQLConn.h"
 
 #include "BranchProps.h"
 
@@ -20,7 +20,7 @@ class Renames {
 public:
 	Renames() = delete;
 
-	static void processRenames(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
+	static void processRenames(F2CSQLConn &sql, const SlGit::Repo &lrepo,
 				   const BranchesProps &branchesProps);
 
 private:
@@ -32,7 +32,7 @@ private:
         using RenameMap = std::unordered_map<std::string, RenameInfo, SlHelpers::String::Hash,
 	      SlHelpers::String::Eq>;
 
-	static void processRenamesBetween(SQL::F2CSQLConn &sql, const SlGit::Repo &lrepo,
+	static void processRenamesBetween(F2CSQLConn &sql, const SlGit::Repo &lrepo,
 					  const BranchProps &begin, std::string_view end,
 					  RenameMap &renames);
 

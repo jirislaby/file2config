@@ -6,7 +6,7 @@
 #include <sl/sqlite/SQLConn.h>
 #include <sl/sqlite/SQLiteSmart.h>
 
-namespace SQL {
+namespace F2C {
 
 class F2CSQLConn : public SlSqlite::SQLConn {
 public:

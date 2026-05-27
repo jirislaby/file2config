@@ -13,10 +13,10 @@
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "BranchProps.h"
+#include "F2CSQLConn.h"
 #include "Opts.h"
 #include "StatusNotifier.h"
 #include "parser/kconfig/Config.h"
-#include "sql/F2CSQLConn.h"
 
 namespace Kconfig {
 	class Parser;
@@ -34,7 +34,7 @@ public:
 			const std::filesystem::path &scratchArea,
 			BranchesProps &branchesProps,
 			const SlGit::Repo &repo,
-			SQL::F2CSQLConn &sql,
+			F2CSQLConn &sql,
 			const Opts &opts,
 			const std::optional<Json> &configuration) :
 		m_branch(branch), m_notifier(notifier), m_scratchArea(scratchArea),
@@ -70,7 +70,7 @@ private:
 	std::filesystem::path m_expandedDir;
 	BranchesProps &m_branchesProps;
 	const SlGit::Repo &m_repo;
-	SQL::F2CSQLConn &m_sql;
+	F2CSQLConn &m_sql;
 	const Opts &m_opts;
 	const std::optional<Json> &m_configuration;
 	Kconfig::Config::Configs m_configs;

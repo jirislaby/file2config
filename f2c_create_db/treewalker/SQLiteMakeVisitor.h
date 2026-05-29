@@ -32,8 +32,6 @@ public:
 			    const std::filesystem::path &module,
 			    const std::optional<std::string> &moduleConf) const override;
 private:
-	static bool skipPath(const std::filesystem::path &relPath);
-
 	F2C::F2CSQLConn &sql;
 	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;

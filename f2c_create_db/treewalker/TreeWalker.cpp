@@ -102,7 +102,7 @@ void TreeWalker::addTargetEntry(CondStack s,
 	s.emplace_back(std::move(cond));
 	auto module = objPath;
 	module.replace_extension();
-	handleObject(std::move(s), objPath.parent_path() / entry, module);
+	handleObject(std::move(s), objPath.parent_path() / entry, std::move(module));
 }
 
 /**
@@ -231,6 +231,29 @@ void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
 	m_toWalk.emplace(std::move(s), std::move(kbPath), std::move(cwd));
 }
 
+bool TreeWalker::skipPath(const std::filesystem::path &relPath)
+{
+	static const std::unordered_set<std::string_view> skipPaths {
+		"Documentation",
+		"samples",
+		"tools",
+	};
+
+	const auto first = relPath.begin()->string();
+	return skipPaths.contains(first);
+}
+
+void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
+			       std::filesystem::path &&srcPath,
+			       const std::filesystem::path &module)
+{
+	auto relSrcPath = srcPath.lexically_relative(start).lexically_normal();
+	auto relMod = module.lexically_relative(start).lexically_normal();
+
+	makeVisitor.config(relSrcPath, cond);
+	makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
+}
+
 /**
  * @brief Handle "obj-X := file.o", see also addRegularEntry()
  *
@@ -241,11 +264,14 @@ void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
  * First, check if this is a simple rule -- one source file per module. If so, it is the short path.
  * If not, tryHandleTarget() needs to find all the sources for the module.
  */
-void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
-			      const std::filesystem::path &module)
+void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
+			      std::filesystem::path &&module)
 {
 	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";
+
+	if (skipPath(objPath.lexically_relative(start).lexically_normal()))
+		return;
 
 	auto condOpt = getCond(s);
 	if (!condOpt)
@@ -263,11 +289,9 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			auto relSrcPath = srcPath.lexically_relative(start).lexically_normal();
-			auto relMod = module.lexically_relative(start).lexically_normal();
-
-			makeVisitor.config(relSrcPath, cond);
-			makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
+			if (srcPath.extension() == ".c")
+				handleCSource(std::move(s), std::move(cond), std::move(srcPath),
+					      std::move(module));
 			return;
 		}
 	}
@@ -299,7 +323,7 @@ void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPat
 		auto obj = kbPath.parent_path() / word;
 		auto module = obj;
 		module.replace_extension();
-		handleObject(std::move(s), obj, module);
+		handleObject(std::move(s), std::move(obj), std::move(module));
 	}
 }
 

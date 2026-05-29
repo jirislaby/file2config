@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
-#include <unordered_set>
 
 #include <sl/helpers/Color.h>
 #include <sl/helpers/Exception.h>
@@ -29,27 +28,9 @@ SQLiteMakeVisitor::~SQLiteMakeVisitor()
 {
 }
 
-bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
-{
-	if (relPath.extension() != ".c")
-		return true;
-
-	static const std::unordered_set<std::string_view> skipPaths {
-		"Documentation",
-		"samples",
-		"tools",
-	};
-
-	const auto first = relPath.begin()->string();
-	return skipPaths.contains(first);
-}
-
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const
 {
-	if (skipPath(srcPath))
-		return;
-
 	if (F2C::verbose > 1)
 		std::cout << "SQL " << cond << " " << srcPath.string() << "\n";
 
@@ -70,9 +51,6 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module,
 			       const std::optional<std::string> &moduleConf) const
 {
-	if (skipPath(srcPath))
-		return;
-
 	if (F2C::verbose > 1)
 		std::cout << "SQL MOD " << module.string() << ' ' << srcPath.string() << ' ' <<
 			  (moduleConf ? *moduleConf : "NULL") << '\n';

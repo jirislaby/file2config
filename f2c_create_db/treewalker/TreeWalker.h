@@ -47,6 +47,8 @@ private:
 
 	std::vector<std::string> getVariable(const std::string &id) const;
 
+	static bool skipPath(const std::filesystem::path &relPath);
+
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
 	void addDefaultKernelFiles(CondStack s, const std::filesystem::path &start);
@@ -55,8 +57,11 @@ private:
 	void handleKbuildFile(ToWalkEntry &&e);
 	void addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			  const std::filesystem::path &path);
-	void handleObject(CondStack s, const std::filesystem::path &objPath,
-			  const std::filesystem::path &module);
+	void handleCSource(const CondStack &s, const std::string &cond,
+			   std::filesystem::path &&srcPath,
+			   const std::filesystem::path &module);
+	void handleObject(CondStack &&s, std::filesystem::path &&objPath,
+			  std::filesystem::path &&module);
 
 	static bool isBuiltIn(const std::string &cond);
 	static std::optional<std::string> getCond(const CondStack &s);

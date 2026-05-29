@@ -19,9 +19,9 @@ using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
 SQLiteMakeVisitor::SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-				     const std::string &branch, const std::filesystem::path &base,
+				     const std::string &branch,
 				     const Kconfig::Config::Configs &configs) :
-	sql(sql), supp(supp), branch(branch), base(base), m_configs(configs)
+	sql(sql), supp(supp), branch(branch), m_configs(configs)
 {
 }
 
@@ -53,22 +53,20 @@ bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const
 {
-	auto relPath = srcPath.lexically_relative(base).lexically_normal();
-
-	if (skipPath(relPath))
+	if (skipPath(srcPath))
 		return;
 
 	if (F2C::verbose > 1)
-		std::cout << "SQL " << cond << " " << relPath.string() << "\n";
+		std::cout << "SQL " << cond << " " << srcPath.string() << "\n";
 
 	if (!m_configs.contains(cond)) {
 		if (F2C::verbose > 0)
-			Clr(std::cerr, Clr::YELLOW) << relPath << " depends on \"" << cond <<
+			Clr(std::cerr, Clr::YELLOW) << srcPath << " depends on \"" << cond <<
 						       "\", but that is not defined!";
 		return;
 	}
 
-	auto dirFile = sql.insertPath(relPath);
+	auto dirFile = sql.insertPath(srcPath);
 	if (!dirFile || !sql.insertCFMap(branch, cond, std::move(dirFile->first),
 					 std::move(dirFile->second)))
 		RunEx("cannot insert CFMap: ") << sql.lastError() << raise;
@@ -78,20 +76,17 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module,
 			       const std::optional<std::string> &moduleConf) const
 {
-	auto relPath = srcPath.lexically_relative(base).lexically_normal();
-	auto relMod = module.lexically_relative(base).lexically_normal();
-
-	if (skipPath(relPath))
+	if (skipPath(srcPath))
 		return;
 
 	if (F2C::verbose > 1)
-		std::cout << "SQL MOD " << relMod.string() << ' ' << relPath.string() << ' ' <<
+		std::cout << "SQL MOD " << module.string() << ' ' << srcPath.string() << ' ' <<
 			  (moduleConf ? *moduleConf : "NULL") << '\n';
 
-	auto dirMod = relMod.parent_path();
-	auto fileMod = relMod.filename();
-	auto supported = supp.supportState(relMod);
-	auto dirFile = sql.insertPath(relPath);
+	auto dirMod = module.parent_path();
+	auto fileMod = module.filename();
+	auto supported = supp.supportState(module);
+	auto dirFile = sql.insertPath(srcPath);
 	if (!dirFile || !sql.insertDir(dirMod) ||
 			!sql.insertModule(dirMod, fileMod, moduleConf) ||
 			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||

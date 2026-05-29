@@ -125,7 +125,7 @@ void BranchProcessor::parseKconfigs()
 
 void BranchProcessor::parseKbuilds(const SlKernCVS::SupportedConf &supp)
 {
-	TW::SQLiteMakeVisitor visitor{ m_sql, supp, m_branch, m_expandedDir, m_configs };
+	TW::SQLiteMakeVisitor visitor{ m_sql, supp, m_branch, m_configs };
 	TW::TreeWalker tw(m_expandedDir, m_configs, visitor);
 	tw.walk();
 }

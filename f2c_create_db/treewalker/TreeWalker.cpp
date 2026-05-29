@@ -261,8 +261,11 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			makeVisitor.config(srcPath, cond);
-			makeVisitor.module(srcPath, module, getTristateConf(s));
+			auto relSrcPath = srcPath.lexically_relative(start).lexically_normal();
+			auto relMod = module.lexically_relative(start).lexically_normal();
+
+			makeVisitor.config(relSrcPath, cond);
+			makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
 			return;
 		}
 	}

@@ -20,7 +20,7 @@ class SQLiteMakeVisitor : public MakeVisitor
 public:
 	SQLiteMakeVisitor() = delete;
 	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-			  const std::string &branch, const std::filesystem::path &base,
+			  const std::string &branch,
 			  const Kconfig::Config::Configs &configs);
 
 	virtual ~SQLiteMakeVisitor() override;
@@ -39,7 +39,6 @@ private:
 	F2C::F2CSQLConn &sql;
 	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
-	const std::filesystem::path base;
 	const Kconfig::Config::Configs &m_configs;
 };
 

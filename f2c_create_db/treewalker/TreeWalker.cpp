@@ -253,7 +253,9 @@ void TreeWalker::handleObject(CondStack s, const std::filesystem::path &objPath,
 	auto cond = std::move(*condOpt);
 
 	if (!visitedPaths.insert(objPath).second) {
-		makeVisitor.ignored(objPath, cond);
+		if (F2C::verbose > 1)
+			std::cout << "ignoring already reported " << objPath << ", now with " <<
+				cond << '\n';
 		return;
 	}
 

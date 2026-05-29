@@ -29,12 +29,6 @@ SQLiteMakeVisitor::~SQLiteMakeVisitor()
 {
 }
 
-void SQLiteMakeVisitor::ignored(const std::filesystem::path &objPath, const std::string &cond) const
-{
-	if (F2C::verbose > 1)
-		std::cout << "ignoring already reported " << objPath << ", now with " << cond << '\n';
-}
-
 bool SQLiteMakeVisitor::skipPath(const std::filesystem::path &relPath)
 {
 	if (relPath.extension() != ".c")

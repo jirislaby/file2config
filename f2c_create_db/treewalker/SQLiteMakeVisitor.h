@@ -24,8 +24,6 @@ public:
 			  const Kconfig::Config::Configs &configs);
 
 	virtual ~SQLiteMakeVisitor() override;
-	virtual void ignored(const std::filesystem::path &objPath,
-			     const std::string &cond) const override;
 
 	virtual void config(const std::filesystem::path &srcPath,
 			    const std::string &cond) const override;

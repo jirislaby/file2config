@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "MakeVisitor.h"
+#include <filesystem>
+#include <optional>
+#include <string>
 
 namespace SlKernCVS {
 class SupportedConf;
@@ -14,22 +16,20 @@ class F2CSQLConn;
 
 namespace TW {
 
-class SQLiteMakeVisitor : public MakeVisitor
-{
+class SQLiteMakeVisitor {
 public:
 	SQLiteMakeVisitor() = delete;
 	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 			  const std::string &branch) :
 		sql(sql), supp(supp), branch(branch) {}
 
-	virtual ~SQLiteMakeVisitor() override {}
+	~SQLiteMakeVisitor() {}
 
-	virtual void config(const std::filesystem::path &srcPath,
-			    const std::string &cond) const override;
+	void config(const std::filesystem::path &srcPath, const std::string &cond) const;
 
-	virtual void module(const std::filesystem::path &srcPath,
-			    const std::filesystem::path &module,
-			    const std::optional<std::string> &moduleConf) const override;
+	void module(const std::filesystem::path &srcPath,
+		    const std::filesystem::path &module,
+		    const std::optional<std::string> &moduleConf) const;
 private:
 	F2C::F2CSQLConn &sql;
 	const SlKernCVS::SupportedConf &supp;

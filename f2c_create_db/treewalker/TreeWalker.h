@@ -13,6 +13,7 @@
 
 #include "../parser/make/Parser.h"
 #include "../parser/kconfig/Config.h"
+#include "SQLiteMakeVisitor.h"
 
 namespace MP {
 enum EntryType : unsigned int;
@@ -20,16 +21,15 @@ enum EntryType : unsigned int;
 
 namespace TW {
 
-class MakeVisitor;
-
 class TreeWalker
 {
 public:
 	using CondStack = std::vector<std::string>;
 
 	TreeWalker() = delete;
-	TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
-		   const MakeVisitor &makeVisitor);
+	TreeWalker(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+		   const std::string &branch, const std::filesystem::path &start,
+		   const Kconfig::Config::Configs &configs);
 
 	void walk();
 
@@ -73,7 +73,7 @@ private:
 	MP::Parser parser;
 	std::unordered_multimap<std::string, std::string> m_vars;
 	const Kconfig::Config::Configs &m_configs;
-	const MakeVisitor &makeVisitor;
+	const SQLiteMakeVisitor m_makeVisitor;
 
 	std::filesystem::path start;
 	std::vector<std::string> archs;

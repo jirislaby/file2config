@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 treewalker = static_library('treewalker', [
-    'MakeVisitor.h',
     'SQLiteMakeVisitor.cpp',
     'SQLiteMakeVisitor.h',
     'TreeWalker.cpp',

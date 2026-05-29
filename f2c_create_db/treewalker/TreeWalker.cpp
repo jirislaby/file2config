@@ -11,7 +11,6 @@
 #include <sl/helpers/Views.h>
 
 #include "../parser/make/EntryVisitor.h"
-#include "MakeVisitor.h"
 #include "TreeWalker.h"
 #include "../Verbose.h"
 
@@ -79,9 +78,10 @@ void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path 
 		appendToWalk(std::move(s), std::move(s390Boot));
 }
 
-TreeWalker::TreeWalker(const std::filesystem::path &start, const Kconfig::Config::Configs &configs,
-		       const MakeVisitor &makeVisitor) :
-	m_configs(configs), makeVisitor(makeVisitor), start(start)
+TreeWalker::TreeWalker(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
+		       const std::string &branch, const std::filesystem::path &start,
+		       const Kconfig::Config::Configs &configs) :
+	m_configs(configs), m_makeVisitor(sql, supp, branch), start(start)
 {
 	CondStack s { "y" };
 
@@ -251,12 +251,12 @@ void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 	auto relMod = module.lexically_relative(start).lexically_normal();
 
 	if (m_configs.contains(cond))
-		makeVisitor.config(relSrcPath, cond);
+		m_makeVisitor.config(relSrcPath, cond);
 	else if (F2C::verbose > 0)
 		Clr(std::cerr, Clr::YELLOW) << srcPath << " depends on \"" << cond <<
 					       "\", but that is not defined!";
 
-	makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
+	m_makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
 }
 
 /**

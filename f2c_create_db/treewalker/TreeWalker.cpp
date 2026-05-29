@@ -250,7 +250,12 @@ void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 	auto relSrcPath = srcPath.lexically_relative(start).lexically_normal();
 	auto relMod = module.lexically_relative(start).lexically_normal();
 
-	makeVisitor.config(relSrcPath, cond);
+	if (m_configs.contains(cond))
+		makeVisitor.config(relSrcPath, cond);
+	else if (F2C::verbose > 0)
+		Clr(std::cerr, Clr::YELLOW) << srcPath << " depends on \"" << cond <<
+					       "\", but that is not defined!";
+
 	makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
 }
 

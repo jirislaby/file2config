@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MakeVisitor.h"
-#include "../parser/kconfig/Config.h"
 
 namespace SlKernCVS {
 class SupportedConf;
@@ -20,10 +19,10 @@ class SQLiteMakeVisitor : public MakeVisitor
 public:
 	SQLiteMakeVisitor() = delete;
 	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-			  const std::string &branch,
-			  const Kconfig::Config::Configs &configs);
+			  const std::string &branch) :
+		sql(sql), supp(supp), branch(branch) {}
 
-	virtual ~SQLiteMakeVisitor() override;
+	virtual ~SQLiteMakeVisitor() override {}
 
 	virtual void config(const std::filesystem::path &srcPath,
 			    const std::string &cond) const override;
@@ -35,7 +34,6 @@ private:
 	F2C::F2CSQLConn &sql;
 	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
-	const Kconfig::Config::Configs &m_configs;
 };
 
 }

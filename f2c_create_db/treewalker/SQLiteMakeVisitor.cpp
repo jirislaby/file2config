@@ -17,29 +17,11 @@ using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
 
-SQLiteMakeVisitor::SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-				     const std::string &branch,
-				     const Kconfig::Config::Configs &configs) :
-	sql(sql), supp(supp), branch(branch), m_configs(configs)
-{
-}
-
-SQLiteMakeVisitor::~SQLiteMakeVisitor()
-{
-}
-
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const
 {
 	if (F2C::verbose > 1)
 		std::cout << "SQL " << cond << " " << srcPath.string() << "\n";
-
-	if (!m_configs.contains(cond)) {
-		if (F2C::verbose > 0)
-			Clr(std::cerr, Clr::YELLOW) << srcPath << " depends on \"" << cond <<
-						       "\", but that is not defined!";
-		return;
-	}
 
 	auto dirFile = sql.insertPath(srcPath);
 	if (!dirFile || !sql.insertCFMap(branch, cond, std::move(dirFile->first),

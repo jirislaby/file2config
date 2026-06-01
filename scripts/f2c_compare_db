@@ -25,6 +25,8 @@ def handleArgs() -> dict:
     parser = argparse.ArgumentParser(description='Compare two conf_file_map databases')
     parser.add_argument('-b', '--branch', action='append', help='compare only these branches')
     parser.add_argument('-c', '--color', action='store_true', help='force the color output')
+    parser.add_argument('--order-file-support', help='order of the output of file_support_map',
+                        default='1, 2, 3, 4')
     parser.add_argument('--order-conf-file', help='order of the output of conf_file_map',
                         default='1, 2, 3')
     parser.add_argument('--order-conf-branch', help='order of the output of conf_branch_map',
@@ -47,6 +49,7 @@ def handleArgs() -> dict:
         print(colored('You cannot specify both ignores and branches', 'red'), file=sys.stderr)
         sys.exit(1)
 
+    result['order-file_support_map_view'] = checkOrder(args.order_file_support)
     result['order-conf_file_map_view'] = checkOrder(args.order_conf_file)
     result['order-conf_branch_map_view'] = checkOrder(args.order_conf_branch)
     result['order-module_file_map_view'] = checkOrder(args.order_module_file)
@@ -130,6 +133,7 @@ def dumpSHAs(cur : sqlite3.Cursor):
 
 def compareDBs(cur : sqlite3.Cursor, opts : dict):
     dumpSHAs(cur)
+    compareTables('file_support_map_view', 'branch, path, enabled, supported', cur, opts)
     compareTables('conf_file_map_view', 'branch, config, path', cur, opts)
     compareTables('conf_branch_map_view', 'branch, flavor, arch, config, value', cur, opts)
     compareTables('module_file_map_view', 'branch, module, path', cur, opts)

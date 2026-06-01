@@ -62,6 +62,15 @@ bool F2CSQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"UNIQUE(branch, config, file)"
 		}},
+		{ "file_support_map", {
+			"id INTEGER PRIMARY KEY",
+			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
+			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
+			"enabled TEXT NOT NULL CHECK(enabled IN ('n', 'y', 'm'))",
+			"disabled_config INTEGER REFERENCES config(id) ON DELETE CASCADE",
+			"supported INTEGER NOT NULL CHECK(supported >= -3 AND supported <= 4)",
+			"UNIQUE(branch, file)"
+		}},
 		{ "module", {
 			"id INTEGER PRIMARY KEY",
 			"dir INTEGER NOT NULL REFERENCES dir(id)",
@@ -125,6 +134,7 @@ bool F2CSQLConn::createDB()
 		// these are auto-created:
 		// conf_branch_map: (branch, config, arch, flavor)
 		// conf_file_map: (branch, config, file)
+		// file_support_map: (branch, file)
 		// module: (dir, module)
 		// module_details_map: (branch, module)
 		// module_file_map: (branch, module, file)
@@ -158,6 +168,14 @@ bool F2CSQLConn::createDB()
 			"FROM conf_file_map_view_raw_file AS map "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id;" },
+		{ "file_support_map_view", "SELECT map.id, branch.branch, "
+			"dir.dir || '/' || file.file AS path, enabled, "
+				"config.config AS disabled_config, supported "
+			"FROM file_support_map AS map "
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN file ON map.file = file.id "
+			"LEFT JOIN dir ON file.dir = dir.id "
+			"LEFT JOIN config ON map.disabled_config = config.id;" },
 		{ "module_view", "SELECT module.id, dir.dir, module.module, config.config "
 			"FROM module "
 			"LEFT JOIN dir ON module.dir = dir.id "
@@ -239,6 +257,16 @@ bool F2CSQLConn::prepDB()
 					"(SELECT id FROM config WHERE config = :config), "
 					"(SELECT id FROM file WHERE file = :file AND "
 					"dir = (SELECT id FROM dir WHERE dir = :dir)));" },
+		// we replace by a higher support status
+		{ insFSMap,	"INSERT OR REPLACE INTO file_support_map(branch, file, enabled, "
+						"disabled_config, supported) "
+					"VALUES ("
+					"(SELECT id FROM branch WHERE branch = :branch), "
+					"(SELECT id FROM file WHERE file = :file AND "
+					"dir = (SELECT id FROM dir WHERE dir = :dir)), "
+					":enabled, "
+					"(SELECT id FROM config WHERE config = :disabled_config), "
+					":supported);" },
 		{ insModule,	"INSERT INTO module(dir, module, config) VALUES ("
 					"(SELECT id FROM dir WHERE dir = :dir), "
 					":module,"
@@ -362,6 +390,22 @@ bool F2CSQLConn::insertCFMap(const std::string &branch, const std::string &confi
 			      { ":config", config },
 			      { ":dir", dir },
 			      { ":file", file },
+		      });
+}
+
+bool F2CSQLConn::insertFSMap(const std::string &branch,
+			     const std::string &dir, const std::string &file,
+			     const std::string &enabled,
+			     const std::optional<std::string> &disabledConfig,
+			     int supported)
+{
+	return insert(insFSMap, {
+			      { ":branch", branch },
+			      { ":dir", dir },
+			      { ":file", file },
+			      { ":enabled", enabled },
+			      { ":disabled_config", valOrMonostate(disabledConfig) },
+			      { ":supported", supported },
 		      });
 }
 

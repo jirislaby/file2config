@@ -32,6 +32,11 @@ public:
 		insertPath(const std::filesystem::path &path);
 	bool insertCFMap(const std::string &branch, const std::string &config, const std::string &dir,
 			 const std::string &file);
+	bool insertFSMap(const std::string &branch,
+			 const std::string &dir, const std::string &file,
+			 const std::string &enabled,
+			 const std::optional<std::string> &disabledConfig,
+			 int supported);
 	bool insertModule(const std::string &dir, const std::string &module,
 			  const std::optional<std::string> &moduleConf);
 	bool insertMDMap(const std::string &branch, const std::string &module_dir,
@@ -65,6 +70,7 @@ private:
 	SlSqlite::SQLStmtHolder insDir;
 	SlSqlite::SQLStmtHolder insFile;
 	SlSqlite::SQLStmtHolder insCFMap;
+	SlSqlite::SQLStmtHolder insFSMap;
 	SlSqlite::SQLStmtHolder insModule;
 	SlSqlite::SQLStmtHolder insMDMap;
 	SlSqlite::SQLStmtHolder insMFMap;

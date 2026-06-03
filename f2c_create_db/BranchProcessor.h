@@ -56,12 +56,15 @@ private:
 
 	SlGit::Commit checkout();
 	void expand();
-	void insertConfigSQL(const Kconfig::Parser &p);
-	void parseKconfigs();
-	void parseKbuilds(const SlKernCVS::SupportedConf &supp);
-	void processF2C(const SlKernCVS::SupportedConf &supp);
+
+	Kconfig::Config::Configs parseKconfigs();
+	void insertConfigSQL(const Kconfig::Parser &p, Kconfig::Config::Configs &configs);
+	void processConfigs(const SlGit::Commit &commit,
+			    const Kconfig::Config::Configs &configs);
+	void parseKbuilds(const SlKernCVS::SupportedConf &supp,
+			  const Kconfig::Config::Configs &configs);
+
 	void processAuthors(const SlGit::Commit &commit);
-	void processConfigs(const SlGit::Commit &commit);
 	void processInternal(SlGit::Commit &commit);
 
 	const std::string &m_branch;
@@ -73,7 +76,6 @@ private:
 	F2CSQLConn &m_sql;
 	const Opts &m_opts;
 	const std::optional<Json> &m_configuration;
-	Kconfig::Config::Configs m_configs;
 };
 
 } // namespace

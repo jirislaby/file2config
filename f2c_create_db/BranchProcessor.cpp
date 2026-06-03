@@ -78,18 +78,18 @@ void BranchProcessor::expand()
 				   " (" << P.exitStatus() << ')' << raise;
 }
 
-void BranchProcessor::insertConfigSQL(const Kconfig::Parser &p)
+void BranchProcessor::insertConfigSQL(const Kconfig::Parser &p, Kconfig::Config::Configs &configs)
 {
-	p.walkConfigs([this](auto conf, auto type) {
+	p.walkConfigs([this, &configs](auto conf, auto type) {
 		auto realConf = "CONFIG_" + conf;
 		if (!m_sql.insertConfig(realConf, static_cast<unsigned>(type)))
 			RunEx("Cannot insert config '") << conf << "': " << m_sql.lastError() <<
 							   raise;
-		m_configs.emplace(std::move(realConf), type);
+		configs.emplace(std::move(realConf), type);
 	});
 }
 
-void BranchProcessor::parseKconfigs()
+Kconfig::Config::Configs BranchProcessor::parseKconfigs()
 {
 	Kconfig::Parser p;
 	const auto excludeDir = m_expandedDir / "scripts" / "kconfig" / "tests";
@@ -101,6 +101,8 @@ void BranchProcessor::parseKconfigs()
 			RunEx("Cannot insert config type '") << name << "': " <<
 							       m_sql.lastError() << raise;
 	}
+
+	Kconfig::Config::Configs configs;
 
 	for (auto it = std::filesystem::recursive_directory_iterator(m_expandedDir);
 	     it != std::filesystem::end(it); ++it) {
@@ -120,20 +122,17 @@ void BranchProcessor::parseKconfigs()
 		if (!p.parse(path, false))
 			RunEx("Cannot parse: ") << path << raise;
 
-		insertConfigSQL(p);
+		insertConfigSQL(p, configs);
 	}
+
+	return configs;
 }
 
-void BranchProcessor::parseKbuilds(const SlKernCVS::SupportedConf &supp)
+void BranchProcessor::parseKbuilds(const SlKernCVS::SupportedConf &supp,
+				   const Kconfig::Config::Configs &configs)
 {
-	TW::TreeWalker tw { m_sql, supp, m_branch, m_expandedDir, m_configs };
+	TW::TreeWalker tw { m_sql, supp, m_branch, m_expandedDir, configs };
 	tw.walk();
-}
-
-void BranchProcessor::processF2C(const SlKernCVS::SupportedConf &supp)
-{
-	parseKconfigs();
-	parseKbuilds(supp);
 }
 
 void BranchProcessor::processAuthors(const SlGit::Commit &commit)
@@ -154,7 +153,8 @@ void BranchProcessor::processAuthors(const SlGit::Commit &commit)
 		RunEx("Cannot process authors").raise();
 }
 
-void BranchProcessor::processConfigs(const SlGit::Commit &commit)
+void BranchProcessor::processConfigs(const SlGit::Commit &commit,
+				     const Kconfig::Config::Configs &configs)
 {
 	SlKernCVS::CollectConfigs cc { commit };
 
@@ -170,7 +170,7 @@ void BranchProcessor::processConfigs(const SlGit::Commit &commit)
 					raise;
 
 			for (const auto &config: flavor.second) {
-				if (!m_configs.contains(config.first)) {
+				if (!configs.contains(config.first)) {
 					Clr(Clr::YELLOW) << "config " << std::quoted(config.first) <<
 							       " is not defined (" << arch.first <<
 							       '/' << flavor.first << ')';
@@ -205,11 +205,14 @@ void BranchProcessor::processInternal(SlGit::Commit &commit)
 		m_notifier.notify("Retrieving supported info");
 		auto supp = getSupported(commit);
 
-		m_notifier.notify("Running file2config");
-		processF2C(supp);
+		m_notifier.notify("Parsing Kconfigs");
+		auto configs = parseKconfigs();
 
 		m_notifier.notify("Collecting configs");
-		processConfigs(commit);
+		processConfigs(commit, configs);
+
+		m_notifier.notify("Parsing Kbuilds");
+		parseKbuilds(supp, configs);
 
 		m_notifier.notify("Detecting authors of patches");
 		processAuthors(commit);

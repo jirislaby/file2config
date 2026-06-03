@@ -6,6 +6,8 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <sl/helpers/Enum.h>
+
 namespace Kconfig {
 
 #define CONFIG_TYPES(X) \
@@ -44,24 +46,6 @@ public:
 	}
 };
 
-class ConfigRange {
-public:
-	struct iterator {
-		unsigned v;
-
-		ConfType operator*() const { return static_cast<ConfType>(v); }
-
-		iterator &operator++() {
-			++v;
-			return *this;
-		}
-
-		bool operator==(const iterator &other) const { return v == other.v; }
-		bool operator!=(const iterator &other) const { return v != other.v; }
-	};
-
-	iterator begin() const { return { 0 }; }
-	iterator end() const { return { static_cast<unsigned>(ConfType::Count) }; }
-};
+using ConfigRange = SlHelpers::EnumRange<ConfType>;
 
 } // namespace

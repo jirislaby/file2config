@@ -129,9 +129,10 @@ Kconfig::Config::Configs BranchProcessor::parseKconfigs()
 }
 
 void BranchProcessor::parseKbuilds(const SlKernCVS::SupportedConf &supp,
-				   const Kconfig::Config::Configs &configs)
+				   const Kconfig::Config::Configs &configs,
+				   const EnabledConfigMap &enabledConfigs)
 {
-	TW::TreeWalker tw { m_sql, supp, m_branch, m_expandedDir, configs };
+	TW::TreeWalker tw { m_sql, supp, m_branch, m_expandedDir, configs, enabledConfigs };
 	tw.walk();
 }
 
@@ -153,10 +154,28 @@ void BranchProcessor::processAuthors(const SlGit::Commit &commit)
 		RunEx("Cannot process authors").raise();
 }
 
-void BranchProcessor::processConfigs(const SlGit::Commit &commit,
-				     const Kconfig::Config::Configs &configs)
+/// @brief Add a config to the map only if it is enabled and has higher value than the existing one
+void BranchProcessor::addConfig(EnabledConfigMap &enabledConfigs, const std::string &key,
+				SlKernCVS::ConfigValue newVal)
+{
+	if (newVal == SlKernCVS::ConfigValue::Disabled)
+		return;
+
+	auto [old, inserted] = enabledConfigs.try_emplace(key, newVal);
+	if (inserted)
+		return;
+
+	auto oldVal = old->second;
+	if (oldVal < newVal)
+		old->second = newVal;
+}
+
+EnabledConfigMap BranchProcessor::processConfigs(const SlGit::Commit &commit,
+						 const Kconfig::Config::Configs &configs)
 {
 	SlKernCVS::CollectConfigs cc { commit };
+
+	EnabledConfigMap enabledConfigs;
 
 	for (const auto &arch: cc) {
 		if (!m_sql.insertArch(arch.first))
@@ -184,9 +203,13 @@ void BranchProcessor::processConfigs(const SlGit::Commit &commit,
 						std::quoted(config.first) << " (" << arch.first <<
 						'/' << flavor.first << "): " << m_sql.lastError() <<
 						raise;
+
+				addConfig(enabledConfigs, config.first, config.second);
 			}
 		}
 	}
+
+	return enabledConfigs;
 }
 
 void BranchProcessor::processInternal(SlGit::Commit &commit)
@@ -209,10 +232,10 @@ void BranchProcessor::processInternal(SlGit::Commit &commit)
 		auto configs = parseKconfigs();
 
 		m_notifier.notify("Collecting configs");
-		processConfigs(commit, configs);
+		auto enabledConfigs = processConfigs(commit, configs);
 
 		m_notifier.notify("Parsing Kbuilds");
-		parseKbuilds(supp, configs);
+		parseKbuilds(supp, configs, enabledConfigs);
 
 		m_notifier.notify("Detecting authors of patches");
 		processAuthors(commit);

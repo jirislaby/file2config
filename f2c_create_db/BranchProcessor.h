@@ -13,6 +13,7 @@
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "BranchProps.h"
+#include "Configs.h"
 #include "F2CSQLConn.h"
 #include "Opts.h"
 #include "StatusNotifier.h"
@@ -59,10 +60,13 @@ private:
 
 	Kconfig::Config::Configs parseKconfigs();
 	void insertConfigSQL(const Kconfig::Parser &p, Kconfig::Config::Configs &configs);
-	void processConfigs(const SlGit::Commit &commit,
-			    const Kconfig::Config::Configs &configs);
+	static void addConfig(EnabledConfigMap &enabledConfigs, const std::string &key,
+			      SlKernCVS::ConfigValue newVal);
+	EnabledConfigMap processConfigs(const SlGit::Commit &commit,
+					const Kconfig::Config::Configs &configs);
 	void parseKbuilds(const SlKernCVS::SupportedConf &supp,
-			  const Kconfig::Config::Configs &configs);
+			  const Kconfig::Config::Configs &configs,
+			  const EnabledConfigMap &enabledConfigs);
 
 	void processAuthors(const SlGit::Commit &commit);
 	void processInternal(SlGit::Commit &commit);

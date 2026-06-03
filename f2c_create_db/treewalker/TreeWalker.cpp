@@ -81,8 +81,10 @@ void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path 
 
 TreeWalker::TreeWalker(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 		       const std::string &branch, const std::filesystem::path &start,
-		       const Kconfig::Config::Configs &configs) :
-	m_supp(supp), m_configs(configs), m_makeVisitor(sql, branch), start(start)
+		       const Kconfig::Config::Configs &configs,
+		       const F2C::EnabledConfigMap &enabledConfigs) :
+	m_supp(supp), m_configs(configs), m_enabledConfigs(enabledConfigs),
+	m_makeVisitor(sql, branch), start(start)
 {
 	CondStack s { "y" };
 

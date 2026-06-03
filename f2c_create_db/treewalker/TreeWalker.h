@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "../Configs.h"
 #include "../parser/make/Parser.h"
 #include "../parser/kconfig/Config.h"
 #include "SQLiteMakeVisitor.h"
@@ -34,7 +35,8 @@ public:
 	TreeWalker() = delete;
 	TreeWalker(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 		   const std::string &branch, const std::filesystem::path &start,
-		   const Kconfig::Config::Configs &configs);
+		   const Kconfig::Config::Configs &configs,
+		   const F2C::EnabledConfigMap &enabledConfigs);
 
 	void walk();
 
@@ -86,6 +88,7 @@ private:
 	std::unordered_multimap<std::string, std::string> m_vars;
 	const SlKernCVS::SupportedConf &m_supp;
 	const Kconfig::Config::Configs &m_configs;
+	const F2C::EnabledConfigMap &m_enabledConfigs;
 	const SQLiteMakeVisitor m_makeVisitor;
 
 	std::filesystem::path start;

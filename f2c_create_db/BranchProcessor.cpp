@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <iomanip>
 #include <nlohmann/json.hpp>
 
 #include <sl/helpers/Color.h>
@@ -155,33 +156,36 @@ void BranchProcessor::processAuthors(const SlGit::Commit &commit)
 
 void BranchProcessor::processConfigs(const SlGit::Commit &commit)
 {
-	std::string error;
+	SlKernCVS::CollectConfigs cc { commit };
 
-	SlKernCVS::CollectConfigs CC{ m_repo,
-		[this, &error](const std::string &arch, const std::string &flavor) {
-			auto ret = m_sql.insertArch(arch) && m_sql.insertFlavor(flavor);
-			if (!ret)
-				error = m_sql.lastError();
-			return ret;
-		}, [this, &error](const std::string &arch,
-				  const std::string &flavor,
-				  std::string &&config,
-				  const SlKernCVS::CollectConfigs::ConfigValue &value) {
-			if (!m_configs.contains(config)) {
-				Clr(std::cerr, Clr::YELLOW) << "config \"" << config <<
-							       "\" is not defined (" << arch <<
-							       '/' << flavor << ')';
-				return true;
+	for (const auto &arch: cc) {
+		if (!m_sql.insertArch(arch.first))
+			RunEx(__func__) << ": cannot insert arch " << std::quoted(arch.first) << ": "
+				<< m_sql.lastError() << raise;
+
+		for (const auto &flavor: arch.second) {
+			if (!m_sql.insertFlavor(flavor.first))
+				RunEx(__func__) << ": cannot insert flavor " <<
+					std::quoted(flavor.first) << ": " << m_sql.lastError() <<
+					raise;
+
+			for (const auto &config: flavor.second) {
+				if (!m_configs.contains(config.first)) {
+					Clr(Clr::YELLOW) << "config " << std::quoted(config.first) <<
+							       " is not defined (" << arch.first <<
+							       '/' << flavor.first << ')';
+					continue;
+				}
+
+				if (!m_sql.insertCBMap(m_branch, arch.first, flavor.first,
+						       config.first, std::string(1, config.second)))
+					RunEx(__func__) << ": cannot insert CB map for " <<
+						std::quoted(config.first) << " (" << arch.first <<
+						'/' << flavor.first << "): " << m_sql.lastError() <<
+						raise;
 			}
-			auto ret = m_sql.insertCBMap(m_branch, arch, flavor, config,
-						     std::string(1, value));
-			if (!ret)
-				error = m_sql.lastError();
-			return ret;
-	}};
-
-	if (!CC.collectConfigs(commit))
-		RunEx("Cannot collect configs: ") << error << raise;
+		}
+	}
 }
 
 void BranchProcessor::processInternal(SlGit::Commit &commit)

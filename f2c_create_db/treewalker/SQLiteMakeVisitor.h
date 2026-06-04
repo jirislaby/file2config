@@ -6,6 +6,7 @@
 #include <string>
 
 namespace SlKernCVS {
+enum class ConfigValue : char;
 enum class SupportState;
 }
 
@@ -22,6 +23,10 @@ public:
 		sql(sql), branch(branch) {}
 
 	~SQLiteMakeVisitor() {}
+
+	void fileSupp(const std::filesystem::path &srcPath,
+		      SlKernCVS::ConfigValue enabled,
+		      SlKernCVS::SupportState supported) const;
 
 	void config(const std::filesystem::path &srcPath, const std::string &cond) const;
 

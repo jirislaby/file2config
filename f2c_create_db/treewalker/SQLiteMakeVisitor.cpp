@@ -31,7 +31,8 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 
 void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 			       const std::filesystem::path &module,
-			       const std::optional<std::string> &moduleConf) const
+			       const std::optional<std::string> &moduleConf,
+			       SlKernCVS::SupportState supported) const
 {
 	if (F2C::verbose > 1)
 		std::cout << "SQL MOD " << module.string() << ' ' << srcPath.string() << ' ' <<
@@ -39,7 +40,6 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 
 	auto dirMod = module.parent_path();
 	auto fileMod = module.filename();
-	auto supported = supp.supportState(module);
 	auto dirFile = sql.insertPath(srcPath);
 	if (!dirFile || !sql.insertDir(dirMod) ||
 			!sql.insertModule(dirMod, fileMod, moduleConf) ||

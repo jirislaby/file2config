@@ -9,6 +9,7 @@
 #include <sl/helpers/Exception.h>
 #include <sl/helpers/String.h>
 #include <sl/helpers/Views.h>
+#include <sl/kerncvs/SupportedConf.h>
 
 #include "../parser/make/EntryVisitor.h"
 #include "TreeWalker.h"
@@ -81,7 +82,7 @@ void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path 
 TreeWalker::TreeWalker(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
 		       const std::string &branch, const std::filesystem::path &start,
 		       const Kconfig::Config::Configs &configs) :
-	m_configs(configs), m_makeVisitor(sql, supp, branch), start(start)
+	m_supp(supp), m_configs(configs), m_makeVisitor(sql, branch), start(start)
 {
 	CondStack s { "y" };
 
@@ -244,7 +245,8 @@ bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 
 void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 			       std::filesystem::path &&srcPath,
-			       const std::filesystem::path &relModule)
+			       const std::filesystem::path &relModule,
+			       SlKernCVS::SupportState supported)
 {
 	auto relSrcPath = startRelative(srcPath);
 
@@ -254,7 +256,7 @@ void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 		Clr(std::cerr, Clr::YELLOW) << relSrcPath << " depends on \"" << cond <<
 					       "\", but that is not defined!";
 
-	m_makeVisitor.module(relSrcPath, relModule, getTristateConf(s));
+	m_makeVisitor.module(relSrcPath, relModule, getTristateConf(s), supported);
 }
 
 
@@ -292,13 +294,14 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		return;
 	}
 
+	auto supported = m_supp.supportState(relModule);
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
 			if (srcPath.extension() == ".c")
 				handleCSource(std::move(s), std::move(cond), std::move(srcPath),
-					      std::move(relModule));
+					      std::move(relModule), supported);
 			return;
 		}
 	}

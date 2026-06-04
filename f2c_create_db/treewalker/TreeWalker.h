@@ -15,6 +15,11 @@
 #include "../parser/kconfig/Config.h"
 #include "SQLiteMakeVisitor.h"
 
+namespace SlKernCVS {
+class SupportedConf;
+enum class SupportState;
+}
+
 namespace MP {
 enum EntryType : unsigned int;
 }
@@ -65,7 +70,8 @@ private:
 			  const std::filesystem::path &path);
 	void handleCSource(const CondStack &s, const std::string &cond,
 			   std::filesystem::path &&srcPath,
-			   const std::filesystem::path &relModule);
+			   const std::filesystem::path &relModule,
+			   SlKernCVS::SupportState supported);
 	void handleObject(CondStack &&s, std::filesystem::path &&objPath,
 			  std::filesystem::path &&module);
 
@@ -78,6 +84,7 @@ private:
 
 	MP::Parser parser;
 	std::unordered_multimap<std::string, std::string> m_vars;
+	const SlKernCVS::SupportedConf &m_supp;
 	const Kconfig::Config::Configs &m_configs;
 	const SQLiteMakeVisitor m_makeVisitor;
 

@@ -7,7 +7,7 @@
 #include <string>
 
 namespace SlKernCVS {
-class SupportedConf;
+enum class SupportState;
 }
 
 namespace F2C {
@@ -19,9 +19,8 @@ namespace TW {
 class SQLiteMakeVisitor {
 public:
 	SQLiteMakeVisitor() = delete;
-	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const SlKernCVS::SupportedConf &supp,
-			  const std::string &branch) :
-		sql(sql), supp(supp), branch(branch) {}
+	SQLiteMakeVisitor(F2C::F2CSQLConn &sql, const std::string &branch) :
+		sql(sql), branch(branch) {}
 
 	~SQLiteMakeVisitor() {}
 
@@ -29,10 +28,10 @@ public:
 
 	void module(const std::filesystem::path &srcPath,
 		    const std::filesystem::path &module,
-		    const std::optional<std::string> &moduleConf) const;
+		    const std::optional<std::string> &moduleConf,
+		    SlKernCVS::SupportState supported) const;
 private:
 	F2C::F2CSQLConn &sql;
-	const SlKernCVS::SupportedConf &supp;
 	const std::string branch;
 };
 

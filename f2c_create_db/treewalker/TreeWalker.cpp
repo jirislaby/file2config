@@ -9,6 +9,7 @@
 #include <sl/helpers/Exception.h>
 #include <sl/helpers/String.h>
 #include <sl/helpers/Views.h>
+#include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "../parser/make/EntryVisitor.h"
@@ -236,6 +237,54 @@ void TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath, std::fi
 	m_toWalk.emplace(std::move(s), std::move(kbPath), std::move(cwd));
 }
 
+constexpr int TreeWalker::getSuppStateWeight(SlKernCVS::SupportState supp)
+{
+	switch (supp) {
+	case SlKernCVS::SupportState::Supported:
+		return 10;
+	default:
+		return static_cast<int>(supp);
+	}
+}
+
+constexpr bool TreeWalker::moreSupported(SlKernCVS::ConfigValue enabledOld,
+					 SlKernCVS::SupportState supportedOld,
+					 SlKernCVS::ConfigValue enabledNew,
+					 SlKernCVS::SupportState supportedNew)
+{
+	if (enabledOld != enabledNew)
+		return enabledOld < enabledNew;
+
+	return getSuppStateWeight(supportedOld) < getSuppStateWeight(supportedNew);
+}
+
+bool TreeWalker::moreSupported(const std::string &cond,
+			       const std::filesystem::path &relSrcPath,
+			       SlKernCVS::ConfigValue enabled,
+			       SlKernCVS::SupportState supported)
+{
+	auto mapVal = std::make_pair(enabled, supported);
+	auto [old, inserted] = m_visitedSources.try_emplace(relSrcPath, mapVal);
+	if (inserted)
+		return true;
+
+	auto [enabledOld, supportedOld] = old->second;
+	if (!moreSupported(enabledOld, supportedOld, enabled, supported)) {
+		if (F2C::verbose > 1 &&
+		    (enabledOld != enabled || supportedOld != supported))
+			Clr() << "ignoring already reported " << relSrcPath <<
+				", previously " << static_cast<char>(enabledOld) << '/' <<
+				getName(supportedOld) << ", now with " << cond <<
+				'/' << static_cast<char>(enabled) << '/' <<
+				getName(supported);
+		return false;
+	}
+
+	old->second = std::move(mapVal);
+
+	return true;
+}
+
 bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 {
 	static const std::unordered_set<std::string_view> skipPaths {
@@ -250,8 +299,10 @@ bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 
 void TreeWalker::handleCSource(const std::string &cond,
 			       std::filesystem::path &&srcPath,
+			       SlKernCVS::ConfigValue enabled,
+			       const std::optional<std::string> &disabledConfig,
 			       const std::filesystem::path &relModule,
-			       SlKernCVS::SupportState /*supported*/)
+			       SlKernCVS::SupportState supported)
 {
 	auto relSrcPath = startRelative(srcPath);
 
@@ -263,8 +314,31 @@ void TreeWalker::handleCSource(const std::string &cond,
 	else if (F2C::verbose > 0)
 		Clr(std::cerr, Clr::YELLOW) << relSrcPath << " depends on \"" << cond <<
 					       "\", but that is not defined!";
+
+	if (moreSupported(cond, relSrcPath, enabled, supported))
+		m_makeVisitor.fileSupp(relSrcPath, enabled, disabledConfig, supported);
+
 }
 
+std::pair<SlKernCVS::ConfigValue, std::optional<std::string>>
+TreeWalker::enabledState(const CondStack &s)
+{
+	auto enabled = SlKernCVS::ConfigValue::BuiltIn;
+
+	for (const auto &conf: s) {
+		if (isBuiltIn(conf))
+			continue;
+
+		auto it = m_enabledConfigs.find(conf);
+		if (it == m_enabledConfigs.end())
+			return {SlKernCVS::ConfigValue::Disabled, conf};
+
+		if (it->second == SlKernCVS::ConfigValue::Module)
+			enabled = it->second;
+	}
+
+	return {enabled, std::nullopt};
+}
 
 /**
  * @brief Handle "obj-X := file.o", see also addRegularEntry()
@@ -293,7 +367,9 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		return;
 	auto cond = std::move(*condOpt);
 
+	auto [enabled, disabledConfig] = enabledState(s);
 	auto supported = m_supp.supportState(relModule);
+
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
@@ -305,7 +381,8 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 
 			if (srcPath.extension() == ".c")
 				handleCSource(std::move(cond), std::move(srcPath),
-					      std::move(relModule), supported);
+					      enabled, disabledConfig, std::move(relModule),
+					      supported);
 			return;
 		}
 	}

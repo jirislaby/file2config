@@ -19,6 +19,7 @@
 
 namespace SlKernCVS {
 class SupportedConf;
+enum class ConfigValue : char;
 enum class SupportState;
 }
 
@@ -61,8 +62,13 @@ private:
 
 	std::vector<std::string> getVariable(const std::string &id) const;
 
-	static bool skipPath(const std::filesystem::path &relPath);
+	static constexpr int getSuppStateWeight(SlKernCVS::SupportState supp);
+	static constexpr bool moreSupported(SlKernCVS::ConfigValue enabledOld,
+					    SlKernCVS::SupportState supportedOld,
+					    SlKernCVS::ConfigValue enabledNew,
+					    SlKernCVS::SupportState supportedNew);
 
+	static bool skipPath(const std::filesystem::path &relPath);
 	static void forEachSubDir(const std::filesystem::path &dir,
 				  const std::function<void (const std::filesystem::path &)> &CB);
 	void addDefaultKernelFiles(CondStack s, const std::filesystem::path &start);
@@ -71,8 +77,16 @@ private:
 	void handleKbuildFile(ToWalkEntry &&e);
 	void addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			  const std::filesystem::path &path);
+	std::pair<SlKernCVS::ConfigValue, std::optional<std::string>>
+	enabledState(const CondStack &s);
+	bool moreSupported(const std::string &cond,
+			   const std::filesystem::path &relSrcPath,
+			   SlKernCVS::ConfigValue enabled,
+			   SlKernCVS::SupportState supported);
 	void handleCSource(const std::string &cond,
 			   std::filesystem::path &&srcPath,
+			   SlKernCVS::ConfigValue enabled,
+			   const std::optional<std::string> &disabledConfig,
 			   const std::filesystem::path &relModule,
 			   SlKernCVS::SupportState supported);
 	void handleObject(CondStack &&s, std::filesystem::path &&objPath,
@@ -97,6 +111,8 @@ private:
 	std::queue<ToWalkEntry> m_toWalk;
 	PathSet m_skipMakefiles;
 	std::set<std::pair<std::filesystem::path, CondStack>> m_visitedMakefiles;
+	std::unordered_map<std::filesystem::path,
+		std::pair<SlKernCVS::ConfigValue, SlKernCVS::SupportState>> m_visitedSources;
 };
 
 }

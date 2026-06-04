@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <iostream>
+#include <string>
 
 #include <sl/helpers/Color.h>
 #include <sl/helpers/Exception.h>
+#include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "../F2CSQLConn.h"
@@ -16,6 +18,20 @@ using namespace TW;
 using Clr = SlHelpers::Color;
 using RunEx = SlHelpers::RuntimeException;
 using SlHelpers::raise;
+
+void SQLiteMakeVisitor::fileSupp(const std::filesystem::path &srcPath,
+				 SlKernCVS::ConfigValue enabled,
+				 const std::optional<std::string> &disabledConfig,
+				 SlKernCVS::SupportState supported) const
+{
+	auto dirFile = sql.insertPath(srcPath);
+	if (!dirFile || !sql.insertFSMap(branch, std::move(dirFile->first),
+					 std::move(dirFile->second),
+					 std::string(1, static_cast<char>(enabled)),
+					 disabledConfig,
+					 static_cast<int>(supported)))
+		RunEx("cannot insert FSMap: ") << sql.lastError() << raise;
+}
 
 void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 			       const std::string &cond) const

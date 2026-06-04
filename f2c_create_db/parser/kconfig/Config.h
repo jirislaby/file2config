@@ -25,7 +25,8 @@ enum class ConfType : unsigned {
 #define EXP(x) x,
 	CONFIG_TYPES(EXP)
 #undef EXP
-	Count,
+	First = Unknown,
+	Last = Range,
 };
 
 class Config {
@@ -39,8 +40,6 @@ public:
 #define EXP(x) case ConfType::x: return #x;
 		CONFIG_TYPES(EXP)
 #undef EXP
-		case ConfType::Count:
-			break;
 		}
 		return "INVALID";
 	}

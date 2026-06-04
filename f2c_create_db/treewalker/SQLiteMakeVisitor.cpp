@@ -43,7 +43,7 @@ void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
 	auto dirFile = sql.insertPath(srcPath);
 	if (!dirFile || !sql.insertDir(dirMod) ||
 			!sql.insertModule(dirMod, fileMod, moduleConf) ||
-			!sql.insertMDMap(branch, dirMod, fileMod, supported) ||
+			!sql.insertMDMap(branch, dirMod, fileMod, static_cast<int>(supported)) ||
 			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
 					 std::move(dirFile->second)))
 		RunEx("cannot insert module maps: ") << sql.lastError() << raise;

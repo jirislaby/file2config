@@ -323,8 +323,6 @@ void TreeWalker::addRegularEntry(CondStack s, const std::filesystem::path &kbPat
 	if (type == MP::EntryType::Directory) {
 		auto absolute = std::any_cast<bool>(interesting);
 		auto dir = absolute ? start / word : kbPath.parent_path() / word;
-		if (!visitedDirs.insert(dir).second)
-			return;
 		if (F2C::verbose > 1)
 			std::cout << "pushing dir (" << (absolute ? "abs" : "rela") << "): " <<
 				     dir << "\n";

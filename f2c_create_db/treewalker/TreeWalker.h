@@ -95,7 +95,6 @@ private:
 	std::vector<std::string> archs;
 	std::queue<ToWalkEntry> m_toWalk;
 	PathSet m_visitedMakefiles;
-	PathSet visitedDirs;
 	PathSet visitedPaths;
 };
 

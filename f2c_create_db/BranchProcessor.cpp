@@ -178,7 +178,8 @@ void BranchProcessor::processConfigs(const SlGit::Commit &commit)
 				}
 
 				if (!m_sql.insertCBMap(m_branch, arch.first, flavor.first,
-						       config.first, std::string(1, config.second)))
+						       config.first,
+						       std::string(1, static_cast<char>(config.second))))
 					RunEx(__func__) << ": cannot insert CB map for " <<
 						std::quoted(config.first) << " (" << arch.first <<
 						'/' << flavor.first << "): " << m_sql.lastError() <<

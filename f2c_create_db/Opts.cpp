@@ -41,7 +41,7 @@ Opts Opts::getOpts(int argc, char **argv)
 	;
 	options.add_options("sqlite")
 		("s,sqlite", "db name",
-			cxxopts::value(opts.sqlite)->implicit_value("conf_file_map.sqlite"))
+			cxxopts::value(opts.sqlite)->default_value("conf_file_map.sqlite"))
 		("S,sqlite-create", "create the db if not exists",
 			cxxopts::value(opts.sqliteCreate)->default_value("false"))
 		("O,sqlite-create-only", "only create the db (do not fill it)",

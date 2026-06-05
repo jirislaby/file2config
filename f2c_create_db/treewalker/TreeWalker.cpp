@@ -244,19 +244,19 @@ bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 
 void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 			       std::filesystem::path &&srcPath,
-			       const std::filesystem::path &module)
+			       const std::filesystem::path &relModule)
 {
-	auto relSrcPath = srcPath.lexically_relative(start).lexically_normal();
-	auto relMod = module.lexically_relative(start).lexically_normal();
+	auto relSrcPath = startRelative(srcPath);
 
 	if (m_configs.contains(cond))
 		m_makeVisitor.config(relSrcPath, cond);
 	else if (F2C::verbose > 0)
-		Clr(std::cerr, Clr::YELLOW) << srcPath << " depends on \"" << cond <<
+		Clr(std::cerr, Clr::YELLOW) << relSrcPath << " depends on \"" << cond <<
 					       "\", but that is not defined!";
 
-	m_makeVisitor.module(relSrcPath, relMod, getTristateConf(s));
+	m_makeVisitor.module(relSrcPath, relModule, getTristateConf(s));
 }
+
 
 /**
  * @brief Handle "obj-X := file.o", see also addRegularEntry()
@@ -271,10 +271,13 @@ void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
 void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 			      std::filesystem::path &&module)
 {
+	auto relModule = startRelative(module);
+
 	if (F2C::verbose > 1)
 		std::cout << "have OBJ: " << objPath << "\n";
 
-	if (skipPath(objPath.lexically_relative(start).lexically_normal()))
+	auto relObjPath = startRelative(objPath);
+	if (skipPath(relObjPath))
 		return;
 
 	auto condOpt = getCond(s);
@@ -282,7 +285,7 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		return;
 	auto cond = std::move(*condOpt);
 
-	if (!visitedPaths.insert(objPath).second) {
+	if (!visitedPaths.insert(relObjPath).second) {
 		if (F2C::verbose > 1)
 			std::cout << "ignoring already reported " << objPath << ", now with " <<
 				cond << '\n';
@@ -295,7 +298,7 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		if (std::filesystem::exists(srcPath)) {
 			if (srcPath.extension() == ".c")
 				handleCSource(std::move(s), std::move(cond), std::move(srcPath),
-					      std::move(module));
+					      std::move(relModule));
 			return;
 		}
 	}

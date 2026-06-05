@@ -47,6 +47,10 @@ private:
 		std::filesystem::path cwd; // kbPath's dir except for make's "include"
 	};
 
+	auto startRelative(const std::filesystem::path &path) const {
+		return path.lexically_relative(start).lexically_normal();
+	}
+
 	std::vector<std::string> getVariable(const std::string &id) const;
 
 	static bool skipPath(const std::filesystem::path &relPath);
@@ -61,7 +65,7 @@ private:
 			  const std::filesystem::path &path);
 	void handleCSource(const CondStack &s, const std::string &cond,
 			   std::filesystem::path &&srcPath,
-			   const std::filesystem::path &module);
+			   const std::filesystem::path &relModule);
 	void handleObject(CondStack &&s, std::filesystem::path &&objPath,
 			  std::filesystem::path &&module);
 

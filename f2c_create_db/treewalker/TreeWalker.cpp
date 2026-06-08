@@ -217,8 +217,7 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 	return std::nullopt;
 }
 
-void TW::TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath,
-				  std::filesystem::path cwd)
+void TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath, std::filesystem::path cwd)
 {
 	if (!m_visitedMakefiles.insert(kbPath).second) {
 		if (F2C::verbose > 1)

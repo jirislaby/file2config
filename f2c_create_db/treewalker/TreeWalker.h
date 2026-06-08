@@ -39,6 +39,8 @@ public:
 	void addTargetEntry(CondStack s, const std::filesystem::path &objPath, std::string cond,
 			    const std::string &entry);
 private:
+	using PathSet = std::unordered_set<std::filesystem::path>;
+
 	struct ToWalkEntry {
 		CondStack cs;
 		std::filesystem::path kbPath;
@@ -78,9 +80,9 @@ private:
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::queue<ToWalkEntry> m_toWalk;
-	std::unordered_set<std::filesystem::path> m_visitedMakefiles;
-	std::unordered_set<std::filesystem::path> visitedDirs;
-	std::unordered_set<std::filesystem::path> visitedPaths;
+	PathSet m_visitedMakefiles;
+	PathSet visitedDirs;
+	PathSet visitedPaths;
 };
 
 }

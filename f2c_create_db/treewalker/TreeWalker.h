@@ -71,7 +71,7 @@ private:
 	void handleKbuildFile(ToWalkEntry &&e);
 	void addDirectory(const std::filesystem::path &kbPath, CondStack s,
 			  const std::filesystem::path &path);
-	void handleCSource(const CondStack &s, const std::string &cond,
+	void handleCSource(const std::string &cond,
 			   std::filesystem::path &&srcPath,
 			   const std::filesystem::path &relModule,
 			   SlKernCVS::SupportState supported);

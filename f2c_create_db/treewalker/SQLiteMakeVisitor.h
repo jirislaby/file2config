@@ -26,10 +26,12 @@ public:
 
 	void config(const std::filesystem::path &srcPath, const std::string &cond) const;
 
-	void module(const std::filesystem::path &srcPath,
-		    const std::filesystem::path &module,
+	void module(const std::filesystem::path &module,
 		    const std::optional<std::string> &moduleConf,
 		    SlKernCVS::SupportState supported) const;
+
+	void moduleFile(const std::filesystem::path &srcPath,
+			const std::filesystem::path &module) const;
 private:
 	F2C::F2CSQLConn &sql;
 	const std::string branch;

@@ -289,13 +289,6 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		return;
 	auto cond = std::move(*condOpt);
 
-	if (!visitedPaths.insert(relObjPath).second) {
-		if (F2C::verbose > 1)
-			std::cout << "ignoring already reported " << objPath << ", now with " <<
-				cond << '\n';
-		return;
-	}
-
 	auto supported = m_supp.supportState(relModule);
 	for (const auto &suffix : { ".c", ".S", ".rs" }) {
 		auto srcPath = objPath;

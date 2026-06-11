@@ -29,22 +29,32 @@ void SQLiteMakeVisitor::config(const std::filesystem::path &srcPath,
 		RunEx("cannot insert CFMap: ") << sql.lastError() << raise;
 }
 
-void SQLiteMakeVisitor::module(const std::filesystem::path &srcPath,
-			       const std::filesystem::path &module,
+void SQLiteMakeVisitor::module(const std::filesystem::path &module,
 			       const std::optional<std::string> &moduleConf,
 			       SlKernCVS::SupportState supported) const
 {
 	if (F2C::verbose > 1)
-		std::cout << "SQL MOD " << module.string() << ' ' << srcPath.string() << ' ' <<
-			  (moduleConf ? *moduleConf : "NULL") << '\n';
+		Clr() << "SQL MOD " << module.string() << ' ' <<
+			(moduleConf ? *moduleConf : "NULL");
+
+	auto dirMod = module.parent_path();
+	auto fileMod = module.filename();
+	if (!sql.insertDir(dirMod) ||
+			!sql.insertModule(dirMod, fileMod, moduleConf) ||
+			!sql.insertMDMap(branch, dirMod, fileMod, static_cast<int>(supported)))
+		RunEx("cannot insert module maps: ") << sql.lastError() << raise;
+}
+
+void SQLiteMakeVisitor::moduleFile(const std::filesystem::path &srcPath,
+				   const std::filesystem::path &module) const
+{
+	if (F2C::verbose > 1)
+		Clr() << "SQL MOD FILE " << module.string() << ' ' << srcPath.string();
 
 	auto dirMod = module.parent_path();
 	auto fileMod = module.filename();
 	auto dirFile = sql.insertPath(srcPath);
-	if (!dirFile || !sql.insertDir(dirMod) ||
-			!sql.insertModule(dirMod, fileMod, moduleConf) ||
-			!sql.insertMDMap(branch, dirMod, fileMod, static_cast<int>(supported)) ||
-			!sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
+	if (!dirFile || !sql.insertMFMap(branch, dirMod, fileMod, std::move(dirFile->first),
 					 std::move(dirFile->second)))
-		RunEx("cannot insert module maps: ") << sql.lastError() << raise;
+		RunEx("cannot insert module file map: ") << sql.lastError() << raise;
 }

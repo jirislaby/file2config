@@ -245,20 +245,20 @@ bool TreeWalker::skipPath(const std::filesystem::path &relPath)
 	return skipPaths.contains(first);
 }
 
-void TreeWalker::handleCSource(const CondStack &s, const std::string &cond,
+void TreeWalker::handleCSource(const std::string &cond,
 			       std::filesystem::path &&srcPath,
 			       const std::filesystem::path &relModule,
-			       SlKernCVS::SupportState supported)
+			       SlKernCVS::SupportState /*supported*/)
 {
 	auto relSrcPath = startRelative(srcPath);
+
+	m_makeVisitor.moduleFile(relSrcPath, relModule);
 
 	if (m_configs.contains(cond))
 		m_makeVisitor.config(relSrcPath, cond);
 	else if (F2C::verbose > 0)
 		Clr(std::cerr, Clr::YELLOW) << relSrcPath << " depends on \"" << cond <<
 					       "\", but that is not defined!";
-
-	m_makeVisitor.module(relSrcPath, relModule, getTristateConf(s), supported);
 }
 
 
@@ -294,8 +294,10 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
+			m_makeVisitor.module(relModule, getTristateConf(s), supported);
+
 			if (srcPath.extension() == ".c")
-				handleCSource(std::move(s), std::move(cond), std::move(srcPath),
+				handleCSource(std::move(cond), std::move(srcPath),
 					      std::move(relModule), supported);
 			return;
 		}

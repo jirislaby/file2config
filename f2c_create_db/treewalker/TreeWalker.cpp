@@ -255,7 +255,8 @@ void TreeWalker::handleCSource(const std::string &cond,
 {
 	auto relSrcPath = startRelative(srcPath);
 
-	m_makeVisitor.moduleFile(relSrcPath, relModule);
+	if (!relModule.empty())
+		m_makeVisitor.moduleFile(relSrcPath, relModule);
 
 	if (m_configs.contains(cond))
 		m_makeVisitor.config(relSrcPath, cond);
@@ -297,7 +298,10 @@ void TreeWalker::handleObject(CondStack &&s, std::filesystem::path &&objPath,
 		auto srcPath = objPath;
 		srcPath.replace_extension(suffix);
 		if (std::filesystem::exists(srcPath)) {
-			m_makeVisitor.module(relModule, getTristateConf(s), supported);
+			if (auto confOpt = getTristateConf(s))
+				m_makeVisitor.module(relModule, *confOpt, supported);
+			else
+				relModule.clear();
 
 			if (srcPath.extension() == ".c")
 				handleCSource(std::move(cond), std::move(srcPath),

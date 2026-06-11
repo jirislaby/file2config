@@ -38,7 +38,7 @@ public:
 			 const std::optional<std::string> &disabledConfig,
 			 int supported);
 	bool insertModule(const std::string &dir, const std::string &module,
-			  const std::optional<std::string> &moduleConf);
+			  const std::string &moduleConf);
 	bool insertMDMap(const std::string &branch, const std::string &module_dir,
 			 const std::string &module, int supported);
 	bool insertMFMap(const std::string &branch, const std::string &module_dir,

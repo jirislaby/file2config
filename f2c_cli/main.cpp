@@ -14,7 +14,6 @@
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
 #include <string>
-#include <variant>
 
 #include "OutputFormatter.h"
 
@@ -387,9 +386,7 @@ void selectModuleQuery(const Opts &opts, const F2CSQLConn &sql,
 		auto branch = std::get<std::string>(std::move(row[3]));
 		std::filesystem::path modDir = std::get<std::string>(std::move(row[4]));
 		auto supported = std::get<int>(row[5]);
-		std::string config { "n/a" };
-		if (std::holds_alternative<std::string>(row[6]))
-			config = std::get<std::string>(std::move(row[6]));
+		auto config = std::get<std::string>(std::move(row[6]));
 		opts.formatter->addModule(modDir / module, branch, supported, config);
 
 		addConfigDetails(opts, sql, true, branchID, configID);

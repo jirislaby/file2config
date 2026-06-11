@@ -3,7 +3,6 @@
 #pragma once
 
 #include <filesystem>
-#include <optional>
 #include <string>
 
 namespace SlKernCVS {
@@ -27,7 +26,7 @@ public:
 	void config(const std::filesystem::path &srcPath, const std::string &cond) const;
 
 	void module(const std::filesystem::path &module,
-		    const std::optional<std::string> &moduleConf,
+		    const std::string &moduleConf,
 		    SlKernCVS::SupportState supported) const;
 
 	void moduleFile(const std::filesystem::path &srcPath,

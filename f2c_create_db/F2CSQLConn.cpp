@@ -74,7 +74,7 @@ bool F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"dir INTEGER NOT NULL REFERENCES dir(id)",
 			"module TEXT NOT NULL",
-			"config INTEGER REFERENCES config(id) ON DELETE CASCADE",
+			"config INTEGER NOT NULL REFERENCES config(id) ON DELETE CASCADE",
 			"UNIQUE(dir, module)"
 		}},
 		{ "module_details_map", {
@@ -402,15 +402,12 @@ bool F2CSQLConn::insertFSMap(const std::string &branch,
 }
 
 bool F2CSQLConn::insertModule(const std::string &dir, const std::string &module,
-			      const std::optional<std::string> &moduleConf)
+			      const std::string &moduleConf)
 {
-	BindVal mc = std::monostate{};
-	if (moduleConf)
-		mc = *moduleConf;
 	return insert(insModule, {
 			      { ":dir", dir },
 			      { ":module", module },
-			      { ":config", mc },
+			      { ":config", moduleConf },
 		      });
 }
 

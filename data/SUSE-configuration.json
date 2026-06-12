@@ -16,7 +16,9 @@
 			"include/linux/kasan.h",
 			"include/linux/srcutiny.h",
 			"include/net/rose.h",
-			"include/trace/*.h"
+			"include/trace/*.h",
+			"include/trace/*/*.h",
+			"net/atm/*.h"
 		],
 		"SLE15-SP7" : [
 		]

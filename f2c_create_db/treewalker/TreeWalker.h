@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <queue>
+#include <set>
 #include <unordered_set>
 #include <string>
 #include <vector>
@@ -94,7 +95,8 @@ private:
 	std::filesystem::path start;
 	std::vector<std::string> archs;
 	std::queue<ToWalkEntry> m_toWalk;
-	PathSet m_visitedMakefiles;
+	PathSet m_skipMakefiles;
+	std::set<std::pair<std::filesystem::path, CondStack>> m_visitedMakefiles;
 };
 
 }

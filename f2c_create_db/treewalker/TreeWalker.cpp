@@ -51,8 +51,8 @@ void TreeWalker::forEachSubDir(const std::filesystem::path &dir,
 void TreeWalker::addDefaultKernelFiles(CondStack s, const std::filesystem::path &start)
 {
 	// skip these
-	m_visitedMakefiles.emplace(start/"scripts/Kbuild.include");
-	m_visitedMakefiles.emplace(start/"scripts/Makefile.gcc-plugins");
+	m_skipMakefiles.emplace(start/"scripts/Kbuild.include");
+	m_skipMakefiles.emplace(start/"scripts/Makefile.gcc-plugins");
 
 	// start with top-level Makefile
 	appendToWalk(s, start/"Makefile");
@@ -222,7 +222,10 @@ std::optional<std::string> TreeWalker::getTristateConf(const CondStack &s)
 
 void TreeWalker::appendToWalk(CondStack s, std::filesystem::path kbPath, std::filesystem::path cwd)
 {
-	if (!m_visitedMakefiles.insert(kbPath).second) {
+	if (m_skipMakefiles.contains(kbPath))
+	    return;
+
+	if (!m_visitedMakefiles.emplace(kbPath, s).second) {
 		if (F2C::verbose > 1)
 			Clr(std::cerr, Clr::YELLOW) << __func__ << ": makefile " << kbPath <<
 				" already walked";

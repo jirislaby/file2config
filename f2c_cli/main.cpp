@@ -485,7 +485,7 @@ void handleEx(int argc, char **argv)
 	}
 
 	F2CSQLConn sql;
-	if (!sql.open(opts.sqlite))
+	if (!sql.open(opts.sqlite, SlSqlite::OpenFlags::READ_ONLY))
 		RunEx("Unable to open the db ") << opts.sqlite << ": " << sql.lastError() << raise;
 
 	checkBranch(sql, opts.branch);

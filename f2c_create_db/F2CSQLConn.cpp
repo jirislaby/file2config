@@ -12,6 +12,10 @@ using namespace F2C;
 bool F2CSQLConn::createDB()
 {
 	static const Tables create_tables {
+		{ "supported", {
+			"id INTEGER PRIMARY KEY",
+			"supported TEXT NOT NULL UNIQUE",
+		}},
 		{ "branch", {
 			"id INTEGER PRIMARY KEY",
 			"branch TEXT NOT NULL UNIQUE",
@@ -68,7 +72,7 @@ bool F2CSQLConn::createDB()
 			"file INTEGER NOT NULL REFERENCES file(id) ON DELETE CASCADE",
 			"enabled TEXT NOT NULL CHECK(enabled IN ('n', 'y', 'm'))",
 			"disabled_config INTEGER REFERENCES config(id) ON DELETE CASCADE",
-			"supported INTEGER NOT NULL CHECK(supported >= -3 AND supported <= 4)",
+			"supported INTEGER NOT NULL REFERENCES supported(id) ON DELETE CASCADE",
 			"UNIQUE(branch, file)"
 		}},
 		{ "module", {
@@ -82,7 +86,7 @@ bool F2CSQLConn::createDB()
 			"id INTEGER PRIMARY KEY",
 			"branch INTEGER NOT NULL REFERENCES branch(id) ON DELETE CASCADE",
 			"module INTEGER NOT NULL REFERENCES module(id) ON DELETE CASCADE",
-			"supported INTEGER NOT NULL CHECK(supported >= -3 AND supported <= 4)",
+			"supported INTEGER NOT NULL REFERENCES supported(id) ON DELETE CASCADE",
 			"UNIQUE(branch, module)"
 		}},
 		{ "module_file_map", {
@@ -170,12 +174,13 @@ bool F2CSQLConn::createDB()
 			"LEFT JOIN dir ON file.dir = dir.id;" },
 		{ "file_support_map_view", "SELECT map.id, branch.branch, "
 			"dir.dir || '/' || file.file AS path, enabled, "
-				"config.config AS disabled_config, supported "
+				"config.config AS disabled_config, supported.supported "
 			"FROM file_support_map AS map "
 			"LEFT JOIN branch ON map.branch = branch.id "
 			"LEFT JOIN file ON map.file = file.id "
 			"LEFT JOIN dir ON file.dir = dir.id "
-			"LEFT JOIN config ON map.disabled_config = config.id;" },
+			"LEFT JOIN config ON map.disabled_config = config.id "
+			"LEFT JOIN supported ON map.supported = supported.id;" },
 		{ "module_view", "SELECT module.id, dir.dir, module.module, config.config "
 			"FROM module "
 			"LEFT JOIN dir ON module.dir = dir.id "
@@ -183,11 +188,12 @@ bool F2CSQLConn::createDB()
 		{ "module_details_map_view",
 			"SELECT map.id, branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
-				"supported "
+				"supported.supported "
 			"FROM module_details_map AS map "
 			"LEFT JOIN module ON map.module = module.id "
 			"LEFT JOIN dir AS module_dir ON module.dir = module_dir.id "
-			"LEFT JOIN branch ON map.branch = branch.id;" },
+			"LEFT JOIN branch ON map.branch = branch.id "
+			"LEFT JOIN supported ON map.supported = supported.id;" },
 		{ "module_file_map_view",
 			"SELECT branch.branch, "
 				"module_dir.dir || '/' || module.module AS module, "
@@ -235,6 +241,7 @@ bool F2CSQLConn::createDB()
 bool F2CSQLConn::prepDB()
 {
 	const Statements stmts {
+		{ insSupported,	"INSERT INTO supported(id, supported) VALUES (:id, :supported);" },
 		{ insBranch,	"INSERT INTO branch(branch, sha, version) VALUES "
 				"(:branch, :sha, :version);" },
 		{ insConfigType,"INSERT INTO config_type(id, type) VALUES (:id, :type);" },
@@ -305,6 +312,14 @@ bool F2CSQLConn::prepDB()
 	};
 
 	return prepareStatements(stmts);
+}
+
+bool F2CSQLConn::insertSupported(int id, const std::string &supported)
+{
+	return insert(insSupported, {
+			      { ":id", id },
+			      { ":supported", supported },
+		      });
 }
 
 bool F2CSQLConn::insertBranch(const std::string &branch, const std::string &sha, unsigned version)

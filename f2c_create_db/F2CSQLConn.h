@@ -19,6 +19,7 @@ public:
 	virtual bool createDB() override;
 	virtual bool prepDB() override;
 
+	bool insertSupported(int id, const std::string &supported);
 	bool insertBranch(const std::string &branch, const std::string &sha, unsigned version);
 	bool insertConfigType(unsigned id, const std::string &type);
 	bool insertConfig(const std::string &config, unsigned type);
@@ -61,6 +62,7 @@ private:
 		return BindVal{std::monostate{}};
 	}
 
+	SlSqlite::SQLStmtHolder insSupported;
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfigType;
 	SlSqlite::SQLStmtHolder insConfig;

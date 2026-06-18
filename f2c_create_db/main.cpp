@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include <sl/kerncvs/Branches.h>
 #include <sl/git/Git.h>
@@ -11,6 +12,7 @@
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
+#include <sl/kerncvs/SupportedConf.h>
 #include <sl/sqlite/SQLConn.h>
 
 #include "F2CSQLConn.h"
@@ -105,6 +107,13 @@ F2CSQLConn getSQL(const Opts &opts)
 	return sql;
 }
 
+void fillSupported(F2CSQLConn &sql)
+{
+	for (auto e: SlKernCVS::SupportStateRange{})
+		if (!sql.insertSupported(static_cast<int>(e), std::string(SlKernCVS::getName(e))))
+			RunEx("Cannot insert supported: ") << sql.lastError() << raise;
+}
+
 auto obtainBranches(const Opts &opts, const SlGit::Repo &repo,
 		    const std::optional<Json> &configuration)
 {
@@ -193,6 +202,7 @@ void handleEx(int argc, char **argv)
 	auto repo = prepareKsourceGit(scratchArea);
 	auto branches = obtainBranches(opts, repo, configuration);
 	auto sql = getSQL(opts);
+	fillSupported(sql);
 
 	auto branchNo = 0U;
 	auto branchCnt = branches.size();

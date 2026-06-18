@@ -53,7 +53,7 @@ public:
 				"WITH " + branchCTE + ", " + fileRenamedCTE + " " +
 				"SELECT branch_cte.branch, config.config, mdir.dir, "
 					"module.module, dir.dir, file.file, branch_cte.id, "
-					"config.id, mdmap.supported "
+					"config.id, mdmap.supported, supported.supported "
 					"FROM branch_cte "
 					"JOIN file_renamed_cte ON "
 						"branch_cte.id = file_renamed_cte.branch_id "
@@ -72,6 +72,7 @@ public:
 					"LEFT JOIN module_details_map AS mdmap ON "
 						"branch_cte.id = mdmap.branch AND "
 						"mdmap.module = module.id "
+					"LEFT JOIN supported ON mdmap.supported = supported.id "
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selConfigDetails,
 				"SELECT arch.arch, flavor.flavor, map.value "
@@ -98,13 +99,15 @@ public:
 			{ selModuleDetails,
 				"WITH " + branchCTE + " " +
 				"SELECT branch_cte.id, module.id, config.id, branch_cte.branch, "
-					"mdir.dir, mdmap.supported, config.config "
+					"mdir.dir, mdmap.supported, supported.supported, "
+					"config.config "
 					"FROM branch_cte "
 					"JOIN module_details_map AS mdmap ON "
 						"branch_cte.id = mdmap.branch "
 					"INNER JOIN module ON mdmap.module = module.id "
 					"LEFT JOIN dir AS mdir ON module.dir = mdir.id "
 					"LEFT JOIN config ON module.config = config.id "
+					"LEFT JOIN supported ON mdmap.supported = supported.id "
 					"WHERE module.module = :module "
 					"ORDER BY branch_cte.version, branch_cte.branch;" },
 			{ selModuleFiles,
@@ -353,7 +356,8 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 		std::filesystem::path oldFile = std::get<std::string>(std::move(conf[4]));
 		oldFile /= std::get<std::string>(std::move(conf[5]));
 		auto modSupport = std::get<int>(conf[8]);
-		opts.formatter->addConfig(oldFile, branch, config, mod, modSupport);
+		auto modSupportText = std::get<std::string>(conf[9]);
+		opts.formatter->addConfig(oldFile, branch, config, mod, modSupport, modSupportText);
 
 		auto branchID = std::get<int>(conf[6]);
 		auto configID = std::get<int>(conf[7]);
@@ -386,7 +390,8 @@ void selectModuleQuery(const Opts &opts, const F2CSQLConn &sql,
 		auto branch = std::get<std::string>(std::move(row[3]));
 		std::filesystem::path modDir = std::get<std::string>(std::move(row[4]));
 		auto supported = std::get<int>(row[5]);
-		auto config = std::get<std::string>(std::move(row[6]));
+		auto supportedName = std::get<std::string>(row[6]);
+		auto config = std::get<std::string>(std::move(row[7]));
 		opts.formatter->addModule(modDir / module, branch, supported, config);
 
 		addConfigDetails(opts, sql, true, branchID, configID);

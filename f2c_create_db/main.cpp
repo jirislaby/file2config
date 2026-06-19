@@ -11,6 +11,7 @@
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
+#include <sl/sqlite/SQLConn.h>
 
 #include "F2CSQLConn.h"
 
@@ -88,9 +89,9 @@ SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 F2CSQLConn getSQL(const Opts &opts)
 {
 	F2CSQLConn sql;
-	unsigned openFlags = 0;
+	auto openFlags = SlSqlite::OpenFlags::NONE;
 	if (opts.sqliteCreate)
-		openFlags |= SlSqlite::CREATE;
+		openFlags |= SlSqlite::OpenFlags::CREATE;
 	if (!sql.openDB(opts.sqlite, openFlags))
 		RunEx("Cannot open/create the db at ") << opts.sqlite << ": " << sql.lastError() <<
 							  raise;

@@ -48,6 +48,14 @@ public:
 	bool deleteBranch(const std::string &branch);
 	bool hasBranch(const std::string &branch);
 private:
+	template<typename T>
+	static BindVal valOrMonostate(const std::optional<T> &opt) {
+		if (opt)
+			return BindVal{*opt};
+
+		return BindVal{std::monostate{}};
+	}
+
 	SlSqlite::SQLStmtHolder insBranch;
 	SlSqlite::SQLStmtHolder insConfigType;
 	SlSqlite::SQLStmtHolder insConfig;

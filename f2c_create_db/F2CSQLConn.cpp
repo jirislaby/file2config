@@ -368,13 +368,10 @@ bool F2CSQLConn::insertCFMap(const std::string &branch, const std::string &confi
 bool F2CSQLConn::insertModule(const std::string &dir, const std::string &module,
 			      const std::optional<std::string> &moduleConf)
 {
-	BindVal mc = std::monostate{};
-	if (moduleConf)
-		mc = *moduleConf;
 	return insert(insModule, {
 			      { ":dir", dir },
 			      { ":module", module },
-			      { ":config", mc },
+			      { ":config", valOrMonostate(moduleConf) },
 		      });
 }
 

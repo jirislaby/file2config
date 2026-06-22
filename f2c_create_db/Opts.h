@@ -21,6 +21,7 @@ struct Opts {
 
 	bool authorsDumpRefs;
 	bool authorsReportUnhandled;
+	std::filesystem::path authorsValidUsers;
 
 	std::filesystem::path configurationJSON;
 	bool hasConfiguration;

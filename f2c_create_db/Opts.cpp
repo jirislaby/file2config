@@ -34,6 +34,8 @@ Opts Opts::getOpts(int argc, char **argv)
 			cxxopts::value(opts.authorsDumpRefs)->default_value("false"))
 		("authors-report-unhandled", "report unhandled lines to stdout",
 			cxxopts::value(opts.authorsReportUnhandled)->default_value("false"))
+		("authors-valid-users", "list of valid users (insert only these into the db)",
+			cxxopts::value(opts.authorsValidUsers));
 	;
 	options.add_options("files")
 		("configuration", "path to JSON containing configuration to be used",

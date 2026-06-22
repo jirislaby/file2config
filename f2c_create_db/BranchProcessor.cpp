@@ -136,15 +136,32 @@ void BranchProcessor::parseKbuilds(const SlKernCVS::SupportedConf &supp,
 	tw.walk();
 }
 
+bool BranchProcessor::isValidUser(std::string_view email)
+{
+	auto it = email.find('@');
+	if (it == std::string_view::npos)
+		return false;
+	auto user = email.substr(0, it);
+
+	return m_validUsers.empty() || m_validUsers.contains(user);
+}
+
 void BranchProcessor::processAuthors(const SlGit::Commit &commit)
 {
 	SlKernCVS::PatchesAuthors PA{ m_repo, m_opts.authorsDumpRefs,
 		m_opts.authorsReportUnhandled };
 
 	auto ret = PA.processAuthors(commit, [this](const std::string &email) -> bool {
+
+		if (!isValidUser(email)) {
+			Clr(Clr::YELLOW) << "Skipping invalid user " << std::quoted(email);
+			return true;
+		}
 		return m_sql.insertUser(email);
 	}, [this](const std::string &email, std::filesystem::path &&path,
 			unsigned count, unsigned realCount) -> bool {
+		if (!isValidUser(email))
+			return true;
 		auto fileDir = m_sql.insertPath(path);
 		return fileDir && m_sql.insertUFMap(m_branch, email, std::move(fileDir->first),
 						    std::move(fileDir->second),

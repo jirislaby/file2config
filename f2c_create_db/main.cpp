@@ -168,6 +168,27 @@ std::optional<Json> loadConfiguration(const Opts &opts)
 	return json;
 }
 
+BranchProcessor::UserSet loadValidUsers(const Opts &opts)
+{
+	if (opts.authorsValidUsers.empty())
+		return {};
+
+	BranchProcessor::UserSet validUsers;
+	std::ifstream ifs{opts.authorsValidUsers};
+	if (!ifs)
+		RunEx("Cannot open valid users file ") << opts.authorsValidUsers << ": " <<
+			strerror(errno) << raise;
+
+	for (std::string line; std::getline(ifs, line); ) {
+		line = SlHelpers::String::trim(line);
+		if (line.empty() || line.starts_with('#'))
+			continue;
+		validUsers.emplace(std::move(line));
+	}
+
+	return validUsers;
+}
+
 bool skipBranch(F2CSQLConn &sql, const std::string &branch, bool force)
 {
 	if (force) {
@@ -185,6 +206,7 @@ void handleEx(int argc, char **argv)
 	const auto opts = Opts::getOpts(argc, argv);
 
 	auto configuration = loadConfiguration(opts);
+	auto validUsers = loadValidUsers(opts);
 
 	const auto lpath = SlHelpers::Env::get<std::filesystem::path>("LINUX_GIT");
 	if (!lpath)
@@ -218,7 +240,7 @@ void handleEx(int argc, char **argv)
 		}
 
 		BranchProcessor bp{branch, notifier, scratchArea, branchesProps, repo, sql, opts,
-			configuration};
+			configuration, validUsers};
 
 		bp.process();
 	}

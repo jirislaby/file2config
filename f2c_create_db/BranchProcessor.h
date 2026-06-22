@@ -5,11 +5,14 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 
 #include <nlohmann/json_fwd.hpp>
 
 #include <sl/git/Commit.h>
 #include <sl/git/Repo.h>
+#include <sl/helpers/String.h>
 #include <sl/kerncvs/SupportedConf.h>
 
 #include "BranchProps.h"
@@ -28,6 +31,9 @@ namespace F2C {
 class BranchProcessor {
 	using Json = nlohmann::ordered_json;
 public:
+	using UserSet = std::unordered_set<std::string, SlHelpers::String::Hash,
+	      SlHelpers::String::Eq>;
+
 	BranchProcessor() = delete;
 
 	BranchProcessor(const std::string &branch,
@@ -37,10 +43,12 @@ public:
 			const SlGit::Repo &repo,
 			F2CSQLConn &sql,
 			const Opts &opts,
-			const std::optional<Json> &configuration) :
+			const std::optional<Json> &configuration,
+			const UserSet &validUsers) :
 		m_branch(branch), m_notifier(notifier), m_scratchArea(scratchArea),
 		m_expandedDir(getExpandedDir()), m_branchesProps(branchesProps),
-		m_repo(repo), m_sql(sql), m_opts(opts), m_configuration(configuration) { }
+		m_repo(repo), m_sql(sql), m_opts(opts), m_configuration(configuration),
+		m_validUsers(validUsers) { }
 
 	void process() {
 		auto commit = checkout();
@@ -68,6 +76,7 @@ private:
 			  const Kconfig::Config::Configs &configs,
 			  const EnabledConfigMap &enabledConfigs);
 
+	bool isValidUser(std::string_view email);
 	void processAuthors(const SlGit::Commit &commit);
 	void processInternal(SlGit::Commit &commit);
 
@@ -80,6 +89,7 @@ private:
 	F2CSQLConn &m_sql;
 	const Opts &m_opts;
 	const std::optional<Json> &m_configuration;
+	const UserSet &m_validUsers;
 };
 
 } // namespace

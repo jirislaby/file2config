@@ -37,6 +37,8 @@ def handleArgs() -> dict:
                         default='1, 2, 3')
     parser.add_argument('--order-ignored-file-branch', help='order of the output of ignored_file_branch_map',
                         default='1, 2')
+    parser.add_argument('--order-user-file', help='order of the output of user_file_map',
+                        default='1, 2, 3')
     parser.add_argument('-I', '--ignore', action='append', help='ignore these branches')
     parser.add_argument('old-db', help="database prefixed with '-' in the output")
     parser.add_argument('new-db', help="database prefixed with '+' in the output")
@@ -55,6 +57,7 @@ def handleArgs() -> dict:
     result['order-module_file_map_view'] = checkOrder(args.order_module_file)
     result['order-module_details_map_view'] = checkOrder(args.order_module_details)
     result['order-ignored_file_branch_map_view'] = checkOrder(args.order_ignored_file_branch)
+    result['order-user_file_map_view'] = checkOrder(args.order_user_file)
     result['branches'] = args.branch
     result['ignores'] = args.ignore
     result['old-db'] = getattr(args, 'old-db')
@@ -139,6 +142,7 @@ def compareDBs(cur : sqlite3.Cursor, opts : dict):
     compareTables('module_file_map_view', 'branch, module, path', cur, opts)
     compareTables('module_details_map_view', 'branch, module, supported', cur, opts)
     compareTables('ignored_file_branch_map_view', 'branch, path', cur, opts)
+    compareTables('user_file_map_view', 'branch, email, path', cur, opts)
 
 opts = handleArgs()
 

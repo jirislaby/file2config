@@ -12,6 +12,7 @@
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/Process.h>
 #include <sl/helpers/PushD.h>
+#include <sl/kerncvs/LDAP.h>
 #include <sl/kerncvs/SupportedConf.h>
 #include <sl/sqlite/SQLConn.h>
 
@@ -168,16 +169,13 @@ std::optional<Json> loadConfiguration(const Opts &opts)
 	return json;
 }
 
-BranchProcessor::UserSet loadValidUsers(const Opts &opts)
+SlKernCVS::LDAPUsers::UserSet loadValidUsersFromFile(const std::filesystem::path &file)
 {
-	if (opts.authorsValidUsers.empty())
-		return {};
-
-	BranchProcessor::UserSet validUsers;
-	std::ifstream ifs{opts.authorsValidUsers};
+	std::ifstream ifs{file};
 	if (!ifs)
-		RunEx("Cannot open valid users file ") << opts.authorsValidUsers << ": " <<
-			strerror(errno) << raise;
+		RunEx("Cannot open valid users file ") << file << ": " << strerror(errno) << raise;
+
+	SlKernCVS::LDAPUsers::UserSet validUsers;
 
 	for (std::string line; std::getline(ifs, line); ) {
 		line = SlHelpers::String::trim(line);
@@ -187,6 +185,33 @@ BranchProcessor::UserSet loadValidUsers(const Opts &opts)
 	}
 
 	return validUsers;
+}
+
+SlKernCVS::LDAPUsers::UserSet loadValidUsersFromLDAP(const std::filesystem::path &passwordFile)
+{
+	std::string passwd;
+	{
+		std::ifstream ifs{passwordFile};
+		if (!ifs)
+			RunEx("Cannot open LDAP password file users file ") << passwordFile <<
+				": " << strerror(errno) << raise;
+		std::getline(ifs, passwd);
+	}
+
+	SlKernCVS::LDAPUsers ldap("cn=svc-labs-ldap-outpost,ou=users,dc=suse,dc=com", passwd);
+
+	return std::move(ldap).userSet();
+}
+
+SlKernCVS::LDAPUsers::UserSet loadValidUsers(const Opts &opts)
+{
+	if (!opts.authorsValidUsers.empty())
+		return loadValidUsersFromFile(opts.authorsValidUsers);
+
+	if (!opts.authorsLDAPPasswordFile.empty())
+		return loadValidUsersFromLDAP(opts.authorsLDAPPasswordFile);
+
+	return {};
 }
 
 bool skipBranch(F2CSQLConn &sql, const std::string &branch, bool force)

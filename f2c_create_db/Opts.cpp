@@ -35,7 +35,9 @@ Opts Opts::getOpts(int argc, char **argv)
 		("authors-report-unhandled", "report unhandled lines to stdout",
 			cxxopts::value(opts.authorsReportUnhandled)->default_value("false"))
 		("authors-valid-users", "list of valid users (insert only these into the db)",
-			cxxopts::value(opts.authorsValidUsers));
+			cxxopts::value(opts.authorsValidUsers))
+		("authors-LDAP-password-file", "file containting the password to the SUSE LDAP",
+			cxxopts::value(opts.authorsLDAPPasswordFile));
 	;
 	options.add_options("files")
 		("configuration", "path to JSON containing configuration to be used",

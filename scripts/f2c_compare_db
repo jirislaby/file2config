@@ -163,3 +163,5 @@ with closing(sqlite3.connect(f"file:{opts['old-db']}?mode=ro", uri=True)) as db:
             compareDBs(cur, opts)
         except BrokenPipeError:
             pass
+        except KeyboardInterrupt:
+            pass

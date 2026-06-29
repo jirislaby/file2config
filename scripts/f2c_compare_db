@@ -40,6 +40,7 @@ def handleArgs() -> dict:
     parser.add_argument('--order-user-file', help='order of the output of user_file_map',
                         default='1, 2, 3')
     parser.add_argument('-I', '--ignore', action='append', help='ignore these branches')
+    parser.add_argument('-s', '--stats', action='store_true', help='print only stats')
     parser.add_argument('old-db', help="database prefixed with '-' in the output")
     parser.add_argument('new-db', help="database prefixed with '+' in the output")
     args = parser.parse_args()
@@ -60,6 +61,7 @@ def handleArgs() -> dict:
     result['order-user_file_map_view'] = checkOrder(args.order_user_file)
     result['branches'] = args.branch
     result['ignores'] = args.ignore
+    result['stats'] = args.stats
     result['old-db'] = getattr(args, 'old-db')
     result['new-db'] = getattr(args, 'new-db')
 
@@ -103,15 +105,20 @@ def compareTablesDir(added : bool, old : str, new : str, table: str, columns : s
 
     for row in cur.execute(selStr, params):
         changedBranches[row[0]] = changedBranches.get(row[0], 0) + 1
-        cprint(f'{prefix}{",".join(map(str, row))}', color)
+        if not opts['stats']:
+            cprint(f'{prefix}{",".join(map(str, row))}', color)
 
 def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict):
-    cprint(f'=== Comparing "{table}" ===', 'light_green')
+    if not opts['stats']:
+        cprint(f'=== Comparing "{table}" ===', 'light_green')
     changedBranches : dict[str, int] = {}
     compareTablesDir(False, '', 'new.', table, columns, cur, opts, changedBranches)
     compareTablesDir(True, 'new.', '', table, columns, cur, opts, changedBranches)
     changes = [ f'{k} ({changedBranches[k]})' for k in changedBranches ]
-    print(f'Changed branches: {", ".join(changes)}')
+    if opts['stats']:
+        print(f'{table}: {", ".join(changes)}')
+    else:
+        print(f'Changed branches: {", ".join(changes)}')
 
 def getSHANote(sha : str | None, note: str, noteToAdd : str) -> tuple[str, str]:
     if sha is None:
@@ -136,6 +143,8 @@ def dumpSHAs(cur : sqlite3.Cursor):
 
 def compareDBs(cur : sqlite3.Cursor, opts : dict):
     dumpSHAs(cur)
+    if opts['stats']:
+        cprint('=== Stats ===', 'light_green')
     compareTables('file_support_map_view', 'branch, path, enabled, supported', cur, opts)
     compareTables('conf_file_map_view', 'branch, config, path', cur, opts)
     compareTables('conf_branch_map_view', 'branch, flavor, arch, config, value', cur, opts)

@@ -116,7 +116,8 @@ def compareTables(table : str, columns : str, cur : sqlite3.Cursor, opts : dict)
     compareTablesDir(True, 'new.', '', table, columns, cur, opts, changedBranches)
     changes = [ f'{k} ({changedBranches[k]})' for k in changedBranches ]
     if opts['stats']:
-        print(f'{table}: {", ".join(changes)}')
+        if changes:
+            print(f'{table}: {", ".join(changes)}')
     else:
         print(f'Changed branches: {", ".join(changes)}')
 

@@ -4,6 +4,8 @@
 #include <cxxopts.hpp>
 #include <chrono>
 #include <iostream>
+#include <string>
+#include <variant>
 
 #include <sl/curl/Curl.h>
 #include <sl/git/Git.h>
@@ -13,7 +15,6 @@
 #include <sl/helpers/Misc.h>
 #include <sl/helpers/String.h>
 #include <sl/sqlite/SQLConn.h>
-#include <string>
 
 #include "OutputFormatter.h"
 
@@ -348,15 +349,16 @@ void selectConfigQuery(const Opts &opts, const F2CSQLConn &sql, const std::files
 	for (auto &conf: *res) {
 		auto branch = std::get<std::string>(std::move(conf[0]));
 		auto config = std::get<std::string>(std::move(conf[1]));
+		auto hasModule = std::holds_alternative<std::string>(conf[3]);
 		std::filesystem::path mod;
-		if (opts.module || opts.json) {
+		if (hasModule && (opts.module || opts.json)) {
 			mod = std::get<std::string>(std::move(conf[2]));
 			mod /= std::get<std::string>(std::move(conf[3]));
 		}
 		std::filesystem::path oldFile = std::get<std::string>(std::move(conf[4]));
 		oldFile /= std::get<std::string>(std::move(conf[5]));
-		auto modSupport = std::get<int>(conf[8]);
-		auto modSupportText = std::get<std::string>(conf[9]);
+		auto modSupport = hasModule ? std::get<int>(conf[8]) : 0;
+		auto modSupportText = hasModule ? std::get<std::string>(conf[9]) : "";
 		opts.formatter->addConfig(oldFile, branch, config, mod, modSupport, modSupportText);
 
 		auto branchID = std::get<int>(conf[6]);

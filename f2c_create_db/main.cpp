@@ -55,8 +55,6 @@ std::filesystem::path prepareScratchArea(const Opts &opts)
 
 SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 {
-	static const std::string kerncvs { "jslaby@kerncvs.suse.de:/srv/git/kernel-source.git" };
-
 	auto ourKsourceGit = scratchArea / "kernel-source";
 
 	if (std::filesystem::exists(ourKsourceGit)) {
@@ -65,7 +63,8 @@ SlGit::Repo prepareKsourceGit(const std::filesystem::path &scratchArea)
 		RunEx(__func__) << ": cannot open: " << SlGit::Repo::lastError() << raise;
 	}
 
-	auto repo = SlGit::Repo::init(ourKsourceGit, false, kerncvs);
+	auto repo = SlGit::Repo::init(ourKsourceGit, false,
+				      "git://kerncvs.suse.de/kernel-source.git");
 	if (!repo)
 		RunEx(__func__) << ": cannot init: " << SlGit::Repo::lastError() << raise;
 

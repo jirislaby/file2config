@@ -10,6 +10,7 @@
 #include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/PatchesAuthors.h>
 
+#include "parser/kconfig/Config.h"
 #include "parser/kconfig/Parser.h"
 #include "treewalker/SQLiteMakeVisitor.h"
 #include "treewalker/TreeWalker.h"
@@ -78,15 +79,41 @@ void BranchProcessor::expand()
 				   " (" << P.exitStatus() << ')' << raise;
 }
 
-void BranchProcessor::insertConfigSQL(const Kconfig::Parser &p, Kconfig::Config::Configs &configs)
+bool constexpr BranchProcessor::betterConfig(Kconfig::ConfType oldType, Kconfig::ConfType newType)
 {
-	p.walkConfigs([this, &configs](auto conf, auto type) {
+	using CT = Kconfig::ConfType;
+
+	return (oldType == CT::Bool || oldType == CT::DefBool) &&
+		(newType == CT::Tristate || newType == CT::DefTristate);
+}
+
+void BranchProcessor::insertConfig(const Kconfig::Parser &p, Kconfig::Config::Configs &configs)
+{
+	p.walkConfigs([&configs](auto conf, auto type) {
 		auto realConf = "CONFIG_" + conf;
-		if (!m_sql.insertConfig(realConf, static_cast<unsigned>(type)))
+		auto [it, inserted] = configs.try_emplace(realConf, type);
+		if (inserted)
+			return;
+		// For example KVM is defined both as a bool and tristate in different Kconfigs,
+		// so we need to store the "better" one (tristate).
+		if (betterConfig(it->second, type)) {
+			if (F2C::verbose > 1)
+				std::cout << "Config " << std::quoted(realConf) <<
+					" type changed from " <<
+					Kconfig::Config::getName(it->second) << " to " <<
+					Kconfig::Config::getName(type) << '\n';
+			it->second = type;
+		}
+	});
+}
+
+void BranchProcessor::insertConfigsToSQL(const Kconfig::Config::Configs &configs)
+{
+	for (const auto &[conf, type]: configs) {
+		if (!m_sql.insertConfig(conf, static_cast<unsigned>(type)))
 			RunEx("Cannot insert config '") << conf << "': " << m_sql.lastError() <<
 							   raise;
-		configs.emplace(std::move(realConf), type);
-	});
+	}
 }
 
 Kconfig::Config::Configs BranchProcessor::parseKconfigs()
@@ -122,8 +149,10 @@ Kconfig::Config::Configs BranchProcessor::parseKconfigs()
 		if (!p.parse(path, false))
 			RunEx("Cannot parse: ") << path << raise;
 
-		insertConfigSQL(p, configs);
+		insertConfig(p, configs);
 	}
+
+	insertConfigsToSQL(configs);
 
 	return configs;
 }

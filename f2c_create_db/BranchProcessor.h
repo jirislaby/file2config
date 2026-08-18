@@ -64,7 +64,9 @@ private:
 	void expand();
 
 	Kconfig::Config::Configs parseKconfigs();
-	void insertConfigSQL(const Kconfig::Parser &p, Kconfig::Config::Configs &configs);
+	static bool constexpr betterConfig(Kconfig::ConfType oldType, Kconfig::ConfType newType);
+	static void insertConfig(const Kconfig::Parser &p, Kconfig::Config::Configs &configs);
+	void insertConfigsToSQL(const Kconfig::Config::Configs &configs);
 	static void addConfig(EnabledConfigMap &enabledConfigs, const std::string &key,
 			      SlKernCVS::ConfigValue newVal);
 	EnabledConfigMap processConfigs(const SlGit::Commit &commit,

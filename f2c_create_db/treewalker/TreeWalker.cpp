@@ -317,7 +317,7 @@ TreeWalker::includesInCSource(const std::filesystem::path &srcPath)
 		include.remove_prefix(1);
 		include = SlHelpers::String::trim(include);
 
-		static const constexpr std::string_view includePrefix = "include ";
+		static const constexpr std::string_view includePrefix = "include";
 		if (!include.starts_with(includePrefix))
 			continue;
 

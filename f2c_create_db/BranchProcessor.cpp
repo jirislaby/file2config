@@ -9,6 +9,7 @@
 #include <sl/helpers/PushD.h>
 #include <sl/kerncvs/CollectConfigs.h>
 #include <sl/kerncvs/PatchesAuthors.h>
+#include <sl/kerncvs/SupportedConf.h>
 
 #include "parser/kconfig/Config.h"
 #include "parser/kconfig/Parser.h"
@@ -258,6 +259,31 @@ EnabledConfigMap BranchProcessor::processConfigs(const SlGit::Commit &commit,
 	return enabledConfigs;
 }
 
+void BranchProcessor::addRustIgnores()
+{
+	const auto rustDir = m_expandedDir / "rust";
+	if (!std::filesystem::exists(rustDir))
+		return;
+
+	for (const auto &dirent: std::filesystem::recursive_directory_iterator(rustDir)) {
+		if (!dirent.is_regular_file())
+			continue;
+
+		const auto path = dirent.path();
+		if (path.extension() != ".rs")
+			continue;
+
+		const auto relPath = path.lexically_relative(m_expandedDir).lexically_normal();
+		auto dirFile = m_sql.insertPath(relPath);
+		if (!dirFile || !m_sql.insertFSMap(m_branch, std::move(dirFile->first),
+                                         std::move(dirFile->second),
+					 std::string(1, static_cast<char>(SlKernCVS::ConfigValue::Disabled)),
+					 std::nullopt,
+                                         static_cast<int>(SlKernCVS::SupportState::NonPresent)))
+			RunEx("cannot insert FSMap: ") << m_sql.lastError() << raise;
+	}
+}
+
 void BranchProcessor::processInternal(SlGit::Commit &commit)
 {
 	m_sql.begin();
@@ -282,6 +308,9 @@ void BranchProcessor::processInternal(SlGit::Commit &commit)
 
 		m_notifier.notify("Parsing Kbuilds");
 		parseKbuilds(supp, configs, enabledConfigs);
+
+		m_notifier.notify("Adding Rust files");
+		addRustIgnores();
 
 		m_notifier.notify("Detecting authors of patches");
 		processAuthors(commit);

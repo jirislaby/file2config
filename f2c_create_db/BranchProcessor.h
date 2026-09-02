@@ -77,6 +77,7 @@ private:
 
 	bool isValidUser(std::string_view email);
 	void processAuthors(const SlGit::Commit &commit);
+	void addRustIgnores();
 	void processInternal(SlGit::Commit &commit);
 
 	const std::string &m_branch;

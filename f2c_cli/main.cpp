@@ -482,10 +482,13 @@ void handleEx(int argc, char **argv)
 		RunEx("Unable to create a cache dir") << raise;
 
 	if (!opts.hasSqlite) {
+		static const std::string cfm = "https://kss.prg2.suse.org/ckf/conf_file_map.sqlite";
 		opts.sqlite = SlCurl::LibCurl::fetchFileIfNeeded(SGMCacheDir / "conf_file_map.sqlite",
-								 "https://kerncvs.suse.de/conf_file_map.sqlite",
+								 cfm,
 								 opts.refresh, false,
 								 std::chrono::days{7});
+		if (opts.sqlite.empty())
+			RunEx("Unable to fetch conf_file_map.sqlite").raise();
 	}
 
 	F2CSQLConn sql;

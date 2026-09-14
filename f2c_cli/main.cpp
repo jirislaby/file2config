@@ -175,6 +175,7 @@ private:
 };
 
 struct Opts {
+	bool onlyRefresh;
 	bool refresh;
 
 	std::filesystem::path kernelTree;
@@ -202,6 +203,8 @@ Opts getOpts(int argc, char **argv)
 	Opts opts {};
 	options.add_options()
 		("h,help", "Print this help message")
+		("only-refresh", "Only try to refresh the db file and exit",
+			cxxopts::value(opts.onlyRefresh)->default_value("false"))
 		("r,refresh", "Refresh the db file",
 			cxxopts::value(opts.refresh)->default_value("false"))
 	;
@@ -475,8 +478,6 @@ void handleEx(int argc, char **argv)
 {
 	auto opts = getOpts(argc, argv);
 
-	setFormatter(opts);
-
 	const auto SGMCacheDir = SlHelpers::HomeDir::createCacheDir("suse-get-maintainers");
 	if (SGMCacheDir.empty())
 		RunEx("Unable to create a cache dir") << raise;
@@ -490,6 +491,11 @@ void handleEx(int argc, char **argv)
 		if (opts.sqlite.empty())
 			RunEx("Unable to fetch conf_file_map.sqlite").raise();
 	}
+
+	if (opts.onlyRefresh)
+		return;
+
+	setFormatter(opts);
 
 	F2CSQLConn sql;
 	if (!sql.open(opts.sqlite, SlSqlite::OpenFlags::READ_ONLY))

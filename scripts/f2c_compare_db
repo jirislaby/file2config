@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import argparse
-from contextlib import closing
 import locale
 import os
 import sqlite3
 import sys
-from termcolor import cprint, colored
+from contextlib import closing
 
-#from pprint import pp
+from termcolor import colored, cprint
 
 locale.setlocale(locale.LC_ALL, 'C.UTF-8')
 
@@ -93,9 +92,6 @@ def compareTablesDir(added : bool, old : str, new : str, table: str, columns : s
     sel.append(f'ORDER BY {opts["order-" + table]}')
     selStr = ' '.join(sel)
 
-    #pp(selStr)
-    #pp(params)
-
     if added:
         prefix = '+'
         color = 'green'
@@ -157,12 +153,12 @@ def compareDBs(cur : sqlite3.Cursor, opts : dict):
 opts = handleArgs()
 
 with closing(sqlite3.connect(f"file:{opts['old-db']}?mode=ro", uri=True)) as db:
-    with closing(db.cursor()) as cur:
-        cur.execute('PRAGMA foreign_keys = ON;')
-        cur.execute('ATTACH ? AS new;', (opts['new-db'],))
-        try:
-            compareDBs(cur, opts)
-        except BrokenPipeError:
-            pass
-        except KeyboardInterrupt:
-            pass
+    cur = db.cursor()
+    cur.execute('PRAGMA foreign_keys = ON;')
+    cur.execute('ATTACH ? AS new;', (opts['new-db'],))
+    try:
+        compareDBs(cur, opts)
+    except BrokenPipeError:
+        pass
+    except KeyboardInterrupt:
+        pass

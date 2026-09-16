@@ -1,0 +1,79 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: GPL-2.0-only
+
+import argparse
+import sqlite3
+import subprocess
+from contextlib import closing
+from pathlib import Path
+
+DEFAULT_DB = Path("~/.cache/suse-get-maintainers/conf_file_map.sqlite").expanduser()
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Change paths in a patch according to a renames in the DB file")
+    parser.add_argument("-b", "--branch", help="branch to port to (default: current GIT branch)")
+    parser.add_argument("--db", help="database file (default: suse-get-maintainers' cached DB)",
+                        type=Path,
+                        default=DEFAULT_DB)
+    parser.add_argument("patch", nargs='+', help="patch file to process")
+    return parser.parse_args()
+
+def get_branch(branch: str | None) -> str:
+    if branch is not None:
+        return branch
+
+    import pygit2
+
+    repo = pygit2.Repository(".")
+    tree = repo[repo.head.target].tree
+    if 'patches.rpmify' not in tree:
+        raise RuntimeError("Not in a kernel-source repository, specify the target branch with -b")
+    return repo.head.shorthand
+
+def get_renamed(cur: sqlite3.Cursor, branch: str, file: Path) -> Path:
+    cur.execute("""
+                SELECT olddir.dir, oldfile.file
+                        FROM rename_file_version_map AS map
+                        LEFT JOIN file AS oldfile ON map.oldfile = oldfile.id
+                        LEFT JOIN dir AS olddir ON oldfile.dir = olddir.id
+                        WHERE map.version = (SELECT version FROM branch WHERE branch = :branch) AND
+                        map.newfile = (SELECT file.id
+                                FROM file
+                                LEFT JOIN dir ON file.dir = dir.id
+                                WHERE dir.dir = :newdir AND file.file = :newfile);
+                """, { 'branch': branch, 'newdir': str(file.parent), 'newfile': str(file.name) })
+    renames = cur.fetchone()
+    if renames is not None:
+        return Path(renames["dir"]) / renames["file"]
+    return file
+
+def fix_renames(cur: sqlite3.Cursor, branch: str, patches: list[str]) -> None:
+    print(f"Fixing for branch: {branch}")
+    for patch_file in patches:
+        print(f"Fixing patch: {patch_file}")
+        with open(patch_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        with open(patch_file, "w", encoding="utf-8") as f:
+            for line in lines:
+                if not line.startswith(("--- a/", "+++ b/")):
+                    f.write(line)
+                    continue
+
+                prefix = line[:6]
+                file = Path(line[6:].strip())
+                renamed_file = get_renamed(cur, branch, file)
+                if renamed_file != file:
+                    print(f"\t{file} -> {renamed_file}")
+                f.write(f"{prefix}{renamed_file}\n")
+
+args = parse_args()
+
+if args.db == DEFAULT_DB:
+    subprocess.run(["f2c_cli", "--only-refresh"], check=True)
+
+print(f"Using database: {args.db}")
+with closing(sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)) as db:
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+    fix_renames(cur, get_branch(args.branch), args.patch)

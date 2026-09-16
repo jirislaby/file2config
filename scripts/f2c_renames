@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--db", help="database file (default: suse-get-maintainers' cached DB)",
                         type=Path,
                         default=DEFAULT_DB)
+    parser.add_argument("-q", "--quiet", help="suppress output", action="store_true")
     parser.add_argument("patch", nargs='+', help="patch file to process")
     return parser.parse_args()
 
@@ -47,10 +48,14 @@ def get_renamed(cur: sqlite3.Cursor, branch: str, file: Path) -> Path:
         return Path(renames["dir"]) / renames["file"]
     return file
 
-def fix_renames(cur: sqlite3.Cursor, branch: str, patches: list[str]) -> None:
-    print(f"Fixing for branch: {branch}")
+def fix_renames(quiet: bool, cur: sqlite3.Cursor, branch: str, patches: list[str]) -> None:
+    if not quiet:
+        print(f"Fixing for branch: {branch}")
     for patch_file in patches:
-        print(f"Fixing patch: {patch_file}")
+        printed_header = False
+        if not quiet:
+            print(f"Fixing patch: {patch_file}")
+            printed_header = True
         with open(patch_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
@@ -64,16 +69,21 @@ def fix_renames(cur: sqlite3.Cursor, branch: str, patches: list[str]) -> None:
                 file = Path(line[6:].strip())
                 renamed_file = get_renamed(cur, branch, file)
                 if renamed_file != file:
+                    if not printed_header:
+                        print(f"Fixing patch: {patch_file}")
+                        printed_header = True
                     print(f"\t{file} -> {renamed_file}")
                 f.write(f"{prefix}{renamed_file}\n")
 
 args = parse_args()
+quiet = args.quiet
 
 if args.db == DEFAULT_DB:
     subprocess.run(["f2c_cli", "--only-refresh"], check=True)
 
-print(f"Using database: {args.db}")
+if not quiet:
+    print(f"Using database: {args.db}")
 with closing(sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)) as db:
     db.row_factory = sqlite3.Row
     cur = db.cursor()
-    fix_renames(cur, get_branch(args.branch), args.patch)
+    fix_renames(quiet, cur, get_branch(args.branch), args.patch)

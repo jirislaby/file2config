@@ -136,7 +136,7 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 
 	class TargetVisitor : public MP::EntryVisitor {
 	public:
-		TargetVisitor(TreeWalker &TW, const CondStack &s,
+		TargetVisitor(TreeWalker &TW, CondStack &s,
 			      const std::filesystem::path &objPath,
 			      std::string_view lookingFor, bool &found)
 			: TW(TW), s(s), objPath(objPath), lookingFor(lookingFor), found(found) {}
@@ -176,9 +176,17 @@ bool TreeWalker::tryHandleTarget(CondStack s, const std::filesystem::path &objPa
 		virtual std::vector<std::string> getVariable(const std::string &id) const override {
 			return TW.getVariable(id);
 		}
+
+		virtual void enterConditional(std::string &&cond) const override {
+			s.emplace_back(std::move(cond));
+		}
+
+		virtual void exitConditional() const override {
+			s.pop_back();
+		}
 	private:
 		TreeWalker &TW;
-		const CondStack &s;
+		CondStack &s;
 		const std::filesystem::path &objPath;
 		std::string_view lookingFor;
 		bool &found;
